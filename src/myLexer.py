@@ -85,7 +85,7 @@ class MyLexer(object):
 
     ## IDENTIFIER -> ALPHA { ALPHANUMERIC or DOT or UNDERSCORE }
     def t_IDENTIFIER(self, t):
-        '[A-Za-z_$][A-Za-z0-9_.]*'
+        '[A-Za-z_][A-Za-z0-9_.]*'
         if t.value in MyLexer.keywords:
             t.type = t.value.upper()
         return t
@@ -100,4 +100,5 @@ class MyLexer(object):
 
     def t_error(self, t):
         print("Illegal character '{}' ({}) in line {}".format(t.value[0], hex(ord(t.value[0])), t.lexer.lineno))
-        t.lexer.skip(1)
+        exit("Program exits ...")
+        #t.lexer.skip(1)
