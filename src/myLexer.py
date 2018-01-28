@@ -54,38 +54,27 @@ class MyLexer(object):
 
     ## STRING LITERAL -> "SOME TEXT"
     def t_STRING_LITERAL(self, t):
-        r'\"[^\\\n"]*["\\\n]'
-        if t.value.endswith('\n'):
-            t_error(t)
-        else:
-            t.value = t.value[1:-1]
+        r'\"([^\\\n]|(\\.))*?\"'
         return t
 
     ## FLOAT_LITERAL -> NUM DOT NUM [ EXPONENT PART ]
     def t_FLOAT_LITERAL(self, t):
         r'\d+\.\d+[e|E]?[+|-]?\d+'
-        ## Should I report an error here in case of any overflows?
-        t.value = float(t.value)
         return t
 
     ## BOOLEAN LITERAL -> either TRUE or FALSE
     def t_BOOLEAN_LITERAL(self, t):
         r'true|false'
-        if t.value == 'true':
-            t.value = True
-        else:
-            t.value = False
         return t
 
     ## INTEGER LITERAL -> NUM
     def t_INTEGER_LITERAL(self, t):
         r'\d+'
-        t.value = int(t.value)
         return t
 
-    ## IDENTIFIER -> ALPHA { ALPHANUMERIC or DOT or UNDERSCORE }
+    ## IDENTIFIER -> ALPHA { ALPHANUMERIC or UNDERSCORE }
     def t_IDENTIFIER(self, t):
-        '[A-Za-z_][A-Za-z0-9_.]*'
+        '[A-Za-z_][A-Za-z0-9_]*'
         if t.value in MyLexer.keywords:
             t.type = t.value.upper()
         return t
@@ -101,4 +90,3 @@ class MyLexer(object):
     def t_error(self, t):
         print("Illegal character '{}' ({}) in line {}".format(t.value[0], hex(ord(t.value[0])), t.lexer.lineno))
         exit("Program exits ...")
-        #t.lexer.skip(1)
