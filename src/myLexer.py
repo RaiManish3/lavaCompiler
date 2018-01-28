@@ -59,7 +59,7 @@ class MyLexer(object):
 
     ## FLOAT_LITERAL -> NUM DOT NUM [ EXPONENT PART ]
     def t_FLOAT_LITERAL(self, t):
-        r'\d+\.\d+[e|E]?[+|-]?\d+'
+        r'\d+\.\d+([eE][-+]?\d+)?'
         return t
 
     ## BOOLEAN LITERAL -> either TRUE or FALSE
