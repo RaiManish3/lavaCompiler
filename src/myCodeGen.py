@@ -24,7 +24,7 @@ class SymbolClass(object):
         self.scope = scope
 
 def populateBlock():
-
+    pass
 
 def setLocation():
     pass
@@ -41,59 +41,66 @@ def getReg():
 def nextUse():
     pass
 
-## Read the input IR file
-def getFilename():
-    pass
-
-def populateIR():
-    pass
-
 def populateNextUseTable():
+    pass
 
 def makeVarList():
+    ## assuming only global variables
+    for ir in irlist:
+        pass
+    
 
+def populateIR(filename):
+    with open(filename, 'r') as infile:
+        for line in infile:
+            irlist.append(line.strip())
+
+def getFilename():
+    argParser = argparse.ArgumentParser(description='Provide the IR code filename')
+    argParser.add_argument('filename', type=str, help="./codegen filename.ir")
+    args = argParser.parse_args()
+    return args.filename
 
 def main():
+    filename = getFilename()
+    populateIR(filename)
 
-    ##input
-    ## 
-    ##
-    irlist =[]
-    leaders = [1]
     for ir in irlist:
         #function is skipped till doubt is cleared
 
-        ir = ir.split(', ')
-        if ir[1] is 'ifgoto' or 'goto':
+        ir = ir.strip().split(', ')
+        if ir[1] in ['ifgoto', 'goto']:
             leaders.append(ir[0]+1)
-            if ir[1] is 'ifgoto':
+            if ir[1] == 'ifgoto':
                 leaders.append(ir[5])
             else:
-
                 leaders.append(ir[2])
-        elif ir[1] is 'label':
-            pass
-            # this portion is skipped
-            leaders.append(ir[0]+1)
 
-    blocks = { l:irlist[l-1:&&&next] for l in leaders }
+        elif ir[1] == 'label':
+            leaders.append(ir[0]+1) ## doubt here
 
-    
-    #lets make variable list and populate addess descriptor
-    
+    tIRList = len(irlist)
+    ## blocks == leader : instr block
+    blocks = { x:irlist[x:y] for (x,y) in zip(leaders, leaders[1:]+[tIRList]) }
 
 
 """
     Structures
 """
 
-reglist = ['%eax', '%ebx','%ecx','%edx']
-registers = {}
+if __name__ == "__main__":
+    reglist = ['%eax', '%ebx','%ecx','%edx']
+    registers = {}
 
-addressDescriptor = {}
-nextUseTable = [] 
+    addressDescriptor = {}
+    nextUseTable = [] 
 
-instructionList = []
-leaders = []
+    instrList = []
+    irlist =[]
 
-nodes = []
+    leaders = [1,]
+    varlist = []
+
+    nodes = []
+
+    main()
