@@ -16,12 +16,14 @@
     9, ret
     
 """
+
+from copy import copy
+
 class SymbolClass(object):
-    def __init__(self, name, typ, scope):
-        self.name = name
-        self.value = value
+    def __init__(self, typ, status,something):
         self.typ = typ
-        self.scope = scope
+        self.status=status 
+        self.something = something
 
 def populateBlock():
     pass
@@ -42,9 +44,51 @@ def nextUse():
     pass
 
 def populateNextUseTable():
-    for index,block in blocks.items():
+    for index,b in blocks.items():
+        block = b.copy()
         block = block.reverse()
         for b in block:
+            nextUseTable[b[0]] = {var:symTable[var] for var in varlist}
+            # INSTRUCTION NUMBER NEEDED
+            if b[1] is '=':
+                symTable[b[2]].status = stat.DEAD
+                symTable[b[3]].status = stat.LIVE
+            elif b[1] in arithOp:
+                symTable[b[2]].status = stat.DEAD
+                symTable[b[3]].status = stat.LIVE
+                symTable[b[4]].status = stat.LIVE
+            elif b[1] is 'ifgoto'
+                symTable[b
+            #add other if else statements also
+            
+    
+
+def makeVarList():
+    ## assuming only global variables
+    for ir in irlist:
+        pass
+    
+
+def populateIR(filename):
+    with open(filename, 'r') as infile:
+        for line in infile:
+            irlist.append(line.strip())
+
+def getFilename():
+    argParser = argparse.ArgumentParser(description='Provide the IR code filename')
+    argParser.add_argument('filename', type=str, help="./codegen filename.ir")
+    args = argParser.parse_args()
+    return args.filename
+
+def main():
+    filename = getFilename()
+    populateIR(filename)
+
+
+            elif b[1] is 'ifgoto'
+
+            #add other if else statements also
+
             
     
 
@@ -95,6 +139,7 @@ def main():
 if __name__ == "__main__":
     reglist = ['%eax', '%ebx','%ecx','%edx']
     registers = {}
+    arithOp = ['+','-','%','/','*'] 
 
     addressDescriptor = {}
     nextUseTable = [] 
@@ -105,6 +150,8 @@ if __name__ == "__main__":
     leaders = [1,]
     varlist = []
 
+    symtable = {} 
     nodes = []
 
     main()
+    
