@@ -49,14 +49,18 @@ def populateIR():
     pass
 
 def populateNextUseTable():
+    for index,block in blocks.items():
+        block = block.reverse()
+        for b in block:
+            
+    
 
 def makeVarList():
 
 
 def main():
 
-    ##input
-    ## 
+    ##input ## 
     ##
     irlist =[]
     leaders = [1]
