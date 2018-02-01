@@ -16,10 +16,13 @@
     9, ret
     
 """
+
+
 import sys
 sys.path.extend(['..','.'])
 
-from include import utility
+from copy import copy
+from includes import utility
 from enum import Enum
 
 class stat(Enum):
@@ -51,7 +54,59 @@ def nextUse():
     pass
 
 def populateNextUseTable():
-    pass
+    for index,b in blocks.items():
+        block = b.copy()
+        block = block.reverse()
+        for b in block:
+            nextUseTable[b[0]] = {var:symTable[var] for var in varlist}
+            # INSTRUCTION NUMBER NEEDED
+            if b[1] is '=':
+                symTable[b[2]].status = stat.DEAD
+                if b[3] in varlist: 
+                    symTable[b[3]].status = stat.LIVE
+            elif b[1] in arithOp:
+                symTable[b[2]].status = stat.DEAD
+                if b[3] in varlist:
+                    symTable[b[3]].status = stat.LIVE
+                if b[4] in varlist:
+                    symTable[b[4]].status = stat.LIVE
+            elif b[1] is 'ifgoto':
+                if b[3] in varlist:
+                    symTable[b[3]].status = stat.LIVE
+                if b[4] in varlist:
+                    symTable[b[4]].status = stat.LIVE
+            #add other if else statements also
+            
+    
+
+def makeVarList():
+    ## assuming only global variables
+    for ir in irlist:
+        pass
+    
+
+def populateIR(filename):
+    with open(filename, 'r') as infile:
+        for line in infile:
+            irlist.append(line.strip())
+
+def getFilename():
+    argParser = argparse.ArgumentParser(description='Provide the IR code filename')
+    argParser.add_argument('filename', type=str, help="./codegen filename.ir")
+    args = argParser.parse_args()
+    return args.filename
+
+def main():
+    filename = getFilename()
+    populateIR(filename)
+
+
+            elif b[1] is 'ifgoto'
+
+            #add other if else statements also
+
+            
+    
 
 def genInitialSymbolTable():
     for v in varlist:
@@ -112,6 +167,7 @@ def main():
 if __name__ == "__main__":
     reglist = ['%eax', '%ebx','%ecx','%edx']
     registers = {}
+    arithOp = ['+','-','%','/','*'] 
 
     addressDescriptor = {}
     nextUseTable = [] 
@@ -126,3 +182,4 @@ if __name__ == "__main__":
     nodes = []
 
     main()
+    
