@@ -1,0 +1,2 @@
+def isnumber():
+    pass

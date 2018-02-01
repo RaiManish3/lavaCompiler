@@ -7,8 +7,3 @@ begin
 	count++
 end
 print(count)
-
-
-
--- checking for comment
---$$$$$$
