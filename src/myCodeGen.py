@@ -17,12 +17,22 @@
     
 """
 
+
+import sys
+sys.path.extend(['..','.'])
+
 from copy import copy
+from includes import utility
+from enum import Enum
+
+class stat(Enum):
+    LIVE = 1
+    DEAD = 2
 
 class SymbolClass(object):
-    def __init__(self, typ, status,something):
+    def __init__(self, typ, status, something):
         self.typ = typ
-        self.status=status 
+        self.status = status
         self.something = something
 
 def populateBlock():
@@ -52,13 +62,19 @@ def populateNextUseTable():
             # INSTRUCTION NUMBER NEEDED
             if b[1] is '=':
                 symTable[b[2]].status = stat.DEAD
-                symTable[b[3]].status = stat.LIVE
+                if b[3] in varlist: 
+                    symTable[b[3]].status = stat.LIVE
             elif b[1] in arithOp:
                 symTable[b[2]].status = stat.DEAD
-                symTable[b[3]].status = stat.LIVE
-                symTable[b[4]].status = stat.LIVE
-            elif b[1] is 'ifgoto'
-                symTable[b
+                if b[3] in varlist:
+                    symTable[b[3]].status = stat.LIVE
+                if b[4] in varlist:
+                    symTable[b[4]].status = stat.LIVE
+            elif b[1] is 'ifgoto':
+                if b[3] in varlist:
+                    symTable[b[3]].status = stat.LIVE
+                if b[4] in varlist:
+                    symTable[b[4]].status = stat.LIVE
             #add other if else statements also
             
     
@@ -92,16 +108,30 @@ def main():
             
     
 
+def genInitialSymbolTable():
+    for v in varlist:
+        symTable[v] = SymbolClass(int, stat.LIVE, None)
+
 def makeVarList():
     ## assuming only global variables
     for ir in irlist:
-        pass
+        if ir[1] in ['ifgoto', 'call', 'ret', 'label']:
+            pass
+        else:
+            if len(ir) == 4:
+                varlist.add(ir[2])
+                varlist.add(ir[3])
+            elif len(ir) == 5:
+                varlist.add(ir[2])
+                varlist.add(ir[3])
+                varlist.add(ir[4])
     
 
 def populateIR(filename):
     with open(filename, 'r') as infile:
         for line in infile:
-            irlist.append(line.strip())
+            splitLine =line.strip().split(', ')
+            irlist.append(splitLine)
 
 def getFilename():
     argParser = argparse.ArgumentParser(description='Provide the IR code filename')
@@ -115,8 +145,6 @@ def main():
 
     for ir in irlist:
         #function is skipped till doubt is cleared
-
-        ir = ir.strip().split(', ')
         if ir[1] in ['ifgoto', 'goto']:
             leaders.append(ir[0]+1)
             if ir[1] == 'ifgoto':
@@ -148,9 +176,9 @@ if __name__ == "__main__":
     irlist =[]
 
     leaders = [1,]
-    varlist = []
+    varlist = set()
 
-    symtable = {} 
+    symTable = {}
     nodes = []
 
     main()
