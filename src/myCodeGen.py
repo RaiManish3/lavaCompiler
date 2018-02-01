@@ -16,12 +16,21 @@
     9, ret
     
 """
+import sys
+sys.path.extend(['..','.'])
+
+from include import utility
+from enum import Enum
+
+class stat(Enum):
+    LIVE = 1
+    DEAD = 2
+
 class SymbolClass(object):
-    def __init__(self, name, typ, scope):
-        self.name = name
-        self.value = value
+    def __init__(self, typ, status, something):
         self.typ = typ
-        self.scope = scope
+        self.status = status
+        self.something = something
 
 def populateBlock():
     pass
@@ -44,16 +53,30 @@ def nextUse():
 def populateNextUseTable():
     pass
 
+def genInitialSymbolTable():
+    for v in varlist:
+        symTable[v] = SymbolClass(int, stat.LIVE, None)
+
 def makeVarList():
     ## assuming only global variables
     for ir in irlist:
-        pass
+        if ir[1] in ['ifgoto', 'call', 'ret', 'label']:
+            pass
+        else:
+            if len(ir) == 4:
+                varlist.add(ir[2])
+                varlist.add(ir[3])
+            elif len(ir) == 5:
+                varlist.add(ir[2])
+                varlist.add(ir[3])
+                varlist.add(ir[4])
     
 
 def populateIR(filename):
     with open(filename, 'r') as infile:
         for line in infile:
-            irlist.append(line.strip())
+            splitLine =line.strip().split(', ')
+            irlist.append(splitLine)
 
 def getFilename():
     argParser = argparse.ArgumentParser(description='Provide the IR code filename')
@@ -67,8 +90,6 @@ def main():
 
     for ir in irlist:
         #function is skipped till doubt is cleared
-
-        ir = ir.strip().split(', ')
         if ir[1] in ['ifgoto', 'goto']:
             leaders.append(ir[0]+1)
             if ir[1] == 'ifgoto':
@@ -99,8 +120,9 @@ if __name__ == "__main__":
     irlist =[]
 
     leaders = [1,]
-    varlist = []
+    varlist = set()
 
+    symTable = {}
     nodes = []
 
     main()
