@@ -15,10 +15,10 @@ While in the main directory, execute the following commands:<br>
 
 ### Timeline
 
-1. <b>Task One</b>, <i> 28 Jan 2018 </i>
+1. <b>Task One</b>, <i> 28 Jan 2018 </i><br>
   Build a lexer for the Token
 
-2. <b>Task Two</b>, <i> 5 Feb 2018 </i>
+2. <b>Task Two</b>, <i> 9 Feb 2018 </i><br>
   Build a Code Generator
 
 ### Authors

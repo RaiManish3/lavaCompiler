@@ -1,2 +1,4 @@
 def isnumber(num):
-    return isinstance(num, int)
+    ## improve this for negative numbers
+    ## use regex
+    return num.isdigit()

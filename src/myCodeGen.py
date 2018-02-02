@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 ## TODO 
 """
     1. Symbol table
@@ -21,9 +23,10 @@
 import sys
 sys.path.extend(['..','.'])
 
-from copy import copy
+import copy
 from includes import utility
 from enum import Enum
+import argparse
 
 class stat(Enum):
     LIVE = 1
@@ -55,8 +58,8 @@ def nextUse():
 
 def populateNextUseTable():
     for index,b in blocks.items():
-        block = b.copy()
-        block = block.reverse()
+        block = copy.deepcopy(b)
+        block.reverse()
         for b in block:
             nextUseTable[b[0]] = {var:symTable[var] for var in varlist}
             # INSTRUCTION NUMBER NEEDED
@@ -75,39 +78,10 @@ def populateNextUseTable():
                     symTable[b[3]].status = stat.LIVE
                 if b[4] in varlist:
                     symTable[b[4]].status = stat.LIVE
+            #TODO
             #add other if else statements also
             
     
-
-def makeVarList():
-    ## assuming only global variables
-    for ir in irlist:
-        pass
-    
-
-def populateIR(filename):
-    with open(filename, 'r') as infile:
-        for line in infile:
-            irlist.append(line.strip())
-
-def getFilename():
-    argParser = argparse.ArgumentParser(description='Provide the IR code filename')
-    argParser.add_argument('filename', type=str, help="./codegen filename.ir")
-    args = argParser.parse_args()
-    return args.filename
-
-def main():
-    filename = getFilename()
-    populateIR(filename)
-
-
-            elif b[1] is 'ifgoto'
-
-            #add other if else statements also
-
-            
-    
-
 def genInitialSymbolTable():
     for v in varlist:
         symTable[v] = SymbolClass(int, stat.LIVE, None)
@@ -119,18 +93,24 @@ def makeVarList():
             pass
         else:
             if len(ir) == 4:
-                varlist.add(ir[2])
-                varlist.add(ir[3])
+                if not utility.isnumber(ir[2]):
+                    varlist.add(ir[2])
+                if not utility.isnumber(ir[3]):
+                    varlist.add(ir[3])
             elif len(ir) == 5:
-                varlist.add(ir[2])
-                varlist.add(ir[3])
-                varlist.add(ir[4])
+                if not utility.isnumber(ir[2]):
+                    varlist.add(ir[2])
+                if not utility.isnumber(ir[3]):
+                    varlist.add(ir[3])
+                if not utility.isnumber(ir[4]):
+                    varlist.add(ir[4])
     
 
 def populateIR(filename):
     with open(filename, 'r') as infile:
         for line in infile:
             splitLine =line.strip().split(', ')
+            splitLine[0] = int(splitLine[0])
             irlist.append(splitLine)
 
 def getFilename():
@@ -148,16 +128,31 @@ def main():
         if ir[1] in ['ifgoto', 'goto']:
             leaders.append(ir[0]+1)
             if ir[1] == 'ifgoto':
-                leaders.append(ir[5])
+                leaders.append(int(ir[5]))
             else:
-                leaders.append(ir[2])
+                leaders.append(int(ir[2]))
 
         elif ir[1] == 'label':
             leaders.append(ir[0]+1) ## doubt here
 
+    leaders.sort()
     tIRList = len(irlist)
-    ## blocks == leader : instr block
-    blocks = { x:irlist[x:y] for (x,y) in zip(leaders, leaders[1:]+[tIRList]) }
+
+    for i in range(len(leaders)):
+        instr1 = leaders[i]
+        instr2 = leaders[i+1]-1 if i+1<len(leaders) else tIRList
+        blocks[instr1] = irlist[instr1-1:instr2]
+
+    makeVarList()
+    genInitialSymbolTable()
+    populateNextUseTable()
+
+    ##testing
+    codeTester()
+
+def codeTester():
+    for k,v in symTable.items():
+        print("{} : {}, {}".format(k, v.typ, v.status))
 
 
 """
@@ -170,13 +165,15 @@ if __name__ == "__main__":
     arithOp = ['+','-','%','/','*'] 
 
     addressDescriptor = {}
-    nextUseTable = [] 
+    nextUseTable = {}
 
     instrList = []
     irlist =[]
 
     leaders = [1,]
     varlist = set()
+    ## blocks == leader : instr block
+    blocks = {}
 
     symTable = {}
     nodes = []
