@@ -4,9 +4,8 @@
 """
     1. Symbol table
     2. Address descriptor
-    3. Register info list
-    4. nextUseTable
     
+    Sample IR
     1, =, a, 2
     2, =, b, 7
     3, +, a, a, b
@@ -23,7 +22,6 @@
 import sys
 sys.path.extend(['..','.'])
 
-import copy
 from includes import utility
 from enum import Enum
 import argparse
@@ -38,80 +36,131 @@ class SymbolClass(object):
         self.status = status
         self.something = something
 
-def populateBlock():
-    pass
+def setLocation(var, location):
+    addressDescriptor[var] = location
 
-def setLocation():
-    pass
+def getLocation(var):
+    return addressDescriptor[var]
 
-def getLocation():
-    pass
+def setReg(reg, value):
+    registers[reg]=value
 
-def setReg():
-    pass
+def getReg(var, lineno):
+    ## if 'var' is present in some register return that register name
+    hasEmptyReg = (False,None)
+    for regname, value in registers.items():
+        if value == var:
+            return regname
+        elif value == None:
+            hasEmptyReg = (True, regname)
 
-def getReg():
-    pass
+    ## else if any register is empty return that register name
+    if hasEmptyReg[0]:
+        return hasEmptyReg[1]
 
-def nextUse():
-    pass
+    ## otherwise we steal other var's register (farthest use in block) and push it to memory
+    varNextUse = nextUseTable[lineno]
+    farthestNextUse = [None, varNextUse[varlist[0]]]  ## [ variable name, nextuse ]
+
+    for k,v in varNextUse.items():
+        if v > farthestNextUse[1]:
+            farthestNextUse[0] = k
+
+    for regname, value in registers.items():
+        if value == farthestNextUse[0]:
+            ## push to memory
+            ## TODO :: confirm with x86 architecture
+            assemblyCode += "mov " + var + ", " + regname + "\n"
+            return regname
+
+
+def nextUse(var, lineno):
+    return nextUseTable[lineno][var]
 
 def populateNextUseTable():
-    for index,b in blocks.items():
-        block = copy.deepcopy(b)
-        block.reverse()
-        for b in block:
+    for ldr, block in blocks.items():
+
+        for b in block[::-1]:
             nextUseTable[b[0]] = {var:symTable[var] for var in varlist}
+            optr = b[1]
+
             # INSTRUCTION NUMBER NEEDED
-            if b[1] is '=':
+            if optr == '=':
                 symTable[b[2]].status = stat.DEAD
                 if b[3] in varlist: 
                     symTable[b[3]].status = stat.LIVE
-            elif b[1] in arithOp:
+
+            elif optr in arithOp:
                 symTable[b[2]].status = stat.DEAD
                 if b[3] in varlist:
                     symTable[b[3]].status = stat.LIVE
                 if b[4] in varlist:
                     symTable[b[4]].status = stat.LIVE
-            elif b[1] is 'ifgoto':
+
+            elif optr == 'ifgoto':
                 if b[3] in varlist:
                     symTable[b[3]].status = stat.LIVE
                 if b[4] in varlist:
                     symTable[b[4]].status = stat.LIVE
-            #TODO
-            #add other if else statements also
+            # TODO
+            # print missing
+            # add other if else statements also
             
     
 def genInitialSymbolTable():
     for v in varlist:
         symTable[v] = SymbolClass(int, stat.LIVE, None)
+        addressDescriptor[v]='mem'  ## initially no variable is loaded onto the registers
 
 def makeVarList():
     ## assuming only global variables
+    global varlist
+    localVarList = set()
     for ir in irlist:
         if ir[1] in ['ifgoto', 'call', 'ret', 'label']:
             pass
         else:
-            if len(ir) == 4:
-                if not utility.isnumber(ir[2]):
-                    varlist.add(ir[2])
-                if not utility.isnumber(ir[3]):
-                    varlist.add(ir[3])
-            elif len(ir) == 5:
-                if not utility.isnumber(ir[2]):
-                    varlist.add(ir[2])
-                if not utility.isnumber(ir[3]):
-                    varlist.add(ir[3])
-                if not utility.isnumber(ir[4]):
-                    varlist.add(ir[4])
-    
+            ## statements of the form :: lineno, operator, { var | literal ,}
+            for i in range(2,len(ir)):
+                if not utility.isnumber(ir[i]):
+                    localVarList.add(ir[i])
+    varlist = list(localVarList)[:]
+
+def genBlocks():
+    tIRList = len(irlist)
+
+    for i in range(len(leaders)):
+        instr1 = leaders[i]
+        instr2 = leaders[i+1]-1 if i+1<len(leaders) else tIRList
+        blocks[instr1] = irlist[instr1-1:instr2]
+
+def findLeaders():
+    global leaders
+    for ir in irlist:
+        # TODO function is skipped till doubt is cleared
+        if ir[1] in ['ifgoto', 'goto']:
+            leaders.append(ir[0]+1)
+            if ir[1] == 'ifgoto':
+                leaders.append(int(ir[5]))
+            else:
+                leaders.append(int(ir[2]))
+
+        elif ir[1] == 'label':
+            leaders.append(ir[0]+1) ## doubt here
+
+    leaders = list(set(leaders))
+    leaders.sort()
 
 def populateIR(filename):
-    with open(filename, 'r') as infile:
-        for line in infile:
-            splitLine =line.strip().split(', ')
-            splitLine[0] = int(splitLine[0])
-            irlist.append(splitLine)
+    try:
+        with open(filename, 'r') as infile:
+            for line in infile:
+                splitLine =line.strip().split(', ')
+                splitLine[0] = int(splitLine[0])
+                irlist.append(splitLine)
+    except FileNotFoundError:
+        print("Cannot find the file. Make sure the path is right!")
+        exit(1)
 
 def getFilename():
     argParser = argparse.ArgumentParser(description='Provide the IR code filename')
@@ -123,31 +172,14 @@ def main():
     filename = getFilename()
     populateIR(filename)
 
-    for ir in irlist:
-        #function is skipped till doubt is cleared
-        if ir[1] in ['ifgoto', 'goto']:
-            leaders.append(ir[0]+1)
-            if ir[1] == 'ifgoto':
-                leaders.append(int(ir[5]))
-            else:
-                leaders.append(int(ir[2]))
-
-        elif ir[1] == 'label':
-            leaders.append(ir[0]+1) ## doubt here
-
-    leaders.sort()
-    tIRList = len(irlist)
-
-    for i in range(len(leaders)):
-        instr1 = leaders[i]
-        instr2 = leaders[i+1]-1 if i+1<len(leaders) else tIRList
-        blocks[instr1] = irlist[instr1-1:instr2]
-
+    ## find the block leaders
+    findLeaders()
+    genBlocks()
     makeVarList()
     genInitialSymbolTable()
     populateNextUseTable()
 
-    ##testing
+    ## TEST
     codeTester()
 
 def codeTester():
@@ -161,22 +193,23 @@ def codeTester():
 
 if __name__ == "__main__":
     reglist = ['%eax', '%ebx','%ecx','%edx']
-    registers = {}
+    registers = { i:None for i in reglist}
+
     arithOp = ['+','-','%','/','*'] 
 
     addressDescriptor = {}
     nextUseTable = {}
 
-    instrList = []
     irlist =[]
 
     leaders = [1,]
-    varlist = set()
+    varlist = []
     ## blocks == leader : instr block
     blocks = {}
 
     symTable = {}
     nodes = []
 
+    assemblyCode = ""
+
     main()
-    
