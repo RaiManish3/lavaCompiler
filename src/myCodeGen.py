@@ -1,24 +1,5 @@
 #!/usr/bin/env python
 
-## TODO 
-"""
-    1. Symbol table
-    2. Address descriptor
-    
-    Sample IR
-    1, =, a, 2
-    2, =, b, 7
-    3, +, a, a, b
-    4, ifgoto, leq, a, 50, 2
-    5, call, foo
-    6, ret
-    7, label, foo
-    8, print, a
-    9, ret
-    
-"""
-
-
 import sys
 sys.path.extend(['..','.'])
 
@@ -31,10 +12,9 @@ class stat(Enum):
     DEAD = 2
 
 class SymbolClass(object):
-    def __init__(self, typ, status, something):
+    def __init__(self, typ, status):
         self.typ = typ
         self.status = status
-        self.something = something
 
 def setLocation(var, location):
     addressDescriptor[var] = location
@@ -60,7 +40,7 @@ def getReg(var, lineno):
 
     ## otherwise we steal other var's register (farthest use in block) and push it to memory
     varNextUse = nextUseTable[lineno]
-    farthestNextUse = [None, varNextUse[varlist[0]]]  ## [ variable name, nextuse ]
+    farthestNextUse = [varlist[0], varNextUse[varlist[0]]]  ## [ variable name, nextuse ]
 
     for k,v in varNextUse.items():
         if v > farthestNextUse[1]:
@@ -187,11 +167,13 @@ def codeTester():
         print("{} : {}, {}".format(k, v.typ, v.status))
 
 
-"""
-    Structures
-"""
 
 if __name__ == "__main__":
+
+    """
+        Structures
+    """
+
     reglist = ['%eax', '%ebx','%ecx','%edx']
     registers = { i:None for i in reglist}
 
@@ -202,8 +184,8 @@ if __name__ == "__main__":
 
     irlist =[]
 
-    leaders = [1,]
     varlist = []
+    leaders = [1,]
     ## blocks == leader : instr block
     blocks = {}
 
