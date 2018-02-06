@@ -29,6 +29,7 @@ class SymbolClass(object):
         self.typ = typ
         self.status = status
         self.instr=instr 
+
 def setLocation(var, location):
     addressDescriptor[var] = location
 
@@ -59,8 +60,7 @@ def getReg(var, lineno):
 
     for k,v in varNextUse.items():
         if v > farthestNextUse[1]:
-            farthestNextUse[0] = k
-            farthestNextUse[1] = v
+            farthestNextUse = [k ,v]
 
     for regname, value in registers.items():
         if value == farthestNextUse[0]:
@@ -118,20 +118,6 @@ def genInitialSymbolTable():
         symTable[v] = SymbolClass(int, stat.LIVE, None)
         addressDescriptor[v]='mem'  ## initially no variable is loaded onto the registers
 
-def makeVarList():
-    ## assuming only global variables
-    global varlist
-    localVarList = set()
-    for ir in irlist:
-        if ir[1] in ['ifgoto', 'call', 'ret', 'label']:
-            pass
-        else:
-            ## statements of the form :: lineno, operator, { var | literal ,}
-            for i in range(2,len(ir)):
-                if not utility.isnumber(ir[i]):
-                    localVarList.add(ir[i])
-    varlist = list(localVarList)[:]
-
 def genBlocks():
     tIRList = len(irlist)
 
@@ -186,17 +172,16 @@ def populateSymWithGlobal():
     symTable = program[0].globalSymTable
 
 def main():
+    global varlist
     filename = getFilename()
     populateIR(filename)
 
     makeSymStructure(program)
+    varlist = utility.makeVarList(irlist)
     ## find the block leaders
     findLeaders()
     genBlocks()
-    makeVarList()
-
     populateSymWithGlobal();
-
     populateNextUseTable()
 
     ## TEST
