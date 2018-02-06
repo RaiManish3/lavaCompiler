@@ -12,7 +12,7 @@ class luaInterface(object):
         ## Why dict, so that its easy to access the function with function name
 
 class funcDef(object):
-    def __init__(self,args):
+    def __init__(self):
         self.localSymTable ={}
         self.irlist = []
 
@@ -21,9 +21,6 @@ def makeSymStructure(program):
     ## we are harcoding Main class, and main function 
     mainClass = luaClass()
     # mainClass.symTable = the current symbol table
-    mainClass.funclist['main'] = funcDef();
+    mainClass.funcList['main'] = funcDef();
 
-    program.append(mainClass)
-
-
-
+    program['Main'] = mainClass

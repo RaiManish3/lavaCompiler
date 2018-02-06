@@ -16,7 +16,8 @@
 import sys
 sys.path.extend(['..','.'])
 
-from includes import utility
+from includes import utility, symClasses
+import copy
 from enum import Enum
 import argparse
 
@@ -75,41 +76,46 @@ def nextUse(var, lineno):
 
 def populateNextUseTable():
     for ldr, block in blocks.items():
-
         for var in varlist:
             symTable[var].status = stat.DEAD
             symTable[var].instr = None
 
         for b in block[::-1]:
-            nextUseTable[b[0]] = {var:symTable[var] for var in varlist}
+            nextUseTable[b[0]] = {var:copy.deepcopy(symTable[var]) for var in varlist}
             optr = b[1]
+            instr = b[0]
 
             # INSTRUCTION NUMBER NEEDED
             if optr == '=':
                 symTable[b[2]].status = stat.DEAD
-                symTable[b[2]].instr = instr+1 
+                symTable[b[2]].instr = instr
                 if b[3] in varlist:
                     symTable[b[3]].status = stat.LIVE
-                    symTable[b[3]].instr = instr +1 
+                    symTable[b[3]].instr = instr
 
             elif optr in arithOp:
                 symTable[b[2]].status = stat.DEAD
-                symTable[b[2]].instr = instr +1 
+                symTable[b[2]].instr = instr
                 if b[3] in varlist:
                     symTable[b[3]].status = stat.LIVE
-                    symTable[b[3]].instr = instr +1
+                    symTable[b[3]].instr = instr
                 if b[4] in varlist:
                     symTable[b[4]].status = stat.LIVE
-                    symTable[b[4]].instr = instr +1
+                    symTable[b[4]].instr = instr
 
             elif optr == 'ifgoto':
                 if b[3] in varlist:
+                    print(b[3])
                     symTable[b[3]].status = stat.LIVE
-                    symTable[b[4]].instr = instr +1
+                    symTable[b[3]].instr = instr
                 if b[4] in varlist:
                     symTable[b[4]].status = stat.LIVE
+
+            elif optr == 'print':
+                if b[2] in varlist:
+                    symTable[b[2]].status = stat.LIVE
+                    symTable[b[2]].instr = instr
             # TODO
-            # print missing
             # add other if else statements also
 
 
@@ -134,13 +140,13 @@ def findLeaders():
             leaders.append(ir[0]+1)
             if ir[1] == 'ifgoto':
                 leaders.append(int(ir[5]))
-            else ir[1] == 'goto':
+            elif ir[1] == 'goto':
                 leaders.append(int(ir[2]))
 
         # Each file should correspond to a separate function, with filename
         # same as function name
         elif ir[1] == 'label':
-            leaders.append(ir[0]+1) ## doubt here
+            leaders.append(ir[0]) ## doubt here
 
     leaders = list(set(leaders))
     leaders.sort()
@@ -167,16 +173,16 @@ def populateSymWithGlobal():
     global symTable    
     for v in varlist:
         ## ASSUMPTION, program list has 1st class Main
-        program[0].globalSymTable[v] = SymbolClass('int',None); 
+        program['Main'].globalSymTable[v] = SymbolClass('int', stat.DEAD, None); 
         addressDescriptor[v]='mem'  ## initially no variable is loaded onto the registers
-    symTable = program[0].globalSymTable
+    symTable = program['Main'].globalSymTable
 
 def main():
     global varlist
     filename = getFilename()
     populateIR(filename)
 
-    makeSymStructure(program)
+    symClasses.makeSymStructure(program)
     varlist = utility.makeVarList(irlist)
     ## find the block leaders
     findLeaders()
@@ -188,8 +194,13 @@ def main():
     codeTester()
 
 def codeTester():
-    for k,v in symTable.items():
-        print("{} : {}, {}".format(k, v.typ, v.status))
+    #  for k,v in symTable.items():
+        #  print("{} : {}, {}".format(k, v.typ, v.status))
+    #  print(" ");
+    for k,v in nextUseTable.items():
+        print("::::::  Line No. {} ::::::".format(k))
+        for k1,v1 in v.items():
+            print("{} --> {}, {}, {}".format(k1,v1.typ,v1.status,v1.instr));
 
 
 
