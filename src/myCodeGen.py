@@ -1,5 +1,18 @@
 #!/usr/bin/env python
 
+
+"""
+1, =, a, 2
+2, =, b, 7
+3, +, a, a, b
+4, ifgoto, leq, a, 50, 2
+5, call, foo
+6, ret
+7, label, foo
+8, print, a
+9, ret
+"""
+
 import sys
 sys.path.extend(['..','.'])
 
@@ -12,10 +25,10 @@ class stat(Enum):
     DEAD = 2
 
 class SymbolClass(object):
-    def __init__(self, typ, status, instr):
+    def __init__(self, typ, status,instr):
         self.typ = typ
         self.status = status
-        self.instr = instr
+        self.instr=instr 
 
 def setLocation(var, location):
     addressDescriptor[var] = location
@@ -27,6 +40,8 @@ def setReg(reg, value):
     registers[reg]=value
 
 def getReg(var, lineno):
+    # var is a symbol table enrtry
+    # x =y op z, then var is x
     ## if 'var' is present in some register return that register name
     hasEmptyReg = (False,None)
     for regname, value in registers.items():
@@ -61,6 +76,10 @@ def nextUse(var, lineno):
 def populateNextUseTable():
     for ldr, block in blocks.items():
 
+        for var in varlist:
+            symTable[var].status = stat.DEAD
+            symTable[var].instr = None
+
         for b in block[::-1]:
             nextUseTable[b[0]] = {var:symTable[var] for var in varlist}
             optr = b[1]
@@ -68,26 +87,32 @@ def populateNextUseTable():
             # INSTRUCTION NUMBER NEEDED
             if optr == '=':
                 symTable[b[2]].status = stat.DEAD
-                if b[3] in varlist: 
+                symTable[b[2]].instr = instr+1 
+                if b[3] in varlist:
                     symTable[b[3]].status = stat.LIVE
+                    symTable[b[3]].instr = instr +1 
 
             elif optr in arithOp:
                 symTable[b[2]].status = stat.DEAD
+                symTable[b[2]].instr = instr +1 
                 if b[3] in varlist:
                     symTable[b[3]].status = stat.LIVE
+                    symTable[b[3]].instr = instr +1
                 if b[4] in varlist:
                     symTable[b[4]].status = stat.LIVE
+                    symTable[b[4]].instr = instr +1
 
             elif optr == 'ifgoto':
                 if b[3] in varlist:
                     symTable[b[3]].status = stat.LIVE
+                    symTable[b[4]].instr = instr +1
                 if b[4] in varlist:
                     symTable[b[4]].status = stat.LIVE
             # TODO
             # print missing
             # add other if else statements also
-            
-    
+
+
 def genInitialSymbolTable():
     for v in varlist:
         symTable[v] = SymbolClass(int, stat.LIVE, None)
@@ -109,9 +134,11 @@ def findLeaders():
             leaders.append(ir[0]+1)
             if ir[1] == 'ifgoto':
                 leaders.append(int(ir[5]))
-            else:
+            else ir[1] == 'goto':
                 leaders.append(int(ir[2]))
 
+        # Each file should correspond to a separate function, with filename
+        # same as function name
         elif ir[1] == 'label':
             leaders.append(ir[0]+1) ## doubt here
 
@@ -135,17 +162,26 @@ def getFilename():
     args = argParser.parse_args()
     return args.filename
 
+
+def populateSymWithGlobal():
+    global symTable    
+    for v in varlist:
+        ## ASSUMPTION, program list has 1st class Main
+        program[0].globalSymTable[v] = SymbolClass('int',None); 
+        addressDescriptor[v]='mem'  ## initially no variable is loaded onto the registers
+    symTable = program[0].globalSymTable
+
 def main():
     global varlist
     filename = getFilename()
     populateIR(filename)
 
+    makeSymStructure(program)
     varlist = utility.makeVarList(irlist)
     ## find the block leaders
     findLeaders()
     genBlocks()
-    #  makeVarList()
-    genInitialSymbolTable()
+    populateSymWithGlobal();
     populateNextUseTable()
 
     ## TEST
@@ -163,10 +199,14 @@ if __name__ == "__main__":
         Structures
     """
 
+    program = {} 
+
     reglist = ['%eax', '%ebx','%ecx','%edx']
     registers = { i:None for i in reglist}
+    #Register Descriptor maps from regname to symbol table entry of that
+    #variable
 
-    arithOp = ['+','-','%','/','*'] 
+    arithOp = ['+','-','%','/','*']
 
     addressDescriptor = {}
     nextUseTable = {}
