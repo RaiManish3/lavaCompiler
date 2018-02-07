@@ -16,9 +16,11 @@ class funcDef(object):
         self.localSymTable ={}
         self.irlist = []
 
+
+
 def makeSymStructure(program):
     ## we would have the lift before hand
-    ## we are harcoding Main class, and main function 
+    ## we are harcoding Main class, and main function
     mainClass = luaClass()
     # mainClass.symTable = the current symbol table
     mainClass.funcList['main'] = funcDef();
