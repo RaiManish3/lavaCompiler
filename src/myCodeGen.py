@@ -142,9 +142,9 @@ def OptimizeForYandZ(lineno,reg,X,Y,Z):
 
 
 def translate(ir):
+    global assemblyCode,flag_isMoveYtoX
 
     assem = ""
-    global assemblyCode,flag_isMoveYtoX
     lineno = int(ir[0])
     op = ir[1]
 
@@ -491,9 +491,6 @@ def main():
     print(x86c)
 
 def codeTester():
-    #  for k,v in symTable.items():
-        #  print("{} : {}, {}".format(k, v.typ, v.status))
-    #  print(" ");
     for k,v in nextUseTable.items():
         print("::::::  Line No. {} ::::::".format(k))
         for k1,v1 in v.items():
