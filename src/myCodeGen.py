@@ -20,16 +20,8 @@ from includes import utility, symClasses
 import copy
 from enum import Enum
 import argparse
+from decimal import Decimal
 
-class stat(Enum):
-    LIVE = 1
-    DEAD = 2
-
-class SymbolClass(object):
-    def __init__(self, typ, status,instr):
-        self.typ = typ
-        self.status = status
-        self.instr=instr 
 
 def setLocation(var, location):
     addressDescriptor[var] = location
@@ -38,14 +30,207 @@ def getLocation(var):
     return addressDescriptor[var]
 
 def setReg(reg, value):
-    registers[reg]=value
+    registerDesc[reg]=value
 
-def getReg(var, lineno):
+def translate(ir):
+
+    assem = ""
+    global assemblyCode,flag_isMoveYtoX
+    lineno = int(ir[0])
+    op = ir[1]
+
+    # FOR TEST PUPOSE ONLY, NOTE COMMENT OUT, DON'T REMOVE
+    for s in symlist:
+        if nextUseTable[lineno][s][0] is utility.stat.DEAD and addressDescriptor[s]!="mem":
+            print("WARNING: {} was dead and in register {} ".format(s.name,addressDescriptor[s]))
+
+    if op in arithOp:
+        Y = ir[3]
+        Z = ir[4]
+        X = ir[2]
+
+        # TODO NOTE DON'T FORGET ARRRAYS
+        if op == '+':
+            reg = getReg(X,Y,Z,lineno,None)
+            print(reg)
+
+            #check if x is already in reg or not
+
+            isXinMem = True
+            if reg is None:
+                reg = X.name
+            else:
+                isXinMem = False
+
+
+            if flag_isMoveYtoX is False:
+                flag_isMoveYtoX = True
+            elif Y not in symlist:
+                 #That means Y is a constant
+                 assem += "mov " + reg + ", " + Y + "\n"
+            elif addressDescriptor[Y]!="mem":
+                 assem += "mov " + reg + ", " + addressDescriptor[Y] + "\n"
+            elif Y.scope == 'Global':
+                 assem += "mov " + reg + ", " + Y.name + "\n"
+
+            ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
+
+            if Z not in symlist:
+                assem += "add " + reg + ", " + Z +"\n"
+            elif addressDescriptor[Z]!="mem":
+                assem += "add " + reg + ", " + addressDescriptor[Z] +"\n"
+            elif Z.scope == 'Global':
+                assem += "add " + reg + ", " + Z.name + "\n"
+
+            ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
+
+            #ASSUMPTION -- Same variable cannot be in multiple registers at same time
+            for regk in reglist:
+                if registerDesc[regk] == X:
+                    registerDesc[regk] = None
+
+
+            #else: WRITE HERE if reg value returned by getReg can be memory location, which is currently not the case
+
+
+            if isXinMem == False:
+                registerDesc[reg] = X
+                addressDescriptor[X] = reg
+            else:
+                addressDescriptor[X] ="mem"
+
+            if Z in symlist and addressDescriptor[Z]!="mem" and nextUseTable[lineno][Z][0]==utility.stat.DEAD:
+                if Z.scope == 'Global':
+                    assem += "mov " + Z.name + ", " + addressDescriptor[Z] + "\n"
+                #TODO: MAKE CHANGES FOR LOCAL VARIABLE
+                registerDesc[Z] = None
+                addressDescriptor[Z]="mem"
+
+
+
+    #DEBUG
+    for k,v in registerDesc.items():
+        if v is not None:
+            print({k:v.name})
+        else:
+            print({k:v})
+    for k,v in addressDescriptor.items():
+            if k is not None:
+                print({k.name:v})
+            else:
+                print({k:v})
+    print("\/ \/ \/")
+    print(assem)
+
+    assemblyCode+=assem
+
+
+
+
+def getReg(X,Y,Z, lineno,isLocal):
+    # NOTE, THIS FUNCTION
+    # NOTE   DOES NOT UPDATES THE VALUE OF
+    # NOTE Register Descriptor variables
+    #-----------------------------------------
+    # isLocal is none when the var is a global variable
+    # Otherwise it should contain offset, such that variable is stored at $ebp + offset
     # var is a symbol table enrtry
-    # x =y op z, then var is x
+    # x =y op z, then var is y
+    # this function returns the register for x
     ## if 'var' is present in some register return that register name
+    # TODO FULLY OPTIMIZE IT
+    # None means, X should use memory
+
+    global flag_isMoveYtoX
+    flag_isMoveYtoX = True
+
+
+    if nextUseTable[lineno][X][0] == utility.stat.DEAD:
+        if Y in symlist and addressDescriptor[Y] == "mem":
+            pass
+        elif Z is not None and Z in symlist and addressDescriptor[Z] == "mem":
+            pass
+        else:
+            pass
+
+    #ASSUMPTION -- Same variable cannot be in multiple registers at same time
+
+    #if y is same as x, then check if y or x is in memory, and if z is also in memory,
+    #o/w
+    if Y is X:
+        flag_isMoveYtoX = False;
+        if addressDescriptor[X]!="mem":
+            return addressDescriptor[X]
+
+    if X != Z and addressDescriptor[X]!="mem":
+        return addressDescriptor[X]
+
+
+    #If y is dead and in memory, then we can't put x in same memory location, it must be
+    # put in reg. Check for empty reg, if not then chase for a victim
+    # we can't put x in memory as we needs 'mov x,y'
+    #
+    #If y is dead and in register, update the current value of y in memory, update registerDesc and
+    # addressDescriptor accorginly return the reg of Y as register of X, set a global flag indicating
+    # that we don't need to move Y's value to res, the register in which the value of assembly INSTRUCTION
+    # add will be store
+    #
+    #if y is live or is a constant, then try to get register for x, if there is empty, or steal the register of victim's
+    # if victim has farthestNextUse <= those of x, then store it in memory if z is NOT in memory,
+    # But if z is in memory take the victim's register even thought its farthestNextUse <= those of x
+    # if its farthestNextUse > x then take the victim's reg
+
+    if Y in symlist and nextUseTable[lineno][Y][0] == utility.stat.DEAD:
+        if addressDescriptor[Y] == "mem":
+            pass;
+        if addressDescriptor[Y] != "mem":
+            assemblyCode += "mov " + Y.name +", " + addressDescriptor[Y] +"\n"
+            reg = addressDescriptor[Y]
+            addressDescriptor[Y] ="mem"
+            flag_isMoveYtoX = False
+            return reg
+
+
+    farthestNextUse = 0
+    farthestNextUseSymb = None
+    for regname, value in registerDesc.items():
+        if value == None:
+            pass
+        elif nextUseTable[lineno][value][1] == Decimal('inf'):
+            print(value.name)
+        if value == None:
+            return regname
+        elif nextUseTable[lineno][value][1] > farthestNextUse:
+            farthestNextUseSymb = value
+            farthestNextUse = nextUseTable[lineno][value][1]
+
+    if farthestNextUse <= nextUseTable[lineno][X][1]:
+        if Y in symlist and addressDescriptor[Y] == "mem":
+            pass
+        elif Z is not None and Z in symlist and addressDescriptor[Z] == "mem":
+            pass
+        else:
+            pass
+            #return None
+
+    for regname, value in registerDesc.items():
+        if value == farthestNextUseSymb:
+            ## push to memory
+            ## TODO :: confirm with x86 architecture
+            ## THERE IS A BIG PROBLEM HERE ----
+            ## FOR NOW WE SUPPOSE THAT SYMBOL TABLE CONTAINS THE VARIABLE NAME
+            ## WHICH IS NECESSARY FOR THIS CODE GENERATION
+            if value.scope == 'Global':
+                assemblyCode += "mov " + value.name + ", " + regname + "\n"
+                addressDescriptor[value] = "mem"
+            else:
+                assemblyCode +=" CHANGE HERE --"
+                ## TODO :: Its a local variable, then use $ebp + offset
+            return regname
+
+    """
     hasEmptyReg = (False,None)
-    for regname, value in registers.items():
+    for regname, value in registerDesc.items():
         if value == var:
             return regname
         elif value == None:
@@ -55,74 +240,92 @@ def getReg(var, lineno):
     if hasEmptyReg[0]:
         return hasEmptyReg[1]
 
-    ## otherwise we steal other var's register (farthest use in block) and push it to memory
-    varNextUse = nextUseTable[lineno]
-    farthestNextUse = [varlist[0], varNextUse[varlist[0]]]  ## [ variable name, nextuse ]
+    """## otherwise we steal other var's register (farthest use in block) and push it to memory
+"""    varNextUse = nextUseTable[lineno]
+    farthestNextUse = [symlist[0], varNextUse[symlist[0]]]  ## [ ste , nextuse ]
+
+
+    for reg in registerDesc:
 
     for k,v in varNextUse.items():
+        if v == None:
+            farthestNextUse = [k ,v]
+            break
         if v > farthestNextUse[1]:
             farthestNextUse = [k ,v]
 
-    for regname, value in registers.items():
+    for regname, value in registerDesc.items():
         if value == farthestNextUse[0]:
             ## push to memory
             ## TODO :: confirm with x86 architecture
-            assemblyCode += "mov " + var + ", " + regname + "\n"
+            ## THERE IS A BIG PROBLEM HERE ----
+            ## FOR NOW WE SUPPOSE THAT SYMBOL TABLE CONTAINS THE VARIABLE NAME
+            ## WHICH IS NECESSARY FOR THIS CODE GENERATION
+            if value.scope == 'Global':
+                assemblyCode += "mov " + value.name + ", " + regname + "\n"
+                addressDescriptor[value] = "mem"
+            else:
+                assemblyCode +=" CHANGE HERE --"
+                ## TODO :: Its a local variable, then use $ebp + offset
             return regname
+"""
 
 
 def nextUse(var, lineno):
     return nextUseTable[lineno][var]
 
 def populateNextUseTable():
+    print(blocks);
     for ldr, block in blocks.items():
-        for var in varlist:
+        """for var in varlist:
             symTable[var].status = stat.DEAD
             symTable[var].instr = None
+        """
+        tple = {}
+        for s in symlist:
+            tple[s]=(utility.stat.DEAD,Decimal('inf'))
+
 
         for b in block[::-1]:
-            nextUseTable[b[0]] = {var:copy.deepcopy(symTable[var]) for var in varlist}
+            nextUseTable[b[0]] = {s:copy.deepcopy(tple[s]) for s in symlist}
             optr = b[1]
             instr = b[0]
 
             # INSTRUCTION NUMBER NEEDED
             if optr == '=':
-                symTable[b[2]].status = stat.DEAD
-                symTable[b[2]].instr = instr
-                if b[3] in varlist:
-                    symTable[b[3]].status = stat.LIVE
-                    symTable[b[3]].instr = instr
+                tple[b[2]] = (utility.stat.DEAD,Decimal('inf'))
+                if b[3] in symlist:
+                    tple[b[3]] = (utility.stat.LIVE,instr)
 
             elif optr in arithOp:
-                symTable[b[2]].status = stat.DEAD
-                symTable[b[2]].instr = instr
-                if b[3] in varlist:
-                    symTable[b[3]].status = stat.LIVE
-                    symTable[b[3]].instr = instr
-                if b[4] in varlist:
-                    symTable[b[4]].status = stat.LIVE
-                    symTable[b[4]].instr = instr
+                tple[b[2]] = (utility.stat.DEAD,Decimal('inf'))
+                if b[3] in symlist:
+                    tple[b[3]] = (utility.stat.LIVE,instr)
+                if b[4] in symlist:
+                    tple[b[4]] = (utility.stat.LIVE,instr)
 
             elif optr == 'ifgoto':
-                if b[3] in varlist:
-                    print(b[3])
-                    symTable[b[3]].status = stat.LIVE
-                    symTable[b[3]].instr = instr
-                if b[4] in varlist:
-                    symTable[b[4]].status = stat.LIVE
+                if b[3] in symlist:
+                    tple[b[3]] = (utility.stat.LIVE,instr)
+                if b[4] in symlist:
+                    tple[b[4]] = (utility.stat.LIVE,instr)
 
             elif optr == 'print':
-                if b[2] in varlist:
-                    symTable[b[2]].status = stat.LIVE
-                    symTable[b[2]].instr = instr
+                if b[2] in symlist:
+                    tple[b[2]] = (utility.stat.LIVE,instr)
+
+            """IT SHOULD ALSO BE ALIVE FOR PARAM,
+            1ST UPDATE THE UTILITY. PY FOR PARAM, AND OTHER IR statements
+            THEN UPDATE HERE"""
             # TODO
             # add other if else statements also
 
-
+"""
 def genInitialSymbolTable():
     for v in varlist:
         symTable[v] = SymbolClass(int, stat.LIVE, None)
         addressDescriptor[v]='mem'  ## initially no variable is loaded onto the registers
+"""
 
 def genBlocks():
     tIRList = len(irlist)
@@ -168,30 +371,62 @@ def getFilename():
     args = argParser.parse_args()
     return args.filename
 
-
+"""
 def populateSymWithGlobal():
-    global symTable    
+    global symTable
     for v in varlist:
         ## ASSUMPTION, program list has 1st class Main
-        program['Main'].globalSymTable[v] = SymbolClass('int', stat.DEAD, None); 
+        program['Main'].globalSymTable[v] = SymbolClass('int', stat.DEAD, None);
         addressDescriptor[v]='mem'  ## initially no variable is loaded onto the registers
     symTable = program['Main'].globalSymTable
+"""
+
 
 def main():
-    global varlist
+    global varlist,symTable,symlist,assemblyCode
     filename = getFilename()
     populateIR(filename)
 
     symClasses.makeSymStructure(program)
-    varlist = utility.makeVarList(irlist)
+    utility.makeVarList(irlist,program['Main'].globalSymTable,varlist,symlist)
+
+    symTable = program['Main'].globalSymTable
+
+    for s in symlist:
+        addressDescriptor[s]='mem'  ## initially no variable is loaded onto the registers
+
     ## find the block leaders
+
     findLeaders()
     genBlocks()
-    populateSymWithGlobal();
     populateNextUseTable()
 
     ## TEST
     codeTester()
+
+    data_section = ".section .data\n"
+    for var in varlist:
+    	data_section = data_section + var + ":\n" + ".int 0\n"
+    data_section = data_section + "str:\n.ascii \"%d\\n\\0\"\n"
+
+    bss_section = ".section .bss\n"
+    text_section = ".section .text\n" + ".globl main\n" + "main:\n"
+
+    print(blocks)
+    for lead,block in blocks.items():
+    	text_section = text_section + "L" + str(lead) + ":\n"
+    	for v in block:
+    		translate(v)
+
+    text_section = assemblyCode
+
+    #--------------------------------------------------------------------------------------------------
+
+    # Priniting the final output
+    # print("Assembly Code (x86) for: [" + filename + "]")
+    # print("--------------------------------------------------------------------")
+    x86c = data_section + bss_section + text_section
+    print(x86c)
 
 def codeTester():
     #  for k,v in symTable.items():
@@ -200,7 +435,7 @@ def codeTester():
     for k,v in nextUseTable.items():
         print("::::::  Line No. {} ::::::".format(k))
         for k1,v1 in v.items():
-            print("{} --> {}, {}, {}".format(k1,v1.typ,v1.status,v1.instr));
+            print("{} --> {}, {}".format(k1.name,v1[0],v1[1]));
 
 
 
@@ -210,10 +445,10 @@ if __name__ == "__main__":
         Structures
     """
 
-    program = {} 
+    program = {}
 
     reglist = ['%eax', '%ebx','%ecx','%edx']
-    registers = { i:None for i in reglist}
+    registerDesc = { i:None for i in reglist}
     #Register Descriptor maps from regname to symbol table entry of that
     #variable
 
@@ -222,8 +457,11 @@ if __name__ == "__main__":
     addressDescriptor = {}
     nextUseTable = {}
 
+    flag_isMoveYtoX = True
+
     irlist =[]
 
+    symlist = []
     varlist = []
     leaders = [1,]
     ## blocks == leader : instr block
