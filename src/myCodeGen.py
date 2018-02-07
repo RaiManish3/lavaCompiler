@@ -45,6 +45,11 @@ def OptimizeForYandZ(lineno,reg,X,Y,Z):
     else:
         isZinReg =True
 
+    if Y in symlist and nextUseTable[lineno][Y][0]==utility.stat.DEAD:
+        isYinReg = True
+    if Z in symlist and nextUseTable[lineno][Z][0]==utility.stat.DEAD:
+        isZinReg = True
+
 
     a=None
     b=None
@@ -208,6 +213,7 @@ def translate(ir):
             else:
                 addressDescriptor[X] ="mem"
 
+
             if Z in symlist and addressDescriptor[Z]!="mem" and nextUseTable[lineno][Z][0]==utility.stat.DEAD:
                 if Z.scope == 'Global':
                     assem += "mov " + Z.name + ", " + addressDescriptor[Z] + "\n"
@@ -215,6 +221,13 @@ def translate(ir):
                 registerDesc[addressDescriptor[Z]] = None
                 addressDescriptor[Z]="mem"
 
+
+    if lineno+1 in leaders or lineno+1==len(irlist):
+        for reg in reglist:
+            if registerDesc[reg] !=None:
+                 assem += "mov " + registerDesc[reg].name + ", " + reg + "\n";
+                 addressDescriptor[registerDesc[reg]] ="mem"
+                 registerDesc[reg] = None;
 
 
     #DEBUG
