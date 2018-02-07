@@ -306,7 +306,7 @@ def getReg(X,Y,Z, lineno,isLocal):
         if addressDescriptor[Y] == "mem":
             pass;
         if addressDescriptor[Y] != "mem":
-            assemblyCode += "kmov " + Y.name +", " + addressDescriptor[Y] +"\n"
+            assemblyCode += "mov " + Y.name +", " + addressDescriptor[Y] +"\n"
             reg = addressDescriptor[Y]
             addressDescriptor[Y] ="mem"
             flag_isMoveYtoX = False
