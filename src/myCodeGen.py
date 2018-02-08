@@ -32,7 +32,7 @@ def getLocation(var):
 def setReg(reg, value):
     registerDesc[reg]=value
 
-def OptimizeForYandZ(lineno,reg,X,Y,Z):
+def OptimizeForYandZ(lineno,regk,X,Y,Z):
     global assemblyCode
 
     if Y in symlist and addressDescriptor[Y] == "mem":
@@ -59,90 +59,30 @@ def OptimizeForYandZ(lineno,reg,X,Y,Z):
     elif isZinReg == True and isYinReg == False:
         a=Y
     elif nextUseTable[lineno][Y][1]<nextUseTable[lineno][Z][1]:
-        a=Y
-        b=Z
+        a,b=Y,Z
+    else:
+        a,b=Z,Y
 
     if a!=X:
-        isainReg = False
-        farthestNextUse = 0
-        farthestNextUseSymb = None
-        for regname, value in registerDesc.items():
-            if regname == reg:
-                continue
-            if value == None:
-                assemblyCode += "mov " + regname + ", "+ a.name +"\n"
-                addressDescriptor[a]=regname
-                registerDesc[regname]=a
-                isainReg = True
-                break
-            elif nextUseTable[lineno][value][1] > farthestNextUse:
-                farthestNextUseSymb = value
-                farthestNextUse = nextUseTable[lineno][value][1]
+        print(a,X);
+        reg =getRegWithContraints(nextUseTable[lineno][a][1]+1,regk,None,lineno)
+        if reg == None:
+            return
+        else:
+            assemblyCode +="mov "+reg +" "+ a.name +"\n"
+            print("mov "+reg +" "+ a.name +"\n")
+            addressDescriptor[a]=reg
+            registerDesc[reg]=a
 
-        if isainReg == False:
-            if nextUseTable[lineno][a][1] >= farthestNextUse:
-                return
-            for regname, value in registerDesc.items():
-                if value == farthestNextUseSymb:
-                    ## push to memory
-                    ## TODO :: confirm with x86 architecture
-                    ## THERE IS A BIG PROBLEM HERE ----
-                    ## FOR NOW WE SUPPOSE THAT SYMBOL TABLE CONTAINS THE VARIABLE NAME
-                    ## WHICH IS NECESSARY FOR THIS CODE GENERATION
-                    if value.scope == 'Global':
-                        assemblyCode += "mov " + value.name + ", " + regname + "\n"
-                        addressDescriptor[value] = "mem"
-                    else:
-                        assemblyCode +=" Case for local --"
-                        ## TODO :: Its a local variable, then use $ebp + offset
-                    assemblyCode += "mov " + regname + ", "+ a.name +"\n"
-                    addressDescriptor[a]=regname
-                    registerDesc[regname]=a
-                    isainReg = True
-                    break
-
-    if b==None or b==a:
-        return
-
-    if b!=X:
-        isbinReg = False
-        farthestNextUse = 0
-        farthestNextUseSymb = None
-        for regname, value in registerDesc.items():
-            if regname == reg or regname == addressDescriptor[a]:
-                continue
-            if value == None:
-                assemblyCode += "mov " + regname + ", "+ b.name +"\n"
-                addressDescriptor[b]=regname
-                registerDesc[regname]=b
-                isbinReg = True
-                break
-            elif nextUseTable[lineno][value][1] > farthestNextUse:
-                farthestNextUseSymb = value
-                farthestNextUse = nextUseTable[lineno][value][1]
-
-        if isbinReg == False:
-            if nextUseTable[lineno][b][1] >= farthestNextUse:
-                return
-            for regname, value in registerDesc.items():
-                if value == farthestNextUseSymb:
-                    ## push to memory
-                    ## TODO :: confirm with x86 architecture
-                    ## THERE IS A BIG PROBLEM HERE ----
-                    ## FOR NOW WE SUPPOSE THAT SYMBOL TABLE CONTAINS THE VARIABLE NAME
-                    ## WHICH IS NECESSARY FOR THIS CODE GENERATION
-                    if value.scope == 'Global':
-                        assemblyCode += "mov " + value.name + ", " + regname + "\n"
-                        addressDescriptor[value] = "mem"
-                    else:
-                        assemblyCode +=" Case for local --"
-                        ## TODO :: Its a local variable, then use $ebp + offset
-                    assemblyCode += "mov " + regname + ", "+ b.name +"\n"
-                    addressDescriptor[b]=regname
-                    registerDesc[regname]=b
-                    isbinReg = True
-                    break
-
+    if b!=None and b!=a and b!=X:
+        reg =getRegWithContraints(nextUseTable[lineno][b][1]+1,regk,reg,lineno)
+        if reg == None:
+            return
+        else:
+            assemblyCode +="mov "+reg +" "+ b.name +"\n"
+            print("mov "+reg +" "+ b.name +"\n")
+            addressDescriptor[b]=reg
+            registerDesc[reg]=b
 
 def translateArithmetic(opInstr, X, Y, Z, lineno):
     global flag_isMoveYtoX
@@ -165,7 +105,7 @@ def translateArithmetic(opInstr, X, Y, Z, lineno):
          #That means Y is a constant
          assem += "mov " + reg + ", " + Y + "\n"
     elif addressDescriptor[Y]!="mem":
-         assem += "mov " + reg + ", " + addressDescriptor[Y] + "\n"
+         assem += "kmov " + reg + ", " + addressDescriptor[Y] + "\n"
     elif Y.scope == 'Global':
          assem += "mov " + reg + ", " + Y.name + "\n"
 
@@ -207,6 +147,7 @@ def translateArithmetic(opInstr, X, Y, Z, lineno):
 
 
 def translate(ir):
+    print('------------------------------------')
     global assemblyCode,flag_isMoveYtoX
 
     assem = ""
@@ -266,6 +207,36 @@ def translate(ir):
     assemblyCode+=assem
 
 
+def getRegWithContraints(afterNextUse,reg1,reg2,lineno):
+    farthestNextUse = 0
+    farthestNextUseSymb = None
+    for regname, value in registerDesc.items():
+        if reg1 !=None:
+            if reg1==regname:
+                continue
+        if reg2 !=None:
+            if reg2==regname:
+                continue
+        if value == None:
+            return regname
+        elif nextUseTable[lineno][value][1] > farthestNextUse:
+            farthestNextUseSymb = value
+            farthestNextUse = nextUseTable[lineno][value][1]
+
+    if farthestNextUse > afterNextUse:
+        return None
+
+    for regname, value in registerDesc.items():
+        if value == farthestNextUseSymb:
+            if value.scope == 'Global':
+                assemblyCode += "mov " + value.name + ", " + regname + "\n"
+                print("mov " + value.name + ", " + regname + "\n")
+                addressDescriptor[value] = "mem"
+            else:
+                ## TODO :: Case of a local variable, then use [ ebp + offset ]
+                assemblyCode +=""
+            return regname
+
 
 
 # this function returns the register for X
@@ -285,21 +256,12 @@ def getReg(X,Y,Z, lineno,isLocal):
     flag_isMoveYtoX = True
 
 
-    if nextUseTable[lineno][X][0] == utility.stat.DEAD:
-        if Y in symlist and addressDescriptor[Y] == "mem":
-            pass
-        elif Z != None and Z in symlist and addressDescriptor[Z] == "mem":
-            pass
-        else:
-            pass
-
     #ASSUMPTION -- Same variable cannot be in multiple registers at same time
 
     #if y is same as x, then check if y or x is in memory, and if z is also in memory,
     #o/w
-    if Y is X:
-        flag_isMoveYtoX = False;
-        if addressDescriptor[X]!="mem":
+    if Y is X and addressDescriptor[X]!="mem":
+            flag_isMoveYtoX = False;
             return addressDescriptor[X]
 
     if X != Z and addressDescriptor[X]!="mem":
@@ -320,47 +282,15 @@ def getReg(X,Y,Z, lineno,isLocal):
     # But if z is in memory take the victim's register even thought its farthestNextUse <= those of x
     # if its farthestNextUse > x then take the victim's reg
 
-    if Y in symlist and nextUseTable[lineno][Y][0] == utility.stat.DEAD:
-        if addressDescriptor[Y] == "mem":
-            pass;
-        if addressDescriptor[Y] != "mem":
+    if Y in symlist and addressDescriptor[Y] != "mem" and nextUseTable[lineno][Y][0] == utility.stat.DEAD:
             assemblyCode += "mov " + Y.name +", " + addressDescriptor[Y] +"\n"
+            print("mov " + Y.name +", " + addressDescriptor[Y] +"\n")
             reg = addressDescriptor[Y]
             addressDescriptor[Y] ="mem"
             flag_isMoveYtoX = False
             return reg
 
-
-    farthestNextUse = 0
-    farthestNextUseSymb = None
-    for regname, value in registerDesc.items():
-        if value == None:
-            return regname
-        elif nextUseTable[lineno][value][1] > farthestNextUse:
-            farthestNextUseSymb = value
-            farthestNextUse = nextUseTable[lineno][value][1]
-
-    if farthestNextUse <= nextUseTable[lineno][X][1]:
-        if Y in symlist and addressDescriptor[Y] == "mem":
-            pass
-        elif Z != None and Z in symlist and addressDescriptor[Z] == "mem":
-            pass
-        else:
-            pass
-            #return None
-
-    for regname, value in registerDesc.items():
-        if value == farthestNextUseSymb:
-            ## FIXME :: THERE IS A BIG PROBLEM HERE ----
-            ## FOR NOW WE SUPPOSE THAT SYMBOL TABLE CONTAINS THE VARIABLE NAME
-            ## WHICH IS NECESSARY FOR THIS CODE GENERATION
-            if value.scope == 'Global':
-                assemblyCode += "mov " + value.name + ", " + regname + "\n"
-                addressDescriptor[value] = "mem"
-            else:
-                ## TODO :: Case of a local variable, then use [ ebp + offset ]
-                assemblyCode +=""
-            return regname
+    return getRegWithContraints(0,None,None,lineno)
 
 def nextUse(var, lineno):
     return nextUseTable[lineno][var]
@@ -537,7 +467,7 @@ if __name__ == "__main__":
 
     reglist = ['eax', 'ebx','ecx','edx']
     registerDesc = { i:None for i in reglist}
-    # registerDesc :: Register Descriptor maps from regname to 
+    # registerDesc :: Register Descriptor maps from regname to
     #                 symbol table entry of that variable
 
     arithOp = ['+','-','%','/','*']
