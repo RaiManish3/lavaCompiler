@@ -18,7 +18,7 @@ def isnumber(num):
     return re.match('-?\d+', num) != None
 
 
-#  This program takes a ircode and writes all global variables into a file.
+## this function extracts variables, converts them into pointer to symbols in symTableDict and also stores them in symlist
 def makeVarList(irlist, symTableDict, varlist, symlist):
     ## symlist is a mapping from "symbols" in IRcode to the variable it is pointing to
     varlist = set()

@@ -33,8 +33,8 @@ def setReg(reg, value):
     registerDesc[reg]=value
 
 def OptimizeForYandZ(lineno,reg,X,Y,Z):
-
     global assemblyCode
+
     if Y in symlist and addressDescriptor[Y] == "mem":
         isYinReg =False
     else:
@@ -51,8 +51,7 @@ def OptimizeForYandZ(lineno,reg,X,Y,Z):
         isZinReg = True
 
 
-    a=None
-    b=None
+    a,b = None, None
     if isZinReg == True and isYinReg == True:
         return
     elif isZinReg == False and isYinReg == True:
@@ -145,81 +144,100 @@ def OptimizeForYandZ(lineno,reg,X,Y,Z):
                     break
 
 
+def translateArithmetic(opInstr, X, Y, Z, lineno):
+    global flag_isMoveYtoX
+    assem = ""
+
+    reg = getReg(X,Y,Z,lineno,None)
+    print(reg)
+
+    #check if x is already in reg or not
+    isXinMem = True
+    if reg == None:
+        reg = X.name
+    else:
+        isXinMem = False
+        OptimizeForYandZ(lineno, reg, X, Y, Z)
+
+    if flag_isMoveYtoX == False:
+        flag_isMoveYtoX = True
+    elif Y not in symlist:
+         #That means Y is a constant
+         assem += "mov " + reg + ", " + Y + "\n"
+    elif addressDescriptor[Y]!="mem":
+         assem += "mov " + reg + ", " + addressDescriptor[Y] + "\n"
+    elif Y.scope == 'Global':
+         assem += "mov " + reg + ", " + Y.name + "\n"
+
+    ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
+
+    if Z not in symlist:
+        assem += opInstr + reg + ", " + Z +"\n"
+    elif addressDescriptor[Z]!="mem":
+        assem += opInstr + reg + ", " + addressDescriptor[Z] +"\n"
+    elif Z.scope == 'Global':
+        assem += opInstr + reg + ", " + Z.name + "\n"
+
+    ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
+
+    #ASSUMPTION -- Same variable cannot be in multiple registers at same time
+    for regk in reglist:
+        if registerDesc[regk] == X:
+            registerDesc[regk] = None
+
+
+    #else: WRITE HERE if reg value returned by getReg can be memory location, which is currently not the case
+
+
+    if isXinMem == False:
+        registerDesc[reg] = X
+        addressDescriptor[X] = reg
+    else:
+        addressDescriptor[X] ="mem"
+
+
+    if Z in symlist and addressDescriptor[Z]!="mem" and nextUseTable[lineno][Z][0]==utility.stat.DEAD:
+        if Z.scope == 'Global':
+            assem += "mov " + Z.name + ", " + addressDescriptor[Z] + "\n"
+        #TODO: MAKE CHANGES FOR LOCAL VARIABLE
+        registerDesc[addressDescriptor[Z]] = None
+        addressDescriptor[Z]="mem"
+
+    return assem
+
 
 def translate(ir):
     global assemblyCode,flag_isMoveYtoX
 
     assem = ""
-    lineno = int(ir[0])
+    lineno = ir[0]
     op = ir[1]
 
-    # FOR TEST PUPOSE ONLY, NOTE COMMENT OUT, DON'T REMOVE
+    # DEBUG -------------------------------
     for s in symlist:
-        if nextUseTable[lineno][s][0] is utility.stat.DEAD and addressDescriptor[s]!="mem":
+        if nextUseTable[lineno][s][0] == utility.stat.DEAD and addressDescriptor[s]!="mem":
             print("WARNING: {} was dead and in register {} ".format(s.name,addressDescriptor[s]))
+    # DEBUG -------------------------------
 
     if op in arithOp:
-        Y = ir[3]
-        Z = ir[4]
-        X = ir[2]
+        X, Y, Z = ir[2:5]
 
-        # TODO NOTE DON'T FORGET ARRRAYS
+        # TODO ARRRAYS
         if op == '+':
-            reg = getReg(X,Y,Z,lineno,None)
-            print(reg)
-
-            #check if x is already in reg or not
-
-            isXinMem = True
-            if reg is None:
-                reg = X.name
-            else:
-                isXinMem = False
-                OptimizeForYandZ(lineno,reg,X,Y,Z)
-
-            if flag_isMoveYtoX is False:
-                flag_isMoveYtoX = True
-            elif Y not in symlist:
-                 #That means Y is a constant
-                 assem += "mov " + reg + ", " + Y + "\n"
-            elif addressDescriptor[Y]!="mem":
-                 assem += "mov " + reg + ", " + addressDescriptor[Y] + "\n"
-            elif Y.scope == 'Global':
-                 assem += "mov " + reg + ", " + Y.name + "\n"
-
-            ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
-
-            if Z not in symlist:
-                assem += "add " + reg + ", " + Z +"\n"
-            elif addressDescriptor[Z]!="mem":
-                assem += "add " + reg + ", " + addressDescriptor[Z] +"\n"
-            elif Z.scope == 'Global':
-                assem += "add " + reg + ", " + Z.name + "\n"
-
-            ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
-
-            #ASSUMPTION -- Same variable cannot be in multiple registers at same time
-            for regk in reglist:
-                if registerDesc[regk] == X:
-                    registerDesc[regk] = None
-
-
-            #else: WRITE HERE if reg value returned by getReg can be memory location, which is currently not the case
-
-
-            if isXinMem == False:
-                registerDesc[reg] = X
-                addressDescriptor[X] = reg
-            else:
-                addressDescriptor[X] ="mem"
-
-
-            if Z in symlist and addressDescriptor[Z]!="mem" and nextUseTable[lineno][Z][0]==utility.stat.DEAD:
-                if Z.scope == 'Global':
-                    assem += "mov " + Z.name + ", " + addressDescriptor[Z] + "\n"
-                #TODO: MAKE CHANGES FOR LOCAL VARIABLE
-                registerDesc[addressDescriptor[Z]] = None
-                addressDescriptor[Z]="mem"
+            # NOTE :: add dest, source == dest = dest + source
+            assem = translateArithmetic('add ', X, Y, Z, lineno)
+        elif op == '-':
+            # NOTE :: sub dest, source == dest = dest - source
+            assem = translateArithmetic('sub ', X, Y, Z, lineno)
+        elif op == '*':
+            # NOTE :: multiplication is done in a different manner in x86
+            pass
+        elif op == '/':
+            # NOTE :: same as above
+            pass
+        elif op == '%':
+            # NOTE :: lookup the guide
+            pass
 
 
     if lineno+1 in leaders or lineno+1==len(irlist):
@@ -230,47 +248,47 @@ def translate(ir):
                  registerDesc[reg] = None;
 
 
-    #DEBUG
+    # DEBUG -------------------------------
     for k,v in registerDesc.items():
-        if v is not None:
+        if v != None:
             print({k:v.name})
         else:
             print({k:v})
     for k,v in addressDescriptor.items():
-            if k is not None:
-                print({k.name:v})
-            else:
-                print({k:v})
+        if k != None:
+            print({k.name:v})
+        else:
+            print({k:v})
     print("\/ \/ \/")
     print(assem)
+    # DEBUG -------------------------------
 
     assemblyCode+=assem
 
 
 
 
+# this function returns the register for X
 def getReg(X,Y,Z, lineno,isLocal):
-    # NOTE, THIS FUNCTION
-    # NOTE   DOES NOT UPDATES THE VALUE OF
-    # NOTE Register Descriptor variables
-    #-----------------------------------------
+    # -----------------------------------------
+    # | NOTE, THIS FUNCTION
+    # | NOTE   DOES NOT UPDATES THE VALUE OF
+    # | NOTE Register Descriptor variables
+    # -----------------------------------------
+    # X = Y op Z, then each of them is a symbol table entry
     # isLocal is none when the var is a global variable
     # Otherwise it should contain offset, such that variable is stored at $ebp + offset
-    # var is a symbol table enrtry
-    # x =y op z, then var is y
-    # this function returns the register for x
-    ## if 'var' is present in some register return that register name
     # TODO FULLY OPTIMIZE IT
     # None means, X should use memory
 
-    global flag_isMoveYtoX,assemblyCode
+    global flag_isMoveYtoX, assemblyCode
     flag_isMoveYtoX = True
 
 
     if nextUseTable[lineno][X][0] == utility.stat.DEAD:
         if Y in symlist and addressDescriptor[Y] == "mem":
             pass
-        elif Z is not None and Z in symlist and addressDescriptor[Z] == "mem":
+        elif Z != None and Z in symlist and addressDescriptor[Z] == "mem":
             pass
         else:
             pass
@@ -325,7 +343,7 @@ def getReg(X,Y,Z, lineno,isLocal):
     if farthestNextUse <= nextUseTable[lineno][X][1]:
         if Y in symlist and addressDescriptor[Y] == "mem":
             pass
-        elif Z is not None and Z in symlist and addressDescriptor[Z] == "mem":
+        elif Z != None and Z in symlist and addressDescriptor[Z] == "mem":
             pass
         else:
             pass
@@ -333,24 +351,22 @@ def getReg(X,Y,Z, lineno,isLocal):
 
     for regname, value in registerDesc.items():
         if value == farthestNextUseSymb:
-            ## push to memory
-            ## TODO :: confirm with x86 architecture
-            ## THERE IS A BIG PROBLEM HERE ----
+            ## FIXME :: THERE IS A BIG PROBLEM HERE ----
             ## FOR NOW WE SUPPOSE THAT SYMBOL TABLE CONTAINS THE VARIABLE NAME
             ## WHICH IS NECESSARY FOR THIS CODE GENERATION
             if value.scope == 'Global':
                 assemblyCode += "mov " + value.name + ", " + regname + "\n"
                 addressDescriptor[value] = "mem"
             else:
-                assemblyCode +=" CHANGE HERE --"
-                ## TODO :: Its a local variable, then use $ebp + offset
+                ## TODO :: Case of a local variable, then use [ ebp + offset ]
+                assemblyCode +=""
             return regname
 
 def nextUse(var, lineno):
     return nextUseTable[lineno][var]
 
 def populateNextUseTable():
-    print(blocks);
+
     for ldr, block in blocks.items():
         """for var in varlist:
             symTable[var].status = stat.DEAD
@@ -458,12 +474,13 @@ def populateSymWithGlobal():
 
 
 def main():
-    global varlist,symTable,symlist,assemblyCode
+    global varlist, symTable, symlist
+
     filename = getFilename()
     populateIR(filename)
 
     symClasses.makeSymStructure(program)
-    utility.makeVarList(irlist,program['Main'].globalSymTable,varlist,symlist)
+    utility.makeVarList(irlist, program['Main'].globalSymTable, varlist, symlist)
 
     symTable = program['Main'].globalSymTable
 
@@ -471,29 +488,28 @@ def main():
         addressDescriptor[s]='mem'  ## initially no variable is loaded onto the registers
 
     ## find the block leaders
-
     findLeaders()
     genBlocks()
     populateNextUseTable()
 
     ## TEST
-    codeTester()
+    #  codeTester()
 
-    data_section = ".section .data\n"
+    ## FIXME :: this assembly is not consistent with x86 nasm for linux with C library support
+    data_section = "section .data\n"
     for var in varlist:
     	data_section = data_section + var + ":\n" + ".int 0\n"
     data_section = data_section + "str:\n.ascii \"%d\\n\\0\"\n"
 
-    bss_section = ".section .bss\n"
-    text_section = ".section .text\n" + ".globl main\n" + "main:\n"
+    bss_section = "segment .bss\n"
+    text_section = "segment .text\n" + ".globl main\n" + "main:\n"
 
-    print(blocks)
     for lead,block in blocks.items():
-    	text_section = text_section + "L" + str(lead) + ":\n"
+            #  text_section = text_section + "L" + str(lead) + ":\n"
     	for v in block:
     		translate(v)
 
-    text_section = assemblyCode
+    text_section += assemblyCode
 
     #--------------------------------------------------------------------------------------------------
 
@@ -519,10 +535,10 @@ if __name__ == "__main__":
 
     program = {}
 
-    reglist = ['%eax', '%ebx','%ecx','%edx']
+    reglist = ['eax', 'ebx','ecx','edx']
     registerDesc = { i:None for i in reglist}
-    #Register Descriptor maps from regname to symbol table entry of that
-    #variable
+    # registerDesc :: Register Descriptor maps from regname to 
+    #                 symbol table entry of that variable
 
     arithOp = ['+','-','%','/','*']
 
@@ -538,9 +554,7 @@ if __name__ == "__main__":
     leaders = [1,]
     ## blocks == leader : instr block
     blocks = {}
-
     symTable = {}
-    nodes = []
 
     assemblyCode = ""
 
