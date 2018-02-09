@@ -84,7 +84,7 @@ def OptimizeForYandZ(lineno,regk,X,Y,Z):
             addressDescriptor[b]=reg
             registerDesc[reg]=b
 
-def translateArithmetic(opInstr, X, Y, Z, lineno):
+def translate3OpStmt(opInstr, X, Y, Z, lineno):
     global flag_isMoveYtoX
     assem = ""
 
@@ -102,14 +102,15 @@ def translateArithmetic(opInstr, X, Y, Z, lineno):
     if flag_isMoveYtoX == False:
         flag_isMoveYtoX = True
     elif Y not in symlist:
-         #That means Y is a constant
          assem += "mov " + reg + ", " + Y + "\n"
     elif addressDescriptor[Y]!="mem":
          assem += "mov " + reg + ", " + addressDescriptor[Y] + "\n"
     elif Y.scope == 'Global':
          assem += "mov " + reg + ", [" + Y.name + "]\n"
+    elif Y.scope == 'Local':
+        ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
+        pass
 
-    ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
 
     if Z not in symlist:
         assem += opInstr + reg + ", " + Z +"\n"
@@ -117,8 +118,9 @@ def translateArithmetic(opInstr, X, Y, Z, lineno):
         assem += opInstr + reg + ", " + addressDescriptor[Z] +"\n"
     elif Z.scope == 'Global':
         assem += opInstr + reg + ", [" + Z.name + "]\n"
-
-    ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
+    elif Z.scope == 'Local':
+        ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
+        pass
 
     #ASSUMPTION -- Same variable cannot be in multiple registers at same time
     for regk in reglist:
@@ -165,21 +167,44 @@ def translate(ir):
 
         # TODO ARRRAYS
         if op == '+':
-            # NOTE :: add dest, source == dest = dest + source
-            assem = translateArithmetic('add ', X, Y, Z, lineno)
+            assem = translate3OpStmt('add ', X, Y, Z, lineno)
         elif op == '-':
-            # NOTE :: sub dest, source == dest = dest - source
-            assem = translateArithmetic('sub ', X, Y, Z, lineno)
+            assem = translate3OpStmt('sub ', X, Y, Z, lineno)
         elif op == '*':
-            # NOTE :: unsigned multiplication is done in a different manner in x86
-            assem = translateArithmetic('imul ', X, Y, Z, lineno)
+            # NOTE :: signed multiplication supported now
+            assem = translateMulDiv('imul ', X, lineno)
         elif op == '/':
             # NOTE :: same as above
-            assem = translateArithmetic('idiv ', X, Y, Z, lineno)
+            assem = translateMulDiv('idiv ', X, Y, Z, lineno)
             pass
         elif op == '%':
-            # NOTE :: lookup the guide
+            # NOTE :: same as divsion
             pass
+
+    elif op in bitOp:
+        X, Y, Z = ir[2:5]
+
+        if op == '&&':
+            assem = translate3OpStmt('and ', X, Y, Z, lineno)
+        elif op == '||':
+            assem = translate3OpStmt('or ', X, Y, Z, lineno)
+        elif op == '^':
+            assem = translate3OpStmt('xor ', X, Y, Z, lineno)
+
+    elif op in shiftOp:
+        X, Y, Z = ir[2:5]
+
+        if op == '>>':
+            assem = translate3OpStmt('shr ', X, Y, Z, lineno)
+        elif op == '<<':
+            assem = translate3OpStmt('shl ', X, Y, Z, lineno)
+
+    elif op in relOp:
+        X, Y, Z = ir[2:5]
+
+        if op == '>=':
+            #FIXME
+            assem = translate3OpStmt
 
 
     if lineno+1 in leaders or lineno+1==len(irlist):
@@ -427,7 +452,7 @@ def main():
     #  codeTester()
 
     top_section = "global main\nextern printf\n\n"
-    data_section = "section .data\n\n" + "debug dw `Testing :: %i\\n`\n"
+    data_section = "segment .data\n\n" + "debug dd `Testing :: %i\\n`\n"
     for var in varlist:
         data_section += var + "  dw  " + "0\n"
 
@@ -472,6 +497,9 @@ if __name__ == "__main__":
     #                 symbol table entry of that variable
 
     arithOp = ['+','-','%','/','*']
+    bitOp = ['&&','||','^']
+    shiftOp = ['>>', '<<']
+    relOp = ['==', '~=', '>', '<', '>=', '<=']
 
     addressDescriptor = {}
     nextUseTable = {}
