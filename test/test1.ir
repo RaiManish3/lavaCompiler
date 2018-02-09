@@ -1,9 +1,10 @@
-1, =, a, 2
-2, =, b, 7
-3, +, a, a, b
-4, ifgoto, leq, a, 50, 2
-5, call, foo
-6, ret
-7, label, foo
-8, print, a
-9, ret
+1, function, main
+2, =, a, 2
+3, =, b, 7
+4, +, a, a, b
+5, ifgoto, <=, a, 50, 3
+6, call, foo
+7, return
+8, function, foo
+9, print, a
+10, return
