@@ -69,7 +69,7 @@ def OptimizeForYandZ(lineno,regk,X,Y,Z):
         if reg == None:
             return
         else:
-            assemblyCode +="mov "+reg +" "+ a.name +"\n"
+            assemblyCode +="mov "+reg +", ["+ a.name +"]\n"
             print("mov "+reg +" "+ a.name +"\n")
             addressDescriptor[a]=reg
             registerDesc[reg]=a
@@ -79,7 +79,7 @@ def OptimizeForYandZ(lineno,regk,X,Y,Z):
         if reg == None:
             return
         else:
-            assemblyCode +="mov "+reg +" "+ b.name +"\n"
+            assemblyCode +="mov "+reg +", ["+ b.name +"]\n"
             print("mov "+reg +" "+ b.name +"\n")
             addressDescriptor[b]=reg
             registerDesc[reg]=b
@@ -132,8 +132,9 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
              assem += "kmov " + reg + ", " + addressDescriptor[Y] + "\n"
         elif Y.scope == 'Global':
              assem += "mov " + reg + ", " + Y.name + "\n"
-
-        ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
+        elif Y.scope == 'Local':
+            ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
+            pass
 
         if Z not in symlist:
             assem += opInstr + reg + ", " + Z +"\n"
@@ -141,8 +142,9 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
             assem += opInstr + reg + ", " + addressDescriptor[Z] +"\n"
         elif Z.scope == 'Global':
             assem += opInstr + reg + ", " + Z.name + "\n"
-
-    ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
+        elif Z.scope == 'Local':
+            ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
+            pass
 
     #ASSUMPTION -- Same variable cannot be in multiple register s at same time
     remReg(X)
@@ -158,7 +160,7 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
 
     if Z in symlist and addressDescriptor[Z]!="mem" and nextUseTable[lineno][Z][0]==utility.stat.DEAD:
         if Z.scope == 'Global':
-            assem += "mov " + Z.name + ", " + addressDescriptor[Z] + "\n"
+            assem += "mov [" + Z.name + "], " + addressDescriptor[Z] + "\n"
         #TODO: MAKE CHANGES FOR LOCAL VARIABLE
         registerDesc[addressDescriptor[Z]] = None
         addressDescriptor[Z]="mem"
@@ -250,6 +252,7 @@ def translateMulDiv(op,X,Y,Z,lineno):
             assem+="imul ",addressDescriptor[Z],"\n"
         remReg(X)
         associate(X,'eax')
+    return assem
 
 
 def translate(ir):
@@ -275,15 +278,16 @@ def translate(ir):
             assem = translate3OpStmt('add ', X, Y, Z, lineno)
         elif op == '-':
             # NOTE :: sub dest, source == dest = dest - source
-            assem = translate2OpStmt('sub ', X, Y, Z, lineno)
+            assem = translate3OpStmt('sub ', X, Y, Z, lineno)
         elif op == '*':
-            # NOTE :: multiplication is done in a different manner in x86
-            pass
+            # NOTE :: signed multiplication supported now
+            assem = translateMulDiv('imul ', X, lineno)
         elif op == '/':
             # NOTE :: same as above
+            assem = translateMulDiv('idiv ', X, Y, Z, lineno)
             pass
         elif op == '%':
-            # NOTE :: lookup the guide
+            # NOTE :: same as divsion
             pass
 
     if op=="ifgoto":
@@ -371,41 +375,30 @@ def translate(ir):
     if op =="/" or op =="%" or op=="*":
         X,Y,Z=ir[2:5]
         assem+=translateMulDiv(op,X,Y,Z,lineno)
+    if op in bitOp:
+        X, Y, Z = ir[2:5]
 
-        """
-        reg=getReg(X,Y,None,lineno,None)
-        #check if x is already in reg or not
-        isXinMem = True
-        if reg == None:
-            reg = X.name
-        else:
-            isXinMem = False
-            OptimizeForYandZ(lineno, reg, X, Y, 0)
+        if op == '&&':
+            assem = translate3OpStmt('and ', X, Y, Z, lineno)
+        elif op == '||':
+            assem = translate3OpStmt('or ', X, Y, Z, lineno)
+        elif op == '^':
+            assem = translate3OpStmt('xor ', X, Y, Z, lineno)
 
-        if flag_isMoveYtoX == False:
-            flag_isMoveYtoX = True
-        elif Y not in symlist:
-             #That means Y is a constant
-             assem += "mov " + reg + ", " + Y + "\n"
-        elif addressDescriptor[Y]!="mem":
-             assem += "mov " + reg + ", " + addressDescriptor[Y] + "\n"
-        elif Y.scope == 'Global':
-             assem += "mov " + reg + ", " + Y.name + "\n"
+    if op in shiftOp:
+        X, Y, Z = ir[2:5]
 
-        ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
+        if op == '>>':
+            assem = translate3OpStmt('shr ', X, Y, Z, lineno)
+        elif op == '<<':
+            assem = translate3OpStmt('shl ', X, Y, Z, lineno)
 
-        if Z not in symlist:
-            assem += opInstr + reg + ", " + Z +"\n"
-        elif addressDescriptor[Z]!="mem":
-            assem += opInstr + reg + ", " + addressDescriptor[Z] +"\n"
-        elif Z.scope == 'Global':
-            assem += opInstr + reg + ", " + Z.name + "\n"
-        """
+    if op in relOp:
+        X, Y, Z = ir[2:5]
 
-
-
-
-
+        if op == '>=':
+            #FIXME
+            assem = translate3OpStmt
     if lineno+1 in leaders or lineno+1==len(irlist):
         assem+=dumpAllRegToMem()
 
@@ -450,7 +443,7 @@ def getRegWithContraints(afterNextUse,reg1,reg2,lineno):
     for regname, value in registerDesc.items():
         if value == farthestNextUseSymb:
             if value.scope == 'Global':
-                assemblyCode += "mov " + value.name + ", " + regname + "\n"
+                assemblyCode += "mov [" + value.name + "], " + regname + "\n"
                 print("mov " + value.name + ", " + regname + "\n")
                 addressDescriptor[value] = "mem"
             else:
@@ -504,7 +497,7 @@ def getReg(X,Y,Z, lineno,isLocal):
     # if its farthestNextUse > x then take the victim's reg
 
     if Y in symlist and addressDescriptor[Y] != "mem" and nextUseTable[lineno][Y][0] == utility.stat.DEAD:
-            assemblyCode += "mov " + Y.name +", " + addressDescriptor[Y] +"\n"
+            assemblyCode += "mov [" + Y.name +"], " + addressDescriptor[Y] +"\n"
             print("mov " + Y.name +", " + addressDescriptor[Y] +"\n")
             reg = addressDescriptor[Y]
             addressDescriptor[Y] ="mem"
@@ -613,17 +606,6 @@ def getFilename():
     args = argParser.parse_args()
     return args.filename
 
-"""
-def populateSymWithGlobal():
-    global symTable
-    for v in varlist:
-        ## ASSUMPTION, program list has 1st class Main
-        program['Main'].globalSymTable[v] = SymbolClass('int', stat.DEAD, None);
-        addressDescriptor[v]='mem'  ## initially no variable is loaded onto the register s
-    symTable = program['Main'].globalSymTable
-"""
-
-
 def main():
     global varlist, symTable, symlist
 
@@ -646,14 +628,16 @@ def main():
     ## TEST
     #  codeTester()
 
-    ## FIXME :: this assembly is not consistent with x86 nasm for linux with C library support
-    data_section = "section .data\n"
+    top_section = "global main\nextern printf\n\n"
+    data_section = "segment .data\n\n" + "debug dd `Testing :: %i\\n`\n"
     for var in varlist:
-    	data_section = data_section + var + ":\n" + ".int 0\n"
-    data_section = data_section + "str:\n.ascii \"%d\\n\\0\"\n"
+        data_section += var + "  dw  " + "0\n"
 
-    bss_section = "segment .bss\n"
-    text_section = "segment .text\n" + ".globl main\n" + "main:\n"
+    bss_section = "\n"
+    text_section = "segment .text\n\n" + "main:\n"
+
+    ## just for now , FIXME later when 'function' code is complete
+    text_section += "push ebp\nmov ebp, esp\n"
 
     for lead,block in blocks.items():
             #  text_section = text_section + "L" + str(lead) + ":\n"
@@ -662,12 +646,10 @@ def main():
 
     text_section += assemblyCode
 
-    #--------------------------------------------------------------------------------------------------
+    ## just for now , FIXME later when 'function' code is complete
+    text_section += "mov eax, 0\nmov esp, ebp\npop ebp\nret\n"
 
-    # Priniting the final output
-    # print("Assembly Code (x86) for: [" + filename + "]")
-    # print("--------------------------------------------------------------------")
-    x86c = data_section + bss_section + text_section
+    x86c = top_section + data_section + bss_section + text_section
     print(x86c)
 
 def codeTester():
@@ -692,6 +674,9 @@ if __name__ == "__main__":
     #                 symbol table entry of that variable
 
     arithOp = ['+','-','%','/','*']
+    bitOp = ['&&','||','^']
+    shiftOp = ['>>', '<<']
+    relOp = ['==', '~=', '>', '<', '>=', '<=']
 
     addressDescriptor = {}
     nextUseTable = {}

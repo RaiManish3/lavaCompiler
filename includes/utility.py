@@ -21,7 +21,7 @@ def isnumber(num):
 ## this function extracts variables, converts them into pointer to symbols in symTableDict and also stores them in symlist
 def makeVarList(irlist, symTableDict, varlist, symlist):
     ## symlist is a mapping from "symbols" in IRcode to the variable it is pointing to
-    varlist = set()
+    tmp_varlist = set()
 
     for ir in irlist:
         if ir[1] in ['call', 'ret', 'label']:
@@ -29,16 +29,18 @@ def makeVarList(irlist, symTableDict, varlist, symlist):
         elif ir[1] == "ifgoto":
             for i in range(3,5):
                 if not isnumber(ir[i]):
-                    varlist.add(ir[i])
+                    tmp_varlist.add(ir[i])
         elif ir[1] == "print":
             if not isnumber(ir[2]):
-                varlist.add(ir[2])
+                tmp_varlist.add(ir[2])
         else:
             ## statements of the form :: lineno, operator, { var | literal ,}
             for i in range(2,len(ir)):
                 if not isnumber(ir[i]):
-                    varlist.add(ir[i])
-    varlist = list(varlist)[:]
+                    tmp_varlist.add(ir[i])
+
+    for i in tmp_varlist:
+        varlist.append(i)
 
     for v in varlist:
         ## ASSUMPTION, program list has 1st class Main
