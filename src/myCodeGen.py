@@ -304,8 +304,8 @@ def translate(ir):
             assem = translate3OpStmt('  shl ', X, Y, Z, lineno)
 
 
-    if lineno+1 in leaders or lineno+1==len(irlist):
-        assem+=dumpAllRegToMem()
+    if lineno+1 in leaders or lineno+1 == len(irlist):
+        assem += dumpAllRegToMem()
 
     if op == "ifgoto":
         relop, X, Y, Label = ir[2:6]
@@ -343,6 +343,12 @@ def translate(ir):
     # Generating assembly code if the tac is a return statement
     if op == "exit":
         assem += "  call exit\n"
+
+    if op == "print":
+        X = ir[2] ## assuming only int literals or int variables
+        assem += "  push " + name(X) +"\n"
+        assem += "  push debug\n"
+        assem += "  call printf\n"
 
     if op == "return":
         if registerDesc['eax'] != None:
