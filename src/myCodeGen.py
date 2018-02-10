@@ -161,9 +161,6 @@ def translateMulDiv(op,X,Y,Z,lineno):
     reg1 = getRegWithContraints(0,None,None,lineno)
     reg2 = getRegWithContraints(0,reg1,None,lineno)
     regs = ['eax','edx']
-    print(addressDescriptor[X])
-    print(addressDescriptor[Y])
-    print(addressDescriptor[Z])
 
     if reg1 in regs:
         if reg1 =="eax":
@@ -319,8 +316,8 @@ def translate(ir):
         else:
             assem += "  cmp " + name(X) + ", " + name(Y) + "\n"
 
-        #if utility.isnumber(Label):
         label = "L" + Label
+
         if relop == "<=":
                 assem += "  jle " + label + "\n"
         elif relop == ">=":
@@ -353,12 +350,6 @@ def translate(ir):
         assem += "  call printf\n"
 
     if op == "return":
-        #  if registerDesc['eax'] != None:
-            #  assem += "  mov dword [" + registerDesc['eax'].name + "], eax\n"
-            #  addressDescriptor[registerDesc['eax']] = "mem"
-            #  registerDesc['eax'] = None
-
-        # NOTE NOTE NOTE DO NOT UPDATE REGISTER or ADDRESS DESCRIPTOR HERE
         dumpAllRegToMem()
         if len(ir) > 2:
             if addressDescriptor(ir[2])=="mem":
@@ -440,9 +431,6 @@ def getReg(X,Y,Z, lineno,isLocal):
     global flag_isMoveYtoX, assemblyCode
     flag_isMoveYtoX = True
 
-
-    #ASSUMPTION -- Same variable cannot be in multiple register s at same time
-
     #if y is same as x, then check if y or x is in memory, and if z is also in memory,
     #o/w
     if Y is X and addressDescriptor[X]!="mem":
@@ -494,7 +482,6 @@ def populateNextUseTable():
             optr = b[1]
             instr = b[0]
 
-            # INSTRUCTION NUMBER NEEDED
             if optr == '=':
                 tple[b[2]] = (utility.stat.DEAD,Decimal('inf'))
                 if b[3] in symlist:
@@ -517,9 +504,11 @@ def populateNextUseTable():
                 if b[2] in symlist:
                     tple[b[2]] = (utility.stat.LIVE,instr)
 
-            """IT SHOULD ALSO BE ALIVE FOR PARAM,
-            1ST UPDATE THE UTILITY. PY FOR PARAM, AND OTHER IR statements
-            THEN UPDATE HERE"""
+            """
+                IT SHOULD ALSO BE ALIVE FOR PARAM,
+                1ST UPDATE THE utility.py FOR PARAM, AND OTHER IR statements
+                THEN UPDATE HERE
+            """
             # TODO
             # add other if else statements also
 
@@ -533,8 +522,8 @@ def genBlocks():
 
 def findLeaders():
     global leaders
+
     for ir in irlist:
-        # TODO function is skipped till doubt is cleared
         if ir[1] in ['ifgoto', 'goto']:
             leaders.append(ir[0]+1)
             if ir[1] == 'ifgoto':
@@ -542,8 +531,6 @@ def findLeaders():
             elif ir[1] == 'goto':
                 leaders.append(int(ir[2]))
 
-        # Each file should correspond to a separate function, with filename
-        # same as function name
         elif ir[1] in ['label', 'function']:
             leaders.append(ir[0]) ## doubt here
 
@@ -579,15 +566,11 @@ def main():
     symTable = program['Main'].globalSymTable
 
     for s in symlist:
-        addressDescriptor[s]='mem'  ## initially no variable is loaded onto the register s
+        addressDescriptor[s]='mem'  ## initially no variable is loaded in any register
 
-    ## find the block leaders
     findLeaders()
     genBlocks()
     populateNextUseTable()
-
-    ## TEST
-    #  codeTester()
 
     top_section = "global main\nextern printf\n\n"
     data_section = "segment .data\n\n" + "debug dd `Testing :: %i\\n`\n"
@@ -641,7 +624,7 @@ if __name__ == "__main__":
     symlist = []
     varlist = []
     leaders = [1,]
-    ## blocks == leader : instr block
+    ## blocks == {leader : instr block}
     blocks = {}
     symTable = {}
 
