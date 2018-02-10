@@ -160,14 +160,17 @@ def translateMulDiv(op,X,Y,Z,lineno):
     assem = ""
     reg1 = getRegWithContraints(0,None,None,lineno)
     reg2 = getRegWithContraints(0,reg1,None,lineno)
-    regs = ['eax','ebx']
+    regs = ['eax','edx']
+    print(addressDescriptor[X])
+    print(addressDescriptor[Y])
+    print(addressDescriptor[Z])
 
     if reg1 in regs:
         if reg1 =="eax":
-            assem += "  mov " + reg2 + ", ebx\n"
-            if registerDesc['ebx']!=None:
-                associate(registerDesc['ebx'],reg2)
-                registerDesc['ebx']=None
+            assem += "  mov " + reg2 + ", edx\n"
+            if registerDesc['edx']!=None:
+                associate(registerDesc['edx'],reg2)
+                registerDesc['edx']=None
         else:
             assem += "  mov " + reg2 + ", eax\n"
             if registerDesc['eax']!=None:
@@ -176,10 +179,10 @@ def translateMulDiv(op,X,Y,Z,lineno):
 
     elif reg2 in regs:
         if reg2 == "eax":
-            assem += "  mov " + reg1 + ", ebx\n"
-            if registerDesc['ebx']!=None:
-                associate(registerDesc['ebx'],reg1)
-                registerDesc['ebx']=None
+            assem += "  mov " + reg1 + ", edx\n"
+            if registerDesc['edx']!=None:
+                associate(registerDesc['edx'],reg1)
+                registerDesc['edx']=None
         else:
             assem += "  mov " + reg1 + ", eax\n"
             if registerDesc['eax']!=None:
@@ -187,11 +190,9 @@ def translateMulDiv(op,X,Y,Z,lineno):
                 registerDesc['eax']=None
     else:
         assem += "  mov " + reg1 + ", eax\n"
-        assem += "  mov " + reg2 + ", ebx\n"
+        assem += "  mov " + reg2 + ", edx\n"
         associate(registerDesc['eax'], reg1)
-        registerDesc['eax']=None
-        associate(registerDesc['ebx'],reg2)
-        registerDesc['ebx']=None
+        associate(registerDesc['edx'],reg2)
 
     if op =="\\" or op =="%":
         assem += "  cdq\n"
@@ -338,6 +339,7 @@ def translate(ir):
         assem += "  jmp L" + label + "\n"
 
     if op == "call":
+        assem += dumpAllRegToMem()
         assem += "  call "+ir[2]+"\n"
 
     # Generating assembly code if the tac is a return statement
@@ -351,14 +353,19 @@ def translate(ir):
         assem += "  call printf\n"
 
     if op == "return":
-        if registerDesc['eax'] != None:
-            assem += "  mov " + name(registerDesc['eax']) + ", eax\n"
-            addressDescriptor[registerDesc['eax']] = None
-            registerDesc['eax'] = None
+        #  if registerDesc['eax'] != None:
+            #  assem += "  mov dword [" + registerDesc['eax'].name + "], eax\n"
+            #  addressDescriptor[registerDesc['eax']] = "mem"
+            #  registerDesc['eax'] = None
 
         # NOTE NOTE NOTE DO NOT UPDATE REGISTER or ADDRESS DESCRIPTOR HERE
+        dumpAllRegToMem()
         if len(ir) > 2:
-            assem += "  mov eax, " + name(ir[2]) + "\n"
+            if addressDescriptor(ir[2])=="mem":
+                assem += "  mov eax, " + name(ir[2]) + "\n"
+            else:
+                if addressDescriptor(ir[2])!="eax":
+                    assem+=" mov eax, " + addressDescriptor[ir[2]] + "\n"
 
         if translatingMainFlag:
             assem += "  mov eax, 0\n"
@@ -366,7 +373,7 @@ def translate(ir):
         assem += "  pop ebp\n"
         assem += "  ret\n"
 
-
+    
     # DEBUG -------------------------------
     for k,v in registerDesc.items():
         if v != None:
@@ -537,7 +544,7 @@ def findLeaders():
 
         # Each file should correspond to a separate function, with filename
         # same as function name
-        elif ir[1] in ['label','function']:
+        elif ir[1] in ['label', 'function']:
             leaders.append(ir[0]) ## doubt here
 
     leaders = list(set(leaders))
@@ -590,9 +597,6 @@ def main():
     bss_section = "\n"
     text_section = "segment .text\n\n"
 
-    ## just for now , FIXME later when 'function' code is complete
-    #  text_section += "main:\npush ebp\nmov ebp, esp\n"
-
     for lead,block in blocks.items():
         if block[0][1] == 'function':
             translatingMainFlag = False
@@ -602,21 +606,11 @@ def main():
             text_section += "L" + str(lead) + ":\n"
         for v in block:
             translate(v)
-        text_section += assemblyCode
+        text_section += assemblyCode+"\n"
         assemblyCode=""
-
-    ## just for now , FIXME later when 'function' code is complete
-    #  text_section += "mov eax, 0\nmov esp, ebp\npop ebp\nret\n"
 
     x86c = top_section + data_section + bss_section + text_section
     print(x86c)
-
-def codeTester():
-    for k,v in nextUseTable.items():
-        print("::::::  Line No. {} ::::::".format(k))
-        for k1,v1 in v.items():
-            print("{} --> {}, {}".format(k1.name,v1[0],v1[1]));
-
 
 
 if __name__ == "__main__":
