@@ -6,11 +6,17 @@ The program aims to build a compiler for a modified langauge that has the basics
 
 ### Running the Tests
 While in the main directory, execute the following commands:<br>
+
+1. For the lexer:
   ``` bash 
         $: make 
-  ```
-  ``` bash
         $: bin/lexer test/test[1-5].lua
+  ```
+
+2. For the codegen:
+  ``` bash
+        $: make
+        $: bin/codegen test/test[1-5].ir
   ```
 
 ### Timeline
@@ -18,7 +24,7 @@ While in the main directory, execute the following commands:<br>
 1. <b>Task One</b>, <i> 28 Jan 2018 </i><br>
   Build a lexer for the Token
 
-2. <b>Task Two</b>, <i> 9 Feb 2018 </i><br>
+2. <b>Task Two</b>, <i> 12 Feb 2018 </i><br>
   Build a Code Generator
 
 ### Authors

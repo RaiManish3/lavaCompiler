@@ -13,8 +13,8 @@ ass2: $(SRC)/myCodeGen.py
 	@cp $(SRC)/myCodeGen.py $(BIN)/codegen
 	@chmod +x $(BIN)/codegen
 
-all:
-	ass1
+build:
+	ass2
 
 clean:
-	rm -rf bin/* src/{*.pyc,__pycache__,lextab.py} includes/{*.pyc,__pycache__}
+	@rm -rf bin/* src/{*.pyc,__pycache__,lextab.py} includes/{*.pyc,__pycache__}

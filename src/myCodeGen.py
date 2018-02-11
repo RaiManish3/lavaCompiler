@@ -160,7 +160,8 @@ def remReg(X):
 ######################################################################
 
     #NOTE NOTE NOTE NOTE NOTE REMOVE THIS ASSERT BEFORE SUBMISSION
-    assert(count<=1)
+    if DEBUG_FLAG:
+        assert(count<=1)
 
 def name(X):
     if X not in symlist:
@@ -249,15 +250,16 @@ def translateMulDiv(op,X,Y,Z,lineno):
 
 
 def translate(ir):
-    print('------------------------------------')
     global assemblyCode,flag_isMoveYtoX, translatingMainFlag
     lineno = ir[0]
     op = ir[1]
 
     # DEBUG -------------------------------
-    for s in symlist:
-        if nextUseTable[lineno][s][0] == utility.stat.DEAD and addressDescriptor[s]!="mem":
-            print("WARNING: {} was dead and in register {} ".format(s.name,addressDescriptor[s]))
+    if DEBUG_FLAG:
+        print('------------------------------------')
+        for s in symlist:
+            if nextUseTable[lineno][s][0] == utility.stat.DEAD and addressDescriptor[s]!="mem":
+                print("WARNING: {} was dead and in register {} ".format(s.name,addressDescriptor[s]))
     # DEBUG -------------------------------
 
     if op in relOp:
@@ -398,18 +400,19 @@ def translate(ir):
 
 
     # DEBUG -------------------------------
-    for k,v in registerDesc.items():
-        if v != None:
-            print({k:v.name})
-        else:
-            print({k:v})
-    for k,v in addressDescriptor.items():
-        if k != None:
-            print({k.name:v})
-        else:
-            print({k:v})
-    print("\/ \/ \/")
-    print(assemblyCode)
+    if DEBUG_FLAG:
+        for k,v in registerDesc.items():
+            if v != None:
+                print({k:v.name})
+            else:
+                print({k:v})
+        for k,v in addressDescriptor.items():
+            if k != None:
+                print({k.name:v})
+            else:
+                print({k:v})
+        print("\/ \/ \/")
+        print(assemblyCode)
     # DEBUG -------------------------------
 
 
@@ -524,7 +527,6 @@ def getReg(X,Y,Z, lineno,isLocal):
         if dirtybit[Y]:
             dirtybit[Y]=False
             assemblyCode += "  mov dword [" + Y.name +"], " + addressDescriptor[Y] +"\n"
-            print("mov " + Y.name +", " + addressDescriptor[Y] +"\n")
         associate(Y,"mem")
         flag_isMoveYtoX = False
         return reg
@@ -673,9 +675,12 @@ def main():
             dirtybit[s]=False
         for v in block:
             translate(v)
-        for s in symlist:
-            print(s.name,dirtybit[s])
-            assert(dirtybit[s]==False)
+
+        if DEBUG_FLAG:
+            for s in symlist:
+                print(s.name,dirtybit[s])
+                assert(dirtybit[s]==False)
+
         text_section += assemblyCode+"\n"
         assemblyCode=""
 
@@ -727,5 +732,7 @@ if __name__ == "__main__":
 
     assemblyCode = ""
     translatingMainFlag = False
+
+    DEBUG_FLAG = False
 
     main()
