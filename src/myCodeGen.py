@@ -212,6 +212,21 @@ def translateMulDiv(op,X,Y,Z,lineno):
         registerDesc[addressDescriptor[Y]]=None
         associate(Y,'eax')
 
+    if Y in symlist:
+        regytemp=getRegWithContraints(nextUseTable[lineno][Y][1]+1,'eax','edx',lineno)
+        if regytemp==None and dirtybit[Y]:
+            dirtybit[Y]=False
+            assemblyCode+="  mov dword ["+Y.name+"], eax\n"
+            associate(Y,'mem')
+        elif regytemp==None:
+            associate(Y,'mem')
+        else:
+            assemblyCode+="  mov "+regytemp+", eax\n"
+            associate(Y,regytemp)
+
+    registerDesc['eax']=None
+
+
 
     if registerDesc['edx']==None:
         pass
@@ -222,7 +237,7 @@ def translateMulDiv(op,X,Y,Z,lineno):
         assemblyCode+="  mov dword ["+registerDesc['edx'].name+"], edx\n"
         associate(registerDesc['edx'],"mem")
 
-    if op =="\\" or op =="%":
+    if op =="/" or op =="%":
         assemblyCode += "  cdq\n"
 
         if addressDescriptor[Z]=="mem":
@@ -244,8 +259,8 @@ def translateMulDiv(op,X,Y,Z,lineno):
         if op=="%":
             if addressDescriptor[X]!="mem":
                 registerDesc[addressDescriptor[X]]=None
-            registerDesc[X]=None
             associate(X,'edx')
+        dirtybit[X]=True
 
     elif op=="*":
         if addressDescriptor[Z]=="mem":
@@ -409,15 +424,16 @@ def translate(ir):
         assemblyCode+="  add "+regtemp+", "+arr.name+"\n"
 
         if op =="readarray":
-            assemblyCode+="  mov "+regtemp+", [" +regtemp +"]\n"
+            assemblyCode+="  mov "+regtemp+", dword [" +regtemp +"]\n"
             if addressDescriptor[ir[4]]!="mem":
                 registerDesc[addressDescriptor[ir[4]]] = None
             associate(ir[4],regtemp)
+            dirtybit[ir[4]]=True
         elif op =="writearray":
             OptimizeForYandZ(lineno,None,None,ir[4],None)
-            assemblyCode+="  mov ["+regtemp+"], " +name(ir[4]) +"\n"
+            assemblyCode+="  mov dword ["+regtemp+"], " +name(ir[4]) +"\n"
 
-    if lineno+1 in leaders or lineno+1 == len(irlist):
+    if lineno+1 in leaders or lineno== len(irlist):
         dumpAllRegToMem()
 
     if op == "goto":
@@ -439,11 +455,7 @@ def translate(ir):
     if op == "print":
         X = ir[2] ## assuming only int literals or int variables
         assemblyCode += "  push " + name(X) +"\n"
-        if registerDesc['eax']!= None:
-            if dirtybit[registerDesc['eax']]:
-                dirtybit[registerDesc['eax']] = False
-                assemblyCode += "  mov dword [" + registerDesc['eax'].name + "], eax\n"
-            associate(registerDesc['eax'], 'mem')
+        dumpAllRegToMem()
         assemblyCode += "  push debug\n"
         assemblyCode += "  call printf\n"
 
@@ -465,18 +477,18 @@ def translate(ir):
 
     # DEBUG -------------------------------
     if DEBUG_FLAG:
+        print(assemblyCode+"\/ \/ \/")
         for k,v in registerDesc.items():
             if v != None:
                 print({k:v.name})
             else:
                 print({k:v})
+        print("xxxxxxxxxxxxxxx")
         for k,v in addressDescriptor.items():
             if k != None:
                 print({k.name:v})
             else:
                 print({k:v})
-        print("\/ \/ \/")
-        print(assemblyCode)
     # DEBUG -------------------------------
 
 
@@ -801,6 +813,6 @@ if __name__ == "__main__":
     assemblyCode = ""
     translatingMainFlag = False
 
-    DEBUG_FLAG = False
+    DEBUG_FLAG = True
 
     main()
