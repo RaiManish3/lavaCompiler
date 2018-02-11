@@ -375,27 +375,32 @@ def translate(ir):
         #THIS CAN BE OPTIMIZE
         assemblyCode += "  push " + name(ir[2]) + "\n"
 
-    if op == "=":
+    if op == "=" or op=="~":
         src=ir[3]
         dest=ir[2]
-        global flag_isMoveZfromMem
-        flag_isMoveZfromMem=False
-        OptimizeForYandZ(lineno,None,None,src,dest)
-        flag_isMoveZfromMem=True
-        if src in symlist and dest in symlist and addressDescriptor[src]=="mem" and addressDescriptor[dest]=="mem":
-            reg=getRegWithContraints(0,None,None,lineno)
-            if nextUseTable[lineno][src] <= nextUseTable[lineno][dest]:
-                assemblyCode += "  mov " + reg + ", " + name(src) +"\n"
-                addressDescriptor[src]=reg;
-                registerDesc[reg]=src;
-            else:
-                # DESTINATION WILL BE INTIIALIZED, NO NEED TO DO THIS
-                assemblyCode += "  mov " + reg + ", " + name(dest) +"\n"
-                addressDescriptor[dest]=reg;
-                registerDesc[dest]=src;
-        assemblyCode += "  mov " + name(dest) + ", " + name(src) + "\n"
-        if addressDescriptor[dest]!="mem":
-            dirtybit[dest]=True
+        if src!=dest:
+            global flag_isMoveZfromMem
+            flag_isMoveZfromMem=False
+            OptimizeForYandZ(lineno,None,None,src,dest)
+            flag_isMoveZfromMem=True
+            if src in symlist and dest in symlist and addressDescriptor[src]=="mem" and addressDescriptor[dest]=="mem":
+                reg=getRegWithContraints(0,None,None,lineno)
+                if nextUseTable[lineno][src] <= nextUseTable[lineno][dest]:
+                    assemblyCode += "  mov " + reg + ", " + name(src) +"\n"
+                    addressDescriptor[src]=reg;
+                    registerDesc[reg]=src;
+                else:
+                    # DESTINATION WILL BE INTIIALIZED, NO NEED TO DO THIS
+                    assemblyCode += "  mov " + reg + ", " + name(dest) +"\n"
+                    addressDescriptor[dest]=reg;
+                    registerDesc[dest]=src;
+            assemblyCode += "  mov " + name(dest) + ", " + name(src) + "\n"
+            if addressDescriptor[dest]!="mem":
+                dirtybit[dest]=True
+        if op =="~":
+            assemblyCode+="  not "+name(dest) +"\n"
+            if addressDescriptor[dest]!="mem":
+                dirtybit[dest]=True
 
 
     if op == "function":
@@ -463,6 +468,33 @@ def translate(ir):
         else:
             assert(False)
 
+    if op == 'readarray' or op =="writearray":
+        arr=ir[2]
+        offset = ir[3]
+        dest = ir[4]
+        # handle constant
+        if ir[3] not in symlist:
+            offset=str(4*int(offset)) #every interger if 4 byte
+            regtemp=getRegWithContraints(0,None,None,lineno)
+            assemblyCode+="  mov "+regtemp+", "+offset+"\n"
+        else:
+            OptimizeForYandZ(lineno,None,None,ir[3],None)
+            if addressDescriptor[ir[3]]=="mem":
+                regtemp=getRegWithContraints(0,None,None,lineno)
+            else:
+                regtemp=getRegWithContraints(0,addressDescriptor[ir[3]],None,lineno)
+            assemblyCode+="  mov "+regtemp+", "+name(ir[3])+"\n"
+            assemblyCode+="  shl "+regtemp +", 2\n"
+        assemblyCode+="  add "+regtemp+", "+arr.name+"\n"
+
+        if op =="readarray":
+            assemblyCode+="  mov "+regtemp+", [" +regtemp +"]\n"
+            if addressDescriptor[ir[4]]!="mem":
+                registerDesc[addressDescriptor[ir[4]]] = None
+            associate(ir[4],regtemp)
+        elif op =="writearray":
+            OptimizeForYandZ(lineno,None,None,ir[4],None)
+            assemblyCode+="  mov ["+regtemp+"], " +name(ir[4]) +"\n"
 
     if lineno+1 in leaders or lineno+1 == len(irlist):
         dumpAllRegToMem()
@@ -770,7 +802,7 @@ def main():
     populateIR(filename)
 
     symClasses.makeSymStructure(program)
-    utility.makeVarList(irlist, program['Main'].globalSymTable, varlist, symlist)
+    utility.makeVarList(irlist, program['Main'].globalSymTable, varlist, symlist,arraylist)
 
     symTable = program['Main'].globalSymTable
 
@@ -784,7 +816,10 @@ def main():
     top_section = "global main\nextern printf\n\n"
     data_section = "segment .data\n\n" + "debug dd `Testing :: %i\\n`\n"
     for var in varlist:
-        data_section += var + "  dd  " + "0\n"
+        if var not in arraylist:
+            data_section += var + "  dd  " + "0\n"
+        else:
+            data_section += var + " times 100 dd  0\n"
 
     bss_section = "\n"
     text_section = "segment .text\n\n"
@@ -833,13 +868,13 @@ if __name__ == "__main__":
 
     flag_isMoveYtoX = True
     flag_isMoveZfromMem = True
-
     irlist =[]
 
     dirtybit ={}
 
     symlist = []
     varlist = []
+    arraylist=[]
     leaders = [1,]
     ## blocks == {leader : instr block}
     blocks = {}

@@ -19,7 +19,7 @@ def isnumber(num):
 
 
 ## this function extracts variables, converts them into pointer to symbols in symTableDict and also stores them in symlist
-def makeVarList(irlist, symTableDict, varlist, symlist):
+def makeVarList(irlist, symTableDict, varlist, symlist,arraylist):
     ## symlist is a mapping from "symbols" in IRcode to the variable it is pointing to
     tmp_varlist = set()
 
@@ -38,6 +38,8 @@ def makeVarList(irlist, symTableDict, varlist, symlist):
             for i in range(2,len(ir)):
                 if not isnumber(ir[i]):
                     tmp_varlist.add(ir[i])
+            if ir[1]=='readarray' or ir[1]=='writearray':
+                arraylist.append(ir[2])
 
     for i in tmp_varlist:
         varlist.append(i)
