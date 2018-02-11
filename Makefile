@@ -3,15 +3,15 @@ SRC=src
 BIN=bin
 TEST=test
 
-ass1: $(SRC)/assignment1.py $(SRC)/myLexer.py
-	@mkdir -p $(BIN)
-	@cp $(SRC)/assignment1.py $(BIN)/lexer
-	@chmod +x $(BIN)/lexer
-
 ass2: $(SRC)/myCodeGen.py
 	@mkdir -p $(BIN)
 	@cp $(SRC)/myCodeGen.py $(BIN)/codegen
 	@chmod +x $(BIN)/codegen
+
+ass1: $(SRC)/assignment1.py $(SRC)/myLexer.py
+	@mkdir -p $(BIN)
+	@cp $(SRC)/assignment1.py $(BIN)/lexer
+	@chmod +x $(BIN)/lexer
 
 build:
 	ass2

@@ -380,6 +380,11 @@ def translate(ir):
     if op == "print":
         X = ir[2] ## assuming only int literals or int variables
         assemblyCode += "  push " + name(X) +"\n"
+        if registerDesc['eax']!= None:
+            if dirtybit[registerDesc['eax']]:
+                dirtybit[registerDesc['eax']] = False
+                assemblyCode += "  mov dword [" + registerDesc['eax'].name + "], eax\n"
+            associate(registerDesc['eax'], 'mem')
         assemblyCode += "  push debug\n"
         assemblyCode += "  call printf\n"
 
