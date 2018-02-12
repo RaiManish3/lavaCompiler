@@ -642,12 +642,12 @@ def populateNextUseTable():
             optr = b[1]
             instr = b[0]
 
-            if optr == '=':
+            if optr == '=' or optr == '~':
                 tple[b[2]] = (utility.stat.DEAD,Decimal('inf'))
                 if b[3] in symlist:
                     tple[b[3]] = (utility.stat.LIVE,instr)
 
-            elif optr in arithOp:
+            elif optr in arithOp or optr in relOp or optr in shiftOp or optr in bitOp:
                 tple[b[2]] = (utility.stat.DEAD,Decimal('inf'))
                 if b[3] in symlist:
                     tple[b[3]] = (utility.stat.LIVE,instr)
