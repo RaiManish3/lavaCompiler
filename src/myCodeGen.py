@@ -469,10 +469,10 @@ def translate(ir):
     if op == "return":
         dumpAllRegToMem()
         if len(ir) > 2:
-            if addressDescriptor(ir[2])=="mem":
+            if addressDescriptor[ir[2]]=="mem":
                 assemblyCode += "  mov eax, " + name(ir[2]) + "\n"
             else:
-                if addressDescriptor(ir[2])!="eax":
+                if addressDescriptor[ir[2]]!="eax":
                     assemblyCode+=" mov eax, " + addressDescriptor[ir[2]] + "\n"
 
         if translatingMainFlag:

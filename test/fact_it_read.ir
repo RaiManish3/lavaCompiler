@@ -10,4 +10,4 @@
 10, *, a, a, i
 11, +, i, i, 1
 12, goto, 9
-13, return
+13, return, a
