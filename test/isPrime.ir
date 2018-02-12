@@ -1,0 +1,14 @@
+1, function, main
+2, readInt, a
+3, ifgoto, ==, a, 0, 13
+4, ifgoto, ==, a, 1, 13
+5, =, i, 2
+6, ifgoto, >=, i, a, 11
+7, %, mod, a, i
+8, ifgoto, ==, mod, 0, 13
+9, +, i, i, 1
+10, goto, 6
+11, print, 1
+12, goto, 14
+13, print, 0
+14, return
