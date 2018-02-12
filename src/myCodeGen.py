@@ -459,6 +459,13 @@ def translate(ir):
         assemblyCode += "  push debug\n"
         assemblyCode += "  call printf\n"
 
+    if op == "readInt":
+        X = ir[2] ## assuming only int literals or int variables
+        dumpAllRegToMem()
+        assemblyCode += "  push dword " + X.name +"\n"
+        assemblyCode += "  push readInt\n"
+        assemblyCode += "  call scanf\n"
+
     if op == "return":
         dumpAllRegToMem()
         if len(ir) > 2:
@@ -660,7 +667,7 @@ def populateNextUseTable():
                 if b[4] in symlist:
                     tple[b[4]] = (utility.stat.LIVE,instr)
 
-            elif optr == 'print':
+            elif optr == 'print' or optr == 'readInt':
                 if b[2] in symlist:
                     tple[b[2]] = (utility.stat.LIVE,instr)
 
@@ -732,8 +739,8 @@ def main():
     genBlocks()
     populateNextUseTable()
 
-    top_section = "global main\nextern printf\n\n"
-    data_section = "segment .data\n\n" + "debug dd `Output :: %i\\n`\n"
+    top_section = "global main\nextern printf\nextern scanf\n\n"
+    data_section = "segment .data\n\n" + "debug dd `Output :: %i\\n`\n" + "readInt dd `%d`\n"
     for var in varlist:
         if var not in arraylist:
             data_section += var + "  dd  " + "0\n"
