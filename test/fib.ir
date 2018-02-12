@@ -1,16 +1,25 @@
 1, function, main
-2, =, a, 10
-3, =, b, 0
-4, =, c, 1
-5, =, d, 0
-6, call, fib
-7, print, d
-8, return
-9, function, fib
-10, ifgoto, ==, a, 1, 16
-11, -, a, a, 1
-12, +, d, b, c
-13, =, b, c
-14, =, c, d
-15, goto, 10
+2, readInt, a
+3, ifgoto, ==, a, 0, 7
+4, ifgoto, ==, a, 1, 9
+5, ifgoto, ==, a, 2, 9
+6, goto, 11
+7, print, a
+8, goto, 16
+9, -, a, a, 1
+10, goto, 7
+11, =, b, 0
+12, =, c, 1
+13, =, d, 0
+14, call, fib
+15, print, d
 16, return
+17, function, fib
+18, -, a, a, 1
+19, ifgoto, ==, a, 1, 25
+20, -, a, a, 1
+21, +, d, b, c
+22, =, b, c
+23, =, c, d
+24, goto, 19
+25, return

@@ -322,7 +322,7 @@ def translate(ir):
             flag_isMoveZfromMem=True
             if src in symlist and dest in symlist and addressDescriptor[src]=="mem" and addressDescriptor[dest]=="mem":
                 reg=getRegWithContraints(0,None,None,lineno)
-                if nextUseTable[lineno][src] <= nextUseTable[lineno][dest]:
+                if nextUseTable[lineno][src][1] <= nextUseTable[lineno][dest][1]:
                     assemblyCode += "  mov " + reg + ", " + name(src) +"\n"
                     addressDescriptor[src]=reg;
                     registerDesc[reg]=src;
@@ -633,7 +633,7 @@ def getReg(X,Y,Z, lineno,isLocal):
     return getRegWithContraints(0,regy,regz,lineno)
 
 def nextUse(var, lineno):
-    return nextUseTable[lineno][var]
+    return nextUseTable[lineno][var][1]
 
 def populateNextUseTable():
 
