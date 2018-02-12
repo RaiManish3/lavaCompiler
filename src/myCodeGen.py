@@ -733,7 +733,7 @@ def main():
     populateNextUseTable()
 
     top_section = "global main\nextern printf\n\n"
-    data_section = "segment .data\n\n" + "debug dd `Testing :: %i\\n`\n"
+    data_section = "segment .data\n\n" + "debug dd `Output :: %i\\n`\n"
     for var in varlist:
         if var not in arraylist:
             data_section += var + "  dd  " + "0\n"
@@ -813,6 +813,6 @@ if __name__ == "__main__":
     assemblyCode = ""
     translatingMainFlag = False
 
-    DEBUG_FLAG = True
+    DEBUG_FLAG = False
 
     main()

@@ -15,8 +15,12 @@ While in the main directory, execute the following commands:<br>
 
 2. For the codegen:
   ``` bash
+        # FOR LISTING THE ASSEMBLY CODE
         $: make
-        $: bin/codegen test/test[1-5].ir
+        $: bin/codegen test/[filename].ir
+
+        # EXECUTING THE ASSEMBLY CODE
+        $: bash includes/runassem.sh [filename]  #filename should be without extension or directory
   ```
 
 ### Timeline
