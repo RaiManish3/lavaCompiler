@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import os
 sys.path.extend(['..','.'])
 
 from includes import utility, symClasses
@@ -775,7 +776,10 @@ def main():
 
     ## saving to file
     try:
-        with open("bnf/"+filename[5:-3]+".s",'w') as f:
+        directory="asm/"
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        with open(directory + filename[5:-3]+".s",'w') as f:
             f.write(x86c)
     except:
         print("Cannot write to file!")
