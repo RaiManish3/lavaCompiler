@@ -15,12 +15,39 @@ EXIT_FAILURE = 1
 class MyParser(object):
     
     tokens = MyLexer.tokens
+    
+    # Precedence and associativity of operators
+    precedence = (
+        ('right', 'EQ'),
+        ('left', 'OR'),
+        ('left', 'AND'),
+        ('left', 'BIT_OR'),
+        ('left', 'BIT_XOR'),
+        ('left', 'BIT_AND'),
+        ('left', 'EQEQ', 'NTEQ'),
+        ('left', 'GT', 'GE', 'LT', 'LE'),
+        ('left', 'RSHIFT', 'LSHIFT'),
+        ('left', 'PLUS', 'MINUS'),
+        ('left', 'MULTIPLY', 'DIVIDE', 'MODULUS'),
+        ('right', 'NOT'),
+        ('left', 'DOT') ## member access
+    )
+
     def __init__(self, lexer):
         self.lexer = lex.lex(module=MyLexer())
 
     def p_program(self, p):
         '''
-            program : INTEGER_LITERAL PLUS INTEGER_LITERAL 
+            program : expression
+        '''
+
+    def p_expression(self, p):
+        '''
+            expression : expression MULTIPLY expression
+                       | expression DIVIDE expression
+                       | expression PLUS expression
+                       | expression MINUS expression
+                       | INTEGER_LITERAL
         '''
 
     def p_error(self, p):

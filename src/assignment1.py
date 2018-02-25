@@ -3,7 +3,7 @@
 import os.path
 import sys
 
-sys.path.extend(['./src/','../src/'])
+sys.path.extend(['.','..'])
 
 import ply.lex as lex
 from myLexer import MyLexer
