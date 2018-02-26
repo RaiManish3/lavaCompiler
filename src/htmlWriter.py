@@ -15,11 +15,6 @@ FLAG_BOP = 1
 FLAG_UOP = 2
 
 
-## TODO :: EXPAND THE LIST TO COVER UP THE TOKEN SET
-literal_tokens = ['INTEGER_LITERAL']
-bop_tokens = ['PLUS', 'MINUS', 'MULTIPLY', 'DIVIDE']
-uop_tokens = ['PLUS','MINUS']
-
 def extractHelper(stx, regMatch, flag):
     if flag == FLAG_LITERAL: 
         tmp = regMatch.group(2)[1:-1]
@@ -29,25 +24,16 @@ def extractHelper(stx, regMatch, flag):
         tmp = regMatch.group(2)[1]
     return stx + " -> " + tmp + '\n'
 
-def extractTerminal(regMatch):
-    ## check for literals
-    for i in literal_tokens:
-        if i in regMatch.group(1):
-            return extractHelper(i, regMatch, FLAG_LITERAL)
+def extractTerminals(regMatch):
+    rhs = regMatch.group(1).split(' -> ')[1].split()
+    lrhs = len(rhs)
+    actuals = regMatch.group(2).split(',')
+    strx = ''
+    for i in range(lrhs):
+        if actuals[i] != 'None':
+            strx +=  rhs[i] + " -> " + actuals[i][1:-1] + "\n"
+    return strx
 
-    ## check for uops
-    for i in uop_tokens:
-        if i in regMatch.group(1):
-            if len(regMatch.group(2).split(','))==3:
-                break
-            return extractHelper(i, regMatch, FLAG_UOP)
-
-    ## check for binops
-    for i in bop_tokens:
-        if i in regMatch.group(1):
-            return extractHelper(i, regMatch, FLAG_BOP)
-
-    return ''
 
 def getReduceRules(fd):
     reducedString = ""
@@ -55,7 +41,7 @@ def getReduceRules(fd):
     for line in fd:
         x = matchPat.search(line)
         if x != None:
-            reducedString += extractTerminal(x)
+            reducedString += extractTerminals(x)
             reducedString += x.group(1) + '\n'
     return reducedString
 
@@ -98,6 +84,8 @@ def beautifyHtml(reducedString):
                 + prevLine[ruleIndex:ruleIndex+length_lhs] + "</b>" \
                 + prevLine[ruleIndex+length_lhs:] + " </p>\n"
 
+        if rhs.strip() == "empty":
+            rhs = ""
         thisLine = prevLine[:ruleIndex] + rhs + prevLine[ruleIndex+length_lhs:]
         prevLine = thisLine
 
