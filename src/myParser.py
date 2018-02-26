@@ -36,19 +36,456 @@ class MyParser(object):
     def __init__(self, lexer):
         self.lexer = lex.lex(module=MyLexer())
 
+    #  def p_program(self, p):
+        #  '''
+            #  program : expression
+        #  '''
+#
+    #  def p_expression(self, p):
+        #  '''
+            #  expression : expression MULTIPLY expression
+                       #  | expression DIVIDE expression
+                       #  | expression PLUS expression
+                       #  | expression MINUS expression
+                       #  | INTEGER_LITERAL
+        #  '''
+
+    ## program and class
     def p_program(self, p):
         '''
-            program : expression
+            program : program class_declaration
+                    | program interface_declaration
+                    | program STMT_TERMINATOR
+                    | empty
+        '''
+
+    def p_class_declaration(self, p):
+        '''
+            class_declaration : CLASS IDENTIFIER IMPLEMENTS interface_type_list BEGIN class_body_declarations END
+                              | CLASS IDENTIFIER BEGIN class_body_declarations END
+        '''
+
+    def p_interface_type_list(self, p):
+        '''
+            interface_type_list : interface_type_list COMMA interface_type
+                                | interface_type
+        '''
+
+    def p_class_body_declaration(self, p):
+        '''
+            class_body_declarations : class_body_declarations class_member_declaration
+                                    | class_body_declarations constructor_declaration
+                                    | empty
+        '''
+
+    def p_class_member_declaration(self, p):
+        '''
+            class_member_declaration : field_declaration
+                                     | method_declaration
+        '''
+
+    ## constructor
+    def p_constructor_declaration(self, p):
+        '''
+            constructor_declaration : FUNCTION constructor_declarator constructor_body
+        '''
+
+    def p_constructor_declarator(self, p):
+        '''
+            constructor_declarator : type_name LPAREN formal_parameter_list RPAREN
+                                   | type_name LPAREN RPAREN
+        '''
+
+    def p_constructor_bodhy(self, p):
+        '''
+            constructor_body : BEGIN block_statement END
+                             | BEGIN END
+        '''
+
+    def p_formal_parameter_list(self, p):
+        '''
+            formal_parameter_list : formal_parameter_list COMMA type variable_declarator_id
+                                  | type variable_declarator_id 
+        '''
+
+    def p_field_declaration(self, p):
+        '''
+            field_declaration : type variable_declarators STMT_TERMINATOR
+        '''
+
+    ## variables
+    def p_variable_declarators(self, p):
+        '''
+            variable_declarators : variable_declarators COMMA variable_declarator
+                                 | variable_declarator
+        '''
+
+    def p_variable_declarator(self, p):
+        '''
+            variable_declarator : variable_declarator_id
+                                | variable_declarator_id EQ variable_initializer
+        '''
+
+    def p_variable_declarator_id(self, p):
+        '''
+            variable_declarator_id : IDENTIFIER
+                                   | variable_declarator_id LSQUARE RSQUARE
+        '''
+
+    def p_variable_initializer(self, p):
+        '''
+            variable_initializer : expression
+                                 | array_initializer
+                                 | input
+        '''
+
+    def p_input(self, p):
+        '''
+            input : READINT LPAREN RPAREN
+                  | READREAL LPAREN RPAREN
+                  | READSTRING LPAREN RPAREN
+        '''
+
+    def p_array_initializer(self, p):
+        '''
+            array_initializer : array_initializer COMMA variable_initializer
+                              | variable_initializer
+        '''
+
+    ## methods
+    def p_method_declaration(self, p):
+        '''
+            method_declaration : method_header method_body
+        '''
+
+    def p_method_header(self, p):
+        '''
+            method_header : FUNCTION DCOLON result_type method_declarator
+        '''
+
+    def p_result_type(self, p):
+        '''
+            result_type : type
+                        | VOID
+        '''
+
+    def p_method_declarator(self, p):
+        '''
+            method_declarator : IDENTIFIER LPAREN formal_parameter_list RPAREN
+                              | IDENTIFIER LPAREN RPAREN
+        '''
+
+    def p_method_body(self, p):
+        '''
+            method_body : block
+                        | STMT_TERMINATOR
+        '''
+
+    ## interfaces
+    def p_interface_declaration(self, p):
+        '''
+            interface_declaration : INTERFACE IDENTIFIER interface_body
+        '''
+
+    def p_interface_body(self, p):
+        '''
+            interface_body : BEGIN interface_member_declaration END
+                           | BEGIN END
+        '''
+
+    def p_interface_member_declaration(self, p):
+        '''
+            interface_member_declaration : method_header STMT_TERMINATOR
+        '''
+
+    ## types
+    def p_type(self, p):
+        '''
+            type : primitive_type
+                 | refereance_type
+        '''
+
+    def p_primitive_type(self, p):
+        '''
+            primitive_type : INT
+                           | REAL
+                           | BOOLEAN
+                           | STRING
+        '''
+
+    def p_reference_type(self, p):
+        '''
+            refereance_type : class_type
+                            | array_type
+        '''
+
+    def p_class_type(self, p):
+        '''
+            class_type : type_name
+        '''
+
+    def p_interface_type(self, p):
+        '''
+            interface_type : type_name
+        '''
+
+    def p_array_type(self, p):
+        '''
+            array_type : type LSQUARE RSQUARE
+        '''
+
+    ## block statements
+    def p_block(self, p):
+        '''
+            block : BEGIN block_statements END
+                  | BEGIN END
+        '''
+
+    def p_block_statements(self, p):
+        '''
+            block_statements : block_statements block_statement
+                             | block_statement
+        '''
+
+    def p_block_statement(self, p):
+        '''
+            block_statement : local_variable_declaration STMT_TERMINATOR
+                            | statement
+        '''
+
+    def p_local_variable_declaration(self, p):
+        '''
+            local_variable_declaration : type variable_declarators
+        '''
+
+    ## TODO :: if then statement not added
+    def p_statement(self, p):
+        '''
+            statement : block
+                      | STMT_TERMINATOR
+                      | statement_expression
+                      | break_statement
+                      | continue_statement
+                      | return_statement
+                      | if_then_else_statement
+                      | while_statement
+                      | for_statement
+                      | print_statement
+        '''
+
+    def p_print_statement(self, p):
+        '''
+            print_statement : PRINT LPAREN expression RPAREN STMT_TERMINATOR
+        '''
+
+    def p_statement_expression(self, p):
+        '''
+            statement_expression : assignment
+                                 | method_invocation
+                                 | class_instance_creation_expression
+        '''
+
+    def p_if_then_else_statement(self, p):
+        '''
+            if_then_else_statement : IF LPAREN expression RPAREN THEN statement ELSE statement END
+        '''
+
+    def p_while_statement(self, p):
+        '''
+            while_statement : WHILE LPAREN expression RPAREN BEGIN statement END
+        '''
+
+    def p_for_statement(self, p):
+        '''
+            for_statement : FOR LPAREN for_init STMT_TERMINATOR expression STMT_TERMINATOR for_update RPAREN BEGIN statement END
+                          | FOR LPAREN for_init STMT_TERMINATOR STMT_TERMINATOR for_update RPAREN BEGIN statement END
+        '''
+
+    def p_statement_expressions(self, p):
+        '''
+            statement_expressions : statement_expressions COMMA statement_expression
+                                  | statement_expression
+        '''
+
+    def p_for_init(self, p):
+        '''
+            for_init : statement_expressions 
+                     | local_variable_declaration
+                     | empty
+        '''
+
+    def p_for_update(self, p):
+        '''
+            for_update : statement_expressions
+                       | empty
+        '''
+
+    def p_break_statement(self, p):
+        '''
+            break_statement : BREAK IDENTIFIER STMT_TERMINATOR
+                            | BREAK STMT_TERMINATOR
+        '''
+
+    def p_continue_statement(self, p):
+        '''
+            continue_statement : CONTINUE IDENTIFIER STMT_TERMINATOR
+                               | CONTINUE STMT_TERMINATOR
+        '''
+
+    def p_return_statement(self, p):
+        '''
+            return_statement : RETURN expression STMT_TERMINATOR
+                             | RETURN STMT_TERMINATOR
         '''
 
     def p_expression(self, p):
         '''
-            expression : expression MULTIPLY expression
-                       | expression DIVIDE expression
-                       | expression PLUS expression
-                       | expression MINUS expression
-                       | INTEGER_LITERAL
+            expression : expression binaryop expression
+                       | unaryop expression
+                       | assignment
+                       | primary
+                       | identifier_name
         '''
+
+    def p_binaryop(self, p):
+        '''
+            binaryop : PLUS
+                     | MINUS
+                     | MULTIPLY
+                     | DIVIDE
+                     | MODULUS
+                     | LSHIFT
+                     | RSHIFT
+                     | LT
+                     | LE
+                     | GT
+                     | GE
+                     | EQEQ
+                     | NTEQ
+                     | AND
+                     | OR
+                     | BIT_XOR
+                     | BIT_OR
+                     | BIT_AND
+        '''
+
+    def p_unaryop(self, p):
+        '''
+            unaryop : MINUS
+                    | NOT
+        '''
+
+    def p_assignment(self, p):
+        '''
+            assignment : left_hand_side EQ expression
+        '''
+
+    def p_left_hand_side(self, p):
+        '''
+            left_hand_side : identifier_name
+                           | field_access
+                           | array_access
+        '''
+
+    def p_method_invocation(self, p):
+        '''
+            method_invocation : identifier_name LPAREN argument_list RPAREN
+                              | identifier_name LPAREN RPAREN
+                              | field_access LPAREN argument_list RPAREN
+                              | field_access LPAREN RPAREN
+                              
+        '''
+
+    def p_field_access(self, p):
+        '''
+            field_access : primary DOT IDENTIFIER
+        '''
+
+    def p_primary(self, p):
+        '''
+            primary : primary_no_new_array
+                    | array_creation_expression
+        '''
+
+    def p_primary_no_new_array(self, p):
+        '''
+            primary_no_new_array : literal
+                                 | LPAREN expression RPAREN
+                                 | class_instance_creation_expression
+                                 | field_access
+                                 | method_invocation
+                                 | array_access
+        '''
+
+    def p_class_instance_creation_expression(self, p):
+        '''
+            class_instance_creation_expression : NEW class_type LPAREN argument_list RPAREN
+                                               | NEW class_type LPAREN RPAREN
+        '''
+
+    def p_argument_list(self, p):
+        '''
+            argument_list : argument_list COMMA expression
+                          | expression
+        '''
+
+    def p_array_creation_expression(self, p):
+        '''
+            array_creation_expression : NEW primitive_type dim_exprs dims
+                                      | NEW class_type dim_exprs dims
+        '''
+
+    def p_dim_exprs(self, p):
+        '''
+            dim_exprs : dim_exprs COMMA dim_expr
+                      | dim_expr
+        '''
+
+    def p_dim_expr(self, p):
+        '''
+            dim_expr : expression
+                     | empty
+        '''
+
+    def p_dims(self, p):
+        '''
+            dims : dims LPAREN RPAREN
+                 | empty
+        '''
+
+    def p_array_access(self, p):
+        '''
+            array_access : identifier_name LSQUARE expression RPAREN
+                         | primary_no_new_array LSQUARE expression RSQUARE
+        '''
+
+    def p_type_name(self, p):
+        '''
+            type_name : IDENTIFIER
+        '''
+
+    def p_identifier_name(self, p):
+        '''
+            identifier_name : identifier_name DOT IDENTIFIER
+                            | IDENTIFIER
+        '''
+
+    def p_literal(self, p):
+        '''
+            literal : INTEGER_LITERAL
+                    | FLOAT_LITERAL
+                    | BOOLEAN_LITERAL
+                    | STRING_LITERAL
+                    | NIL
+        '''
+
+    ## empty
+    def p_empty(self, p):
+        '''
+            empty :
+        '''
+        pass
+
 
     def p_error(self, p):
         print('\n-------------------------------------------------------')
