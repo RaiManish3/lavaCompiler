@@ -53,7 +53,6 @@ def getReduceRules(fd):
     reducedString = ""
     matchPat = re.compile('^Action : Reduce rule \[([^]]+)\] with \[([^]]+)\] .*')
     for line in fd:
-        #  if line.startswith("Action :") and line[9:].startswith("Reduce rule"):
         x = matchPat.search(line)
         if x != None:
             reducedString += extractTerminal(x)
@@ -61,24 +60,8 @@ def getReduceRules(fd):
     return reducedString
 
 
-def stepReduction(reducedString):
-    reversedList = reversed(reducedString.split('\n')[:-1])
-    stepCode = "program\n"
-    prevLine = stepCode
-
-    for i in reversedList:
-        lhs, rhs = i.split(' -> ')
-        length_lhs = len(lhs)
-        ruleIndex = prevLine.rfind(lhs)
-        thisLine = prevLine[:ruleIndex] + rhs + prevLine[ruleIndex+length_lhs:]
-        stepCode += thisLine
-        prevLine = thisLine
-
-    return stepCode
-
-
 # TODO :: HANDLE ERRORS
-def beautifyHtml(stepCode):
+def beautifyHtml(reducedString):
     htmlCode = """
         <!DOCTYPE html>
         <html>
@@ -86,9 +69,12 @@ def beautifyHtml(stepCode):
         <title> cs335 asgn3 </title>
         <style>
             p{
-                background-color: rgba(240,240,240,0.4);
                 justify-content: center;
                 margin-bottom: 5px;
+            }
+            div{
+                background-color: rgba(240,240,240,0.4);
+                margin: 10px;
             }
         </style>
         </head>
@@ -96,21 +82,29 @@ def beautifyHtml(stepCode):
             <div>
    """
 
-    stepList = stepCode.split('\n')
-    for line in stepList[:-1]:
-        htmlCode += "\t\t<p>"
-        words = line.split()
-        for word in words:
-            if word in tokens:
-                htmlCode += "<b>" + word + "</b> "
-            else:
-                htmlCode += word + " "
+    reversedList = reversed(reducedString.split('\n')[:-1])
+    prevLine  = "program"
 
-        htmlCode += "</p>\n"
+    for i in reversedList:
+        lhs, rhs = i.split(' -> ')
+        length_lhs = len(lhs)
+        ruleIndex = prevLine.rfind(lhs)
+        if lhs in tokens:
+            htmlCode += "\t\t<p>" + prevLine[:ruleIndex] + "<i>" \
+                + prevLine[ruleIndex:ruleIndex+length_lhs] + "</i>" \
+                + prevLine[ruleIndex+length_lhs:] + " </p>\n"
+        else:
+            htmlCode += "\t\t<p>" + prevLine[:ruleIndex] + "<b>" \
+                + prevLine[ruleIndex:ruleIndex+length_lhs] + "</b>" \
+                + prevLine[ruleIndex+length_lhs:] + " </p>\n"
 
+        thisLine = prevLine[:ruleIndex] + rhs + prevLine[ruleIndex+length_lhs:]
+        prevLine = thisLine
+
+    htmlCode += "\t\t<p>" + prevLine + "</p>\n"
     htmlCode += "\t    </div>\n\t</body>\n\t</html>"
     return htmlCode
-  
+
 
 if __name__ == "__main__":
     ## for now assume that parser debug is written into a file
@@ -118,8 +112,7 @@ if __name__ == "__main__":
     if os.path.exists(filename):
         fd = open(filename, 'r')
         reducedString = getReduceRules(fd)
-        stepCode = stepReduction(reducedString)
-        htmlCode = beautifyHtml(stepCode)
+        htmlCode = beautifyHtml(reducedString)
         fd.close()
         try:
             directory = "bin/"
