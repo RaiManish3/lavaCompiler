@@ -10,19 +10,6 @@ from myLexer import MyLexer
 ## GLOBALS
 
 tokens = MyLexer.tokens
-FLAG_LITERAL = 0
-FLAG_BOP = 1
-FLAG_UOP = 2
-
-
-def extractHelper(stx, regMatch, flag):
-    if flag == FLAG_LITERAL: 
-        tmp = regMatch.group(2)[1:-1]
-    elif flag == FLAG_BOP:
-        tmp = regMatch.group(2).split(',')[1][1:-1]
-    elif flag == FLAG_UOP:
-        tmp = regMatch.group(2)[1]
-    return stx + " -> " + tmp + '\n'
 
 def extractTerminals(regMatch):
     rhs = regMatch.group(1).split(' -> ')[1].split()
@@ -74,7 +61,7 @@ def beautifyHtml(reducedString):
     for i in reversedList:
         lhs, rhs = i.split(' -> ')
         length_lhs = len(lhs)
-        ruleIndex = prevLine.rfind(lhs)
+        ruleIndex = prevLine.rfind(lhs) ## TODO :: confirm if it does full string match
         if lhs in tokens:
             htmlCode += "\t\t<p>" + prevLine[:ruleIndex] + "<i>" \
                 + prevLine[ruleIndex:ruleIndex+length_lhs] + "</i>" \

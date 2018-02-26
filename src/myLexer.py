@@ -1,9 +1,18 @@
 class MyLexer(object):
 
-    keywords = ("and" , "begin" , "boolean" , "break" , "class" , "continue" , "else" , "end" , "for" , "function" , "if" , "int" , "implements" , "interface" , "new" , "nil" , "not" , "or" , "real" , "return" , "then", "void" , "while" , "readInt" , "readReal" , "readString" , "print" , "String")
+    keywords = ("and" , "begin" , "boolean" , "break" , "class" , "continue" , "else" , "end" ,
+                "for" , "function" , "if" , "int" , "implements" , "interface" , "new" , "nil" ,
+                "not" , "or" , "real" , "return" , "then", "void" , "while" , "readInt" ,
+                "readReal" , "readString" , "print" , "String")
 
 
-    tokens = [k.upper() for k in keywords] + ["EQ","BIT_OR", "BIT_XOR", "BIT_AND", "EQEQ", "NTEQ", "LT", "LE", "GT", "GE", "LSHIFT", "RSHIFT", "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "MODULUS", "LSQUARE", "RSQUARE", "LPAREN", "RPAREN", "LCURLY", "RCURLY", "DOT", "INTEGER_LITERAL", "FLOAT_LITERAL", "STRING_LITERAL", "BOOLEAN_LITERAL", "IDENTIFIER", "STMT_TERMINATOR", "COMMA", "DCOLON"]
+    tokens = [k.upper() for k in keywords] + ["EQ","BIT_OR", "BIT_XOR", "BIT_AND", "EQEQ",
+                                              "NTEQ", "LT", "LE", "GT", "GE", "LSHIFT", "RSHIFT",
+                                              "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "MODULUS",
+                                              "LSQUARE", "RSQUARE", "LPAREN", "RPAREN", "LCURLY",
+                                              "RCURLY", "DOT", "INTEGER_LITERAL", "FLOAT_LITERAL",
+                                              "STRING_LITERAL", "BOOLEAN_LITERAL", "IDENTIFIER",
+                                              "STMT_TERMINATOR", "COMMA", "DCOLON"]
 
 
     t_ignore = ' \t\f'                  ## ignore whitespace
