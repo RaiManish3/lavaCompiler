@@ -273,6 +273,13 @@ class MyParser(object):
                       | print_statement
         '''
 
+    def p_statements(self, p):
+        '''
+            statements : statements statement
+                       | statement
+        '''
+
+
     def p_print_statement(self, p):
         '''
             print_statement : PRINT LPAREN expression RPAREN STMT_TERMINATOR
@@ -297,8 +304,8 @@ class MyParser(object):
 
     def p_for_statement(self, p):
         '''
-            for_statement : FOR LPAREN for_init STMT_TERMINATOR expression STMT_TERMINATOR for_update RPAREN BEGIN statement END
-                          | FOR LPAREN for_init STMT_TERMINATOR STMT_TERMINATOR for_update RPAREN BEGIN statement END
+            for_statement : FOR LPAREN for_init STMT_TERMINATOR expression STMT_TERMINATOR for_update RPAREN BEGIN statements END
+                          | FOR LPAREN for_init STMT_TERMINATOR STMT_TERMINATOR for_update RPAREN BEGIN statements END
         '''
 
     def p_statement_expressions(self, p):
