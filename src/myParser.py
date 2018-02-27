@@ -509,7 +509,7 @@ class MyParser(object):
                 if i+1 == p.lineno:
                     print("\t\t\tin {}".format(line.strip(),))
 
-        print('-------------------------------------------------------')
+        print('-------------------------------------------------------\n')
 
         exit(EXIT_FAILURE)
 

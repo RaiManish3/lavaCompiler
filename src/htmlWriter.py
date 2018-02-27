@@ -5,21 +5,38 @@ path.extend(['.','..'])
 
 import os.path
 import re
+import ast
 from myLexer import MyLexer
 
 ## GLOBALS
-
+EXIT_SUCCESS = 0
+EXIT_FAILURE = 1
 tokens = MyLexer.tokens
 
 def extractTerminals(regMatch):
     rhs = regMatch.group(1).split(' -> ')[1].split()
+    subs = regMatch.group(2)
     lrhs = len(rhs)
-    actuals = regMatch.group(2).split(',')
+    if 'COMMA' in rhs:
+        subs = '[' + subs + ']'
+        subs = ast.literal_eval(subs)
+        actuals = []
+        for i in subs:
+            if i == None:
+                actuals.append('None')
+            else:
+                actuals.append('\''+i.strip()+'\'')
+    else:
+        actuals = subs.split(',')
     strx = ''
+    stry = ''
     for i in range(lrhs):
         if actuals[i] != 'None':
-            strx +=  rhs[i] + " -> " + actuals[i][1:-1] + "\n"
-    return strx
+            strx += rhs[i] + ", "
+            stry += actuals[i][1:-1] + ", "
+    if strx == '':
+        return strx
+    return strx[:-2] + " -> " + stry[:-2] + "\n"
 
 
 def getReduceRules(fd):
@@ -41,48 +58,89 @@ def beautifyHtml(reducedString):
         <head>
         <title> cs335 asgn3 </title>
         <style>
-            p{
-                justify-content: center;
-                margin-bottom: 5px;
+            *{
+                margin: 0;
+                padding: 0;
             }
-            div{
-                background-color: rgba(240,240,240,0.4);
-                margin: 10px;
+            div.rule{
+                margin: 10px auto;
+                padding: 10px;
+                background-color: white;
+                width: 80%;
+            }
+            div.main{
+                background-color: rgba(200,200,200,0.8);
+                padding: 10px;
+            }
+            div.tab{
+                margin-left: 10px;
             }
         </style>
         </head>
         <body>
-            <div>
+            <div class="main">
+
    """
 
     reversedList = reversed(reducedString.split('\n')[:-1])
-    prevLine  = "program"
+    prevHtmlLine = "\t\t<div class='rule'> program </div>\n"
 
     for i in reversedList:
         lhs, rhs = i.split(' -> ')
-        length_lhs = len(lhs)
-        ruleIndex = prevLine.rfind(lhs) ## TODO :: confirm if it does full string match
-        if lhs in tokens:
-            htmlCode += "\t\t<p>" + prevLine[:ruleIndex] + "<i>" \
-                + prevLine[ruleIndex:ruleIndex+length_lhs] + "</i>" \
-                + prevLine[ruleIndex+length_lhs:] + " </p>\n"
-        else:
-            htmlCode += "\t\t<p>" + prevLine[:ruleIndex] + "<b>" \
-                + prevLine[ruleIndex:ruleIndex+length_lhs] + "</b>" \
-                + prevLine[ruleIndex+length_lhs:] + " </p>\n"
+        lhsList = lhs.split(', ')
+        rhsList = rhs.split(', ')
+        l_lhsList = len(lhsList)
+        lastHtmlIndex = 0
+        thisHtmlLine = ''
+        nextHtmlLine = prevHtmlLine
 
-        if rhs.strip() == "empty":
-            rhs = ""
-        thisLine = prevLine[:ruleIndex] + rhs + prevLine[ruleIndex+length_lhs:]
-        prevLine = thisLine
+        for i in range(l_lhsList):
+            lhsRule = lhsList[i]
+            rhsRule = rhsList[i]
 
-    htmlCode += "\t\t<p>" + prevLine + "</p>\n"
+            if rhsRule.strip() == "empty":
+               rhsRule = "" 
+
+            htmlIndex = prevHtmlLine.rfind(lhsRule) ## TODO :: confirm if it does full string match
+            htmlIndex2 = nextHtmlLine.rfind(lhsRule)
+
+            nl = pl = ''
+            if lhsRule in ['BEGIN', 'THEN']:
+                pl = '<br>'
+                nl = '<br><div class="tab">'
+            elif lhsRule in ['STMT_TERMINATOR']:
+                nl = '<br>'
+            elif lhsRule in ['END']:
+                pl = '</div>'
+                nextStringIndex = htmlIndex + 4
+                if len(prevHtmlLine[nextStringIndex:]) > 9:
+                    maxIndex = nextStringIndex + 9
+                else:
+                    maxIndex = nextStringIndex + len(prevHtmlLine[nextStringIndex:])
+                if '</div>end' != prevHtmlLine[nextStringIndex:maxIndex]:
+                    nl = '<br>'
+
+            if lhsRule in tokens:
+                thisHtmlLine += prevHtmlLine[lastHtmlIndex:htmlIndex] + pl + "<i>" \
+                    + prevHtmlLine[htmlIndex:htmlIndex+len(lhsRule)] + "</i>" + nl
+            else:
+                thisHtmlLine += prevHtmlLine[lastHtmlIndex:htmlIndex] + "<b>" \
+                    + prevHtmlLine[htmlIndex:htmlIndex+len(lhsRule)] + "</b>"
+
+            nextHtmlLine = nextHtmlLine[:htmlIndex2] + pl + rhsRule + nl \
+                + nextHtmlLine[htmlIndex2+len(lhsRule):]
+
+            lastHtmlIndex = htmlIndex+len(lhsRule)
+
+        htmlCode += thisHtmlLine + prevHtmlLine[lastHtmlIndex:]
+        prevHtmlLine = nextHtmlLine
+
+    htmlCode += prevHtmlLine
     htmlCode += "\t    </div>\n\t</body>\n\t</html>"
     return htmlCode
 
 
 if __name__ == "__main__":
-    ## for now assume that parser debug is written into a file
     filename = argv[1] 
     if os.path.exists(filename):
         fd = open(filename, 'r')
