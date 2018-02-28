@@ -294,7 +294,8 @@ class MyParser(object):
 
     def p_if_then_else_statement(self, p):
         '''
-            if_then_else_statement : IF LPAREN expression RPAREN THEN statement ELSE statement END
+            if_then_else_statement : IF LPAREN expression RPAREN THEN statements ELSE statements END
+                                   | IF LPAREN expression RPAREN THEN statements END
         '''
 
     def p_while_statement(self, p):

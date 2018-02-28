@@ -41,7 +41,7 @@ def extractTerminals(regMatch):
 
 def getReduceRules(fd):
     reducedString = ""
-    matchPat = re.compile('^Action : Reduce rule \[([^]]+)\] with \[([^]]+)\] .*')
+    matchPat = re.compile('^Action : Reduce rule \[([^]]+)\] with \[(([^]]|\'\]\')+)\] .*')
     for line in fd:
         x = matchPat.search(line)
         if x != None:
@@ -110,6 +110,9 @@ def beautifyHtml(reducedString):
                 nl = '<br><div class="tab">'
             elif lhsRule in ['STMT_TERMINATOR']:
                 nl = '<br>'
+            elif lhsRule in ['ELSE']:
+                pl = '</div>'
+                nl = '<br><div class="tab">'
             elif lhsRule in ['END']:
                 pl = '</div>'
                 nextStringIndex = htmlIndex + 4
