@@ -128,8 +128,10 @@ class MyParser(object):
 
     def p_variable_declarator_id(self, p):
         '''
-            variable_declarator_id : IDENTIFIER
-                                   | variable_declarator_id LSQUARE RSQUARE
+            variable_declarator_id : variable_declarator_id LSQUARE RSQUARE
+                                   | variable_declarator_id LSQUARE INTEGER_LITERAL RSQUARE
+                                   | variable_declarator_id LSQUARE IDENTIFIER RSQUARE
+                                   | IDENTIFIER
         '''
 
     def p_variable_initializer(self, p):

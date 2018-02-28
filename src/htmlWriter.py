@@ -122,6 +122,8 @@ def beautifyHtml(reducedString):
                     maxIndex = nextStringIndex + len(prevHtmlLine[nextStringIndex:])
                 if '</div>end' != prevHtmlLine[nextStringIndex:maxIndex]:
                     nl = '<br>'
+                if 'class' in prevHtmlLine[nextStringIndex:maxIndex]:
+                    nl = '<br><br>'
 
             if lhsRule in tokens:
                 thisHtmlLine += prevHtmlLine[lastHtmlIndex:htmlIndex] + pl + "<i>" \
