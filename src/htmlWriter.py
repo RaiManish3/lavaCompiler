@@ -7,6 +7,7 @@ import os.path
 import re
 import ast
 from myLexer import MyLexer
+import linecache
 
 ## GLOBALS
 EXIT_SUCCESS = 0
@@ -31,6 +32,16 @@ def extractTerminals(regMatch):
     strx = ''
     stry = ''
     for i in range(lrhs):
+        if actuals[i].startswith('<str @ 0x'):
+            ## in case the string is relatively long
+            strLine = linecache.getline(filename, lineno - 5)
+            tmp = strPat.search(strLine)
+            try:
+                actuals[i] = "'" + tmp.group(1) + "'"
+            except:
+                print("Something went wrong !!")
+                exit(EXIT_FAILURE)
+            
         if actuals[i] != 'None':
             strx += rhs[i] + ", "
             stry += actuals[i][1:-1] + ", "
@@ -40,6 +51,7 @@ def extractTerminals(regMatch):
 
 
 def getReduceRules(fd):
+    global lineno
     reducedString = ""
     matchPat = re.compile('^Action : Reduce rule \[([^]]+)\] with \[(([^]]|\'\]\')+)\] .*')
     for line in fd:
@@ -47,6 +59,7 @@ def getReduceRules(fd):
         if x != None:
             reducedString += extractTerminals(x)
             reducedString += x.group(1) + '\n'
+        lineno+=1
     return reducedString
 
 
@@ -147,6 +160,8 @@ def beautifyHtml(reducedString):
 
 if __name__ == "__main__":
     filename = argv[1] 
+    strPat = re.compile('LexToken\([^,]+,\'(.*)\'.*')
+    lineno = 1
     if os.path.exists(filename):
         fd = open(filename, 'r')
         reducedString = getReduceRules(fd)

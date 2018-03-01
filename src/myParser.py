@@ -252,7 +252,7 @@ class MyParser(object):
     def p_block_statement(self, p):
         '''
             block_statement : local_variable_declaration STMT_TERMINATOR
-                            | statement
+                            | statement STMT_TERMINATOR
         '''
 
     def p_local_variable_declaration(self, p):
@@ -260,11 +260,9 @@ class MyParser(object):
             local_variable_declaration : type variable_declarators
         '''
 
-    ## TODO :: if then statement not added
     def p_statement(self, p):
         '''
             statement : block
-                      | STMT_TERMINATOR
                       | statement_expression
                       | break_statement
                       | continue_statement
@@ -274,13 +272,6 @@ class MyParser(object):
                       | for_statement
                       | print_statement
         '''
-
-    def p_statements(self, p):
-        '''
-            statements : statements statement
-                       | statement
-        '''
-
 
     def p_print_statement(self, p):
         '''
@@ -296,19 +287,19 @@ class MyParser(object):
 
     def p_if_then_else_statement(self, p):
         '''
-            if_then_else_statement : IF LPAREN expression RPAREN THEN statements ELSE statements END
-                                   | IF LPAREN expression RPAREN THEN statements END
+            if_then_else_statement : IF LPAREN expression RPAREN THEN block_statements ELSE block_statements END
+                                   | IF LPAREN expression RPAREN THEN block_statements END
         '''
 
     def p_while_statement(self, p):
         '''
-            while_statement : WHILE LPAREN expression RPAREN BEGIN statement END
+            while_statement : WHILE LPAREN expression RPAREN block
         '''
 
     def p_for_statement(self, p):
         '''
-            for_statement : FOR LPAREN for_init STMT_TERMINATOR expression STMT_TERMINATOR for_update RPAREN BEGIN statements END
-                          | FOR LPAREN for_init STMT_TERMINATOR STMT_TERMINATOR for_update RPAREN BEGIN statements END
+            for_statement : FOR LPAREN for_init STMT_TERMINATOR expression STMT_TERMINATOR for_update RPAREN block
+                          | FOR LPAREN for_init STMT_TERMINATOR STMT_TERMINATOR for_update RPAREN block
         '''
 
     def p_statement_expressions(self, p):
