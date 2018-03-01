@@ -252,7 +252,7 @@ class MyParser(object):
     def p_block_statement(self, p):
         '''
             block_statement : local_variable_declaration STMT_TERMINATOR
-                            | statement STMT_TERMINATOR
+                            | statement
         '''
 
     def p_local_variable_declaration(self, p):
@@ -263,7 +263,7 @@ class MyParser(object):
     def p_statement(self, p):
         '''
             statement : block
-                      | statement_expression
+                      | statement_expression STMT_TERMINATOR
                       | break_statement
                       | continue_statement
                       | return_statement
