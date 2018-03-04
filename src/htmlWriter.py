@@ -14,11 +14,29 @@ EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 tokens = MyLexer.tokens
 
+def handleLongString(reqToken):
+    curLine = lineno - 1
+    strLine = linecache.getline(filename, curLine)
+    tokenIndex = strLine.find(reqToken) ## left to right search for index : Only works if our assumption is correct
+    tokenPat = re.compile('^' + strLine[:tokenIndex] + '\. LexToken\(' + reqToken +',\'(.+)\',.*')
+
+    while curLine > 0:
+        ## bottom up search from current line
+        curLine -= 4
+        strLine = linecache.getline(filename, curLine)
+        tmp = tokenPat.search(strLine)
+        if tmp != None:
+            return tmp
+
+    print("Something went wrong !!")
+    exit(EXIT_FAILURE)
+
+
 def extractTerminals(regMatch):
     rhs = regMatch.group(1).split(' -> ')[1].split()
     subs = regMatch.group(2)
     lrhs = len(rhs)
-    if 'COMMA' in rhs:
+    if '<str @ 0x' not in subs:
         subs = '[' + subs + ']'
         subs = ast.literal_eval(subs)
         actuals = []
@@ -33,14 +51,9 @@ def extractTerminals(regMatch):
     stry = ''
     for i in range(lrhs):
         if actuals[i].startswith('<str @ 0x'):
-            ## in case the string is relatively long
-            strLine = linecache.getline(filename, lineno - 5)
-            tmp = strPat.search(strLine)
-            try:
-                actuals[i] = "'" + tmp.group(1) + "'"
-            except:
-                print("Something went wrong !!")
-                exit(EXIT_FAILURE)
+            ## Case of relatively long string
+            ## NOTE : Works for a single long string token in a rule.
+            actuals[i] = "'" + handleLongString(rhs[i]).group(1) + "'"
             
         if actuals[i] != 'None':
             strx += rhs[i] + ", "
@@ -80,6 +93,7 @@ def beautifyHtml(reducedString):
                 padding: 10px;
                 background-color: white;
                 width: 80%;
+                word-wrap: break-word;
             }
             div.main{
                 background-color: rgba(200,200,200,0.8);
