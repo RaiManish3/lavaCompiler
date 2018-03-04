@@ -174,7 +174,6 @@ def beautifyHtml(reducedString):
 
 if __name__ == "__main__":
     filename = argv[1] 
-    strPat = re.compile('LexToken\([^,]+,\'(.*)\'.*')
     lineno = 1
     if os.path.exists(filename):
         fd = open(filename, 'r')

@@ -137,7 +137,7 @@ class MyParser(object):
     def p_variable_initializer(self, p):
         '''
             variable_initializer : expression
-                                 | array_initializer
+                                 | array_initializer_with_curly
                                  | input
         '''
 
@@ -148,10 +148,15 @@ class MyParser(object):
                   | READSTRING LPAREN RPAREN
         '''
 
-    def p_array_initializer(self, p):
+    def p_array_initializer_with_curly(self, p):
         '''
-            array_initializer : array_initializer COMMA variable_initializer
-                              | variable_initializer
+            array_initializer_with_curly : LCURLY array_initializer_without_curly RCURLY
+        '''
+
+    def p_array_initializer_without_curly(self, p):
+        '''
+            array_initializer_without_curly : array_initializer_without_curly COMMA variable_initializer
+                                            | variable_initializer
         '''
 
     ## methods
