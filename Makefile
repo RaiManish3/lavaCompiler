@@ -6,6 +6,7 @@ TEST=test
 .DEFAULT_GOAL := ass3
 
 ass3: $(SRC)/myParser.py $(SRC)/myLexer.py $(SRC)/htmlWriter.py $(SRC)/parserHtmlScipt.sh
+	@mkdir -p $(BIN)
 	@cp $(SRC)/parserHtmlScipt.sh $(BIN)/parser
 	@chmod +x $(BIN)/parser
 
