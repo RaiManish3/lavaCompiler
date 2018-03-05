@@ -36,20 +36,6 @@ class MyParser(object):
     def __init__(self, lexer):
         self.lexer = lex.lex(module=MyLexer())
 
-    #  def p_program(self, p):
-        #  '''
-            #  program : expression
-        #  '''
-#
-    #  def p_expression(self, p):
-        #  '''
-            #  expression : expression MULTIPLY expression
-                       #  | expression DIVIDE expression
-                       #  | expression PLUS expression
-                       #  | expression MINUS expression
-                       #  | INTEGER_LITERAL
-        #  '''
-
     ## program and class
     def p_program(self, p):
         '''
@@ -84,7 +70,7 @@ class MyParser(object):
                                      | method_declaration
         '''
 
-    ## constructor
+    ## constructo
     def p_constructor_declaration(self, p):
         '''
             constructor_declaration : FUNCTION constructor_declarator constructor_body
@@ -125,14 +111,10 @@ class MyParser(object):
             variable_declarator : variable_declarator_id
                                 | variable_declarator_id EQ variable_initializer
         '''
-
-
-## WHY INTEGER LITERAL BELOW ????????????????????????????????????
+        
     def p_variable_declarator_id(self, p):
         '''
             variable_declarator_id : variable_declarator_id LSQUARE RSQUARE
-                                   | variable_declarator_id LSQUARE INTEGER_LITERAL RSQUARE
-                                   | variable_declarator_id LSQUARE IDENTIFIER RSQUARE
                                    | IDENTIFIER
         '''
 
@@ -211,7 +193,7 @@ class MyParser(object):
     def p_type(self, p):
         '''
             type : primitive_type
-                 | refereance_type
+                 | reference_type
         '''
 
     def p_primitive_type(self, p):
@@ -224,7 +206,7 @@ class MyParser(object):
 
     def p_reference_type(self, p):
         '''
-            refereance_type : class_type
+            reference_type : class_type
                             | array_type
         '''
 
