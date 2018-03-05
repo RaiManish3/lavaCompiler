@@ -23,13 +23,22 @@ While in the main directory, execute the following commands:<br>
         $: bash includes/runassem.sh [filename]  #filename should be without extension or directory
   ```
 
+3. For the parser:
+  ```bash
+        $: make
+        $: bin/parser test/[filename].lua
+  ```
+
 ### Timeline
 
 1. <b>Task One</b>, <i> 28 Jan 2018 </i><br>
-  Build a lexer for the Token
+  Build a lexer for the Token.
 
 2. <b>Task Two</b>, <i> 12 Feb 2018 </i><br>
-  Build a Code Generator
+  Build a Code Generator.
+
+3. <b>Task Three</b>, <i> 12 March 2018 </i><br>
+  Build a LALR Parser with Rightmost Derivation displayed as an HTML file.
 
 ### Authors
 * Dhruv Kumar
