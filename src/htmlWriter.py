@@ -22,12 +22,13 @@ def handleLongString(reqToken):
 
     while curLine > 0:
         ## bottom up search from current line
-        curLine -= 4
+        curLine -= 1
         strLine = linecache.getline(filename, curLine)
         tmp = tokenPat.search(strLine)
         if tmp != None:
             return tmp
 
+    print(reqToken,lineno)
     print("Something went wrong !!")
     exit(EXIT_FAILURE)
 

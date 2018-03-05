@@ -13,9 +13,9 @@ EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 
 class MyParser(object):
-    
+
     tokens = MyLexer.tokens
-    
+
     # Precedence and associativity of operators
     precedence = (
         ('right', 'EQ'),
@@ -105,7 +105,7 @@ class MyParser(object):
     def p_formal_parameter_list(self, p):
         '''
             formal_parameter_list : formal_parameter_list COMMA type variable_declarator_id
-                                  | type variable_declarator_id 
+                                  | type variable_declarator_id
         '''
 
     def p_field_declaration(self, p):
@@ -126,6 +126,8 @@ class MyParser(object):
                                 | variable_declarator_id EQ variable_initializer
         '''
 
+
+## WHY INTEGER LITERAL BELOW ????????????????????????????????????
     def p_variable_declarator_id(self, p):
         '''
             variable_declarator_id : variable_declarator_id LSQUARE RSQUARE
@@ -315,7 +317,7 @@ class MyParser(object):
 
     def p_for_init(self, p):
         '''
-            for_init : statement_expressions 
+            for_init : statement_expressions
                      | local_variable_declaration
                      | empty
         '''
@@ -350,7 +352,8 @@ class MyParser(object):
                        | unaryop expression
                        | assignment
                        | primary
-                       | identifier_name
+                       | identifier_name_with_dot
+                       | IDENTIFIER
         '''
 
     def p_binaryop(self, p):
@@ -388,18 +391,21 @@ class MyParser(object):
 
     def p_left_hand_side(self, p):
         '''
-            left_hand_side : identifier_name
+            left_hand_side : identifier_name_with_dot
+                           | IDENTIFIER
                            | field_access
                            | array_access
         '''
 
     def p_method_invocation(self, p):
         '''
-            method_invocation : identifier_name LPAREN argument_list RPAREN
-                              | identifier_name LPAREN RPAREN
+            method_invocation : identifier_name_with_dot LPAREN argument_list RPAREN
+                              | IDENTIFIER LPAREN argument_list RPAREN
+                              | identifier_name_with_dot LPAREN RPAREN
+                              | IDENTIFIER LPAREN RPAREN
                               | field_access LPAREN argument_list RPAREN
                               | field_access LPAREN RPAREN
-                              
+
         '''
 
     def p_field_access(self, p):
@@ -443,25 +449,25 @@ class MyParser(object):
 
     def p_dim_exprs(self, p):
         '''
-            dim_exprs : dim_exprs COMMA dim_expr
-                      | dim_expr
+            dim_exprs : dim_exprs dim_expr
+                      | empty
         '''
 
     def p_dim_expr(self, p):
         '''
-            dim_expr : expression
-                     | empty
+            dim_expr : LSQUARE expression RSQUARE
         '''
 
     def p_dims(self, p):
         '''
-            dims : dims LPAREN RPAREN
+            dims : LSQUARE RSQUARE dims
                  | empty
         '''
 
     def p_array_access(self, p):
         '''
-            array_access : identifier_name LSQUARE expression RPAREN
+            array_access : identifier_name_with_dot LSQUARE expression RSQUARE
+                         | IDENTIFIER LSQUARE expression RSQUARE
                          | primary_no_new_array LSQUARE expression RSQUARE
         '''
 
@@ -470,10 +476,15 @@ class MyParser(object):
             type_name : IDENTIFIER
         '''
 
-    def p_identifier_name(self, p):
+    def p_identifier_name_with_dot(self, p):
         '''
-            identifier_name : identifier_name DOT IDENTIFIER
-                            | IDENTIFIER
+            identifier_name_with_dot : identifier_name_with_dot DOT IDENTIFIER
+                            | IDENTIFIER DOT identifier_one_step
+        '''
+
+    def p_identifier_one_step(self,p):
+        '''
+            identifier_one_step : IDENTIFIER
         '''
 
     def p_literal(self, p):
@@ -559,7 +570,7 @@ def handle_errors(argv):
             if argv[1] not in ['-l', '-p']:
                 print('No such option \'{}\''.format(argv[1]))
                 exit(EXIT_FAILURE)
-                
+
         if argv[fileIndex].find('.lua') == -1:
             print('\'{}\' is not a .lua file'.format(argv[fileIndex]))
             exit(EXIT_FAILURE)
