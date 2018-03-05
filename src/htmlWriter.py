@@ -94,7 +94,7 @@ def removeMarker(text):
         i += 1
     return strx
 
-# TODO :: HANDLE ERRORS
+
 def beautifyHtml(reducedString):
     htmlCode = """
         <!DOCTYPE html>
@@ -153,12 +153,12 @@ def beautifyHtml(reducedString):
             if lhsRule in ['$BEGIN', '$THEN']:
                 pl = '<br>'
                 nl = '<br><div class="tab">'
-            elif lhsRule in ['$STMT_TERMINATOR']:
+            elif lhsRule == '$STMT_TERMINATOR':
                 nl = '<br>'
-            elif lhsRule in ['$ELSE']:
+            elif lhsRule == '$ELSE':
                 pl = '</div>'
                 nl = '<br><div class="tab">'
-            elif lhsRule in ['$END']:
+            elif lhsRule == '$END':
                 pl = '</div>'
                 nextStringIndex = htmlIndex + 4
                 if len(prevHtmlLine[nextStringIndex:]) > 9:
@@ -167,7 +167,7 @@ def beautifyHtml(reducedString):
                     maxIndex = nextStringIndex + len(prevHtmlLine[nextStringIndex:])
                 if '</div>end' != prevHtmlLine[nextStringIndex:maxIndex]:
                     nl = '<br>'
-                if 'class' in prevHtmlLine[nextStringIndex:maxIndex]:
+                if 'class' == prevHtmlLine[nextStringIndex+1:nextStringIndex+6] or 'interface' == prevHtmlLine[nextStringIndex+1:nextStringIndex+10]:
                     nl = '<br><br>'
 
             if lhsRule[1:] in tokens:
