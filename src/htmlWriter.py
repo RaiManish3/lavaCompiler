@@ -28,8 +28,7 @@ def handleLongString(reqToken):
         if tmp != None:
             return tmp
 
-    print(reqToken,lineno)
-    print("Something went wrong !!")
+    print("Could not find right string for token at line: !!", lineno)
     exit(EXIT_FAILURE)
 
 
@@ -55,7 +54,7 @@ def extractTerminals(regMatch):
             ## Case of relatively long string
             ## NOTE : Works for a single long string token in a rule.
             actuals[i] = "'" + handleLongString(rhs[i]).group(1) + "'"
-            
+
         if actuals[i] != 'None':
             strx += rhs[i] + ", "
             stry += actuals[i][1:-1] + ", "
@@ -127,7 +126,7 @@ def beautifyHtml(reducedString):
             rhsRule = rhsList[i]
 
             if rhsRule.strip() == "empty":
-               rhsRule = "" 
+               rhsRule = ""
 
             htmlIndex = prevHtmlLine.rfind(lhsRule) ## TODO :: confirm if it does full string match
             htmlIndex2 = nextHtmlLine.rfind(lhsRule)
@@ -174,7 +173,7 @@ def beautifyHtml(reducedString):
 
 
 if __name__ == "__main__":
-    filename = argv[1] 
+    filename = argv[1]
     lineno = 1
     if os.path.exists(filename):
         fd = open(filename, 'r')
