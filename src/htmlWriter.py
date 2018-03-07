@@ -160,15 +160,11 @@ def beautifyHtml(reducedString):
                 nl = '<br><div class="tab">'
             elif lhsRule == '$END':
                 pl = '</div>'
-                nextStringIndex = htmlIndex + 4
-                if len(prevHtmlLine[nextStringIndex:]) > 9:
-                    maxIndex = nextStringIndex + 9
-                else:
-                    maxIndex = nextStringIndex + len(prevHtmlLine[nextStringIndex:])
-                if '</div>end' != prevHtmlLine[nextStringIndex:maxIndex]:
-                    nl = '<br>'
-                if 'class' == prevHtmlLine[nextStringIndex+1:nextStringIndex+6] or 'interface' == prevHtmlLine[nextStringIndex+1:nextStringIndex+10]:
+                nextStringIndex = htmlIndex + 5
+                if 'class' == prevHtmlLine[nextStringIndex:nextStringIndex+5] or 'interface' == prevHtmlLine[nextStringIndex:nextStringIndex+9]:
                     nl = '<br><br>'
+                elif '</div>end' != prevHtmlLine[nextStringIndex+1:nextStringIndex+9]:
+                    nl = '<br>'
 
             if lhsRule[1:] in tokens:
                 thisHtmlLine += prevHtmlLine[lastHtmlIndex:htmlIndex] + pl + "<i>" \
@@ -202,7 +198,7 @@ if __name__ == "__main__":
             directory = "bin/"
             if not os.path.exists(directory):
                 os.makedirs(directory)
-            with open(directory + "htmlCode.html", 'w') as fs:
+            with open(directory + argv[2], 'w') as fs:
                 fs.write(htmlCode)
         except:
             print("Cannot write to file!")
