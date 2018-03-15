@@ -56,7 +56,7 @@ def extractTerminals(regMatch):
             actuals[i] = "'" + handleLongString(rhs[i]).group(1) + "'"
 
         if actuals[i] != 'None':
-            strx += rhs[i] + ", "
+            strx += "$" + rhs[i] + ", "
             stry += actuals[i][1:-1] + ", "
     if strx == '':
         return strx
@@ -71,12 +71,30 @@ def getReduceRules(fd):
         x = matchPat.search(line)
         if x != None:
             reducedString += extractTerminals(x)
-            reducedString += x.group(1) + '\n'
+            lhs, rhs = x.group(1).split(' -> ')
+            lhs = "$" + lhs
+            rhs = ' '.join(map(lambda x: "$"+x, rhs.split()))
+            reducedString +=  lhs + " -> " + rhs + '\n'
         lineno+=1
     return reducedString
 
+def removeMarker(text):
+    strx = ''
+    quoteFlag = False
+    dquote = False
+    i, l = 0, len(text)
+    while i < l:
+        if text[i] == '\\':
+            i += 2
+            continue
+        if text[i] == '"' :
+            quoteFlag = not quoteFlag
+        if not text[i] == '$' or quoteFlag:
+            strx += text[i]
+        i += 1
+    return strx
 
-# TODO :: HANDLE ERRORS
+
 def beautifyHtml(reducedString):
     htmlCode = """
         <!DOCTYPE html>
@@ -110,7 +128,7 @@ def beautifyHtml(reducedString):
    """
 
     reversedList = reversed(reducedString.split('\n')[:-1])
-    prevHtmlLine = "\t\t<div class='rule'> program </div>\n"
+    prevHtmlLine = "\t\t<div class='rule'> $program </div>\n"
 
     for i in reversedList:
         lhs, rhs = i.split(' -> ')
@@ -125,34 +143,30 @@ def beautifyHtml(reducedString):
             lhsRule = lhsList[i]
             rhsRule = rhsList[i]
 
-            if rhsRule.strip() == "empty":
-               rhsRule = ""
+            if rhsRule.strip() == "$empty":
+               rhsRule = "" 
 
-            htmlIndex = prevHtmlLine.rfind(lhsRule) ## TODO :: confirm if it does full string match
+            htmlIndex = prevHtmlLine.rfind(lhsRule)
             htmlIndex2 = nextHtmlLine.rfind(lhsRule)
 
             nl = pl = ''
-            if lhsRule in ['BEGIN', 'THEN']:
+            if lhsRule in ['$BEGIN', '$THEN']:
                 pl = '<br>'
                 nl = '<br><div class="tab">'
-            elif lhsRule in ['STMT_TERMINATOR']:
+            elif lhsRule == '$STMT_TERMINATOR':
                 nl = '<br>'
-            elif lhsRule in ['ELSE']:
+            elif lhsRule == '$ELSE':
                 pl = '</div>'
                 nl = '<br><div class="tab">'
-            elif lhsRule in ['END']:
+            elif lhsRule == '$END':
                 pl = '</div>'
-                nextStringIndex = htmlIndex + 4
-                if len(prevHtmlLine[nextStringIndex:]) > 9:
-                    maxIndex = nextStringIndex + 9
-                else:
-                    maxIndex = nextStringIndex + len(prevHtmlLine[nextStringIndex:])
-                if '</div>end' != prevHtmlLine[nextStringIndex:maxIndex]:
-                    nl = '<br>'
-                if 'class' in prevHtmlLine[nextStringIndex:maxIndex]:
+                nextStringIndex = htmlIndex + 5
+                if 'class' == prevHtmlLine[nextStringIndex:nextStringIndex+5] or 'interface' == prevHtmlLine[nextStringIndex:nextStringIndex+9]:
                     nl = '<br><br>'
+                elif '</div>end' != prevHtmlLine[nextStringIndex+1:nextStringIndex+9]:
+                    nl = '<br>'
 
-            if lhsRule in tokens:
+            if lhsRule[1:] in tokens:
                 thisHtmlLine += prevHtmlLine[lastHtmlIndex:htmlIndex] + pl + "<i>" \
                     + prevHtmlLine[htmlIndex:htmlIndex+len(lhsRule)] + "</i>" + nl
             else:
@@ -164,7 +178,7 @@ def beautifyHtml(reducedString):
 
             lastHtmlIndex = htmlIndex+len(lhsRule)
 
-        htmlCode += thisHtmlLine + prevHtmlLine[lastHtmlIndex:]
+        htmlCode += removeMarker(thisHtmlLine + prevHtmlLine[lastHtmlIndex:])
         prevHtmlLine = nextHtmlLine
 
     htmlCode += prevHtmlLine
@@ -184,7 +198,7 @@ if __name__ == "__main__":
             directory = "bin/"
             if not os.path.exists(directory):
                 os.makedirs(directory)
-            with open(directory + "htmlCode.html", 'w') as fs:
+            with open(directory + argv[2], 'w') as fs:
                 fs.write(htmlCode)
         except:
             print("Cannot write to file!")
