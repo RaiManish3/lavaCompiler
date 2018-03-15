@@ -17,7 +17,7 @@ tokens = MyLexer.tokens
 def handleLongString(reqToken):
     curLine = lineno - 1
     strLine = linecache.getline(filename, curLine)
-    tokenIndex = strLine.find(reqToken) ## left to right search for index : Only works if our assumption is correct
+    tokenIndex = strLine.find(reqToken+" .") ## left to right search for index : Only works if our assumption is correct
     tokenPat = re.compile('^' + strLine[:tokenIndex] + '\. LexToken\(' + reqToken +',\'(.+)\',.*')
 
     while curLine > 0:
