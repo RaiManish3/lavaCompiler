@@ -135,6 +135,8 @@ class MyParser(object):
     def p_array_initializer_with_curly(self, p):
         '''
             array_initializer_with_curly : LCURLY array_initializer_without_curly RCURLY
+                                         | LCURLY RCURLY
+
         '''
 
     def p_array_initializer_without_curly(self, p):
@@ -180,8 +182,14 @@ class MyParser(object):
 
     def p_interface_body(self, p):
         '''
-            interface_body : BEGIN interface_member_declaration END
+            interface_body : BEGIN interface_member_declarations END
                            | BEGIN END
+        '''
+
+    def p_interface_member_declarations(self, p):
+        '''
+            interface_member_declarations : interface_member_declarations interface_member_declaration
+                                          | interface_member_declaration
         '''
 
     def p_interface_member_declaration(self, p):
@@ -312,14 +320,12 @@ class MyParser(object):
 
     def p_break_statement(self, p):
         '''
-            break_statement : BREAK IDENTIFIER STMT_TERMINATOR
-                            | BREAK STMT_TERMINATOR
+            break_statement : BREAK STMT_TERMINATOR
         '''
 
     def p_continue_statement(self, p):
         '''
-            continue_statement : CONTINUE IDENTIFIER STMT_TERMINATOR
-                               | CONTINUE STMT_TERMINATOR
+            continue_statement : CONTINUE STMT_TERMINATOR
         '''
 
     def p_return_statement(self, p):
