@@ -494,7 +494,6 @@ class MyParser(object):
 
     def p_error(self, p):
         print('\n-------------------------------------------------------')
-
         print('Error: \'{}\' at line no: {}'.format(p.value, p.lineno))
 
         if len(argv) == 2:
@@ -506,9 +505,7 @@ class MyParser(object):
             for i, line in enumerate(fp):
                 if i+1 == p.lineno:
                     print("\t\t\tin {}".format(line.strip(),))
-
         print('-------------------------------------------------------\n')
-
         exit(EXIT_FAILURE)
 
 
@@ -588,4 +585,4 @@ if __name__=="__main__":
         else:
             filename = argv[1]
 
-        result = parser.parse_file(filename, debug = True)
+        result = parser.parse_file(filename, debug = False)
