@@ -70,7 +70,7 @@ class MyParser(object):
                                      | method_declaration
         '''
 
-    ## constructo
+    ## constructor
     def p_constructor_declaration(self, p):
         '''
             constructor_declaration : FUNCTION constructor_declarator constructor_body
@@ -82,7 +82,7 @@ class MyParser(object):
                                    | type_name LPAREN RPAREN
         '''
 
-    def p_constructor_bodhy(self, p):
+    def p_constructor_body(self, p):
         '''
             constructor_body : BEGIN block_statement END
                              | BEGIN END
