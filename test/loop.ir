@@ -1,0 +1,17 @@
+1, function, main
+2, =, res, 0
+3, =, i, 0
+4, goto, 15
+5, =, j, 0
+6, goto, 13
+7, =, k, 0
+8, goto, 11
+9, +, res, res, 1;
+10, +, k, k, 1
+11, ifgoto, <=, k, 9, 9
+12, +, j, j, 1
+13, ifgoto, <=, j, 9, 7
+14, +, i, i, 1
+15, ifgoto, <=, i, 9, 5
+16, print, res
+17, return
