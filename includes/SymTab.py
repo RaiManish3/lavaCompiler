@@ -68,7 +68,9 @@ class TableManager(object):
         self.labelCount += 1
         return label
 
-    def lookup(self, lexeme, table = self.currentTable):
+    def lookup(self, lexeme, table = None):
+        if table == None:
+            table = self.currentTable
         if type(table) != dict:
             val = table.lookup(lexeme)
             if val != None:
@@ -77,7 +79,10 @@ class TableManager(object):
         return None
 
     def insert(self, lexeme, ltype, category):
-        self.currentTable.insert(lexeme, ltype, category)
+        if type(self.currentTable) == dict:
+            self.currentTable[lexeme] = {'ltype': ltype, 'category': category}
+        else:
+            self.currentTable.insert(lexeme, ltype, category)
 
     def beginScope(self, category, attr):
         newTab = SymbolTable(category, attr, self.currentTable)
@@ -98,7 +103,9 @@ class TableManager(object):
     def endScope(self):
         self.currentTable = self.currentTable.parent
 
-    def printMe(self, t = self.mainTable):
+    def printMe(self, t = None):
+        if t == None:
+            t = self.mainTable
         if type(t) == dict:
             for k,v in t:
                 self.printMe(v)
