@@ -5,7 +5,7 @@ import sys
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 
-typeSizeMap = {'int': 4, 'real': 8, 'boolean': 1, 'string': None} ## FIXME :: String size ?? 
+typeSizeMap = {'int': 4, 'real': 8, 'boolean': 1, 'string': None} ## FIXME :: String size ??
 
 class Category(Enum):
     Class=1
@@ -106,11 +106,9 @@ class TableManager(object):
         self.labelCount += 1
         return label
 
-    #def lookup(self, lexeme, table = self.currentTable):
-    #TODO Above line was giving error so I changed, please check
-    def lookup(self, lexeme, table=None):
+    def lookup(self, lexeme, table = None):
         if table == None:
-            table =self.currentTable
+            table = self.currentTable
         #ASSUMPTION -- Temporaries are not called for lookup
         if type(table) != dict:
             val = table.lookup(lexeme)
@@ -122,9 +120,10 @@ class TableManager(object):
         return None
 
     def insert(self, lexeme, ltype, category):
-        #TODO CHECK WHETHER THE VARIABLE ALREADY EXISTS IN SYM TALBLE OT NOT
-        #TODO JUST CHECK ONLY IN CURRENT SYM TABLE, NOT THE PARRENT & THE STUFF
-        return self.currentTable.insert(lexeme, ltype, category)
+        if type(self.currentTable) == dict:
+            self.currentTable[lexeme] = {'ltype': ltype, 'category': category}
+        else:
+            self.currentTable.insert(lexeme, ltype, category)
 
     def beginScope(self, category, attr):
         newTab = SymbolTable(category, attr, self.currentTable)
@@ -145,9 +144,9 @@ class TableManager(object):
     def endScope(self):
         self.currentTable = self.currentTable.parent
 
-    #def printMe(self, t = self.mainTable):
-    #TODO Above line was giving error so I changed, please check
-    def printMe(self, t):
+    def printMe(self, t = None):
+        if t == None:
+            t = self.mainTable
         if type(t) == dict:
             for k,v in t:
                 self.printMe(v)
