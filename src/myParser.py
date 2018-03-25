@@ -7,6 +7,7 @@ import ply.yacc as yacc
 from myLexer import MyLexer
 
 from sys import argv
+from includes import SymTab
 
 ## GLOBALS
 EXIT_SUCCESS = 0
@@ -35,6 +36,16 @@ class MyParser(object):
 
     def __init__(self, lexer):
         self.lexer = lex.lex(module=MyLexer())
+        self.symtable=SymTab.TableManager()
+
+
+    def gen(self,x,y,z=None,w=None):
+        if w==None:
+            if z==None:
+                return str(x)+', '+str(y)+'\n'
+            else:
+                return str(x)+', '+str(y)+', '+str(z)+'\n'
+        return str(x)+', '+str(y)+', '+str(z)+', '+str(w)+'\n'
 
     ## program and class
     def p_program(self, p):
@@ -44,12 +55,23 @@ class MyParser(object):
                     | program STMT_TERMINATOR
                     | empty
         '''
+        print(p.slice)
+        #if p[2] is main:
+        #    p[0]=p[2]+p[1]
+        #else
+        #    p[0]=p[1]+p[2]
+
+        #p[0]={}
+        #p[0]['code']=p[1]['code']+p[2]['code']
+        #print(p[0])
 
     def p_class_declaration(self, p):
         '''
             class_declaration : CLASS IDENTIFIER IMPLEMENTS interface_type_list BEGIN class_body_declarations END
                               | CLASS IDENTIFIER BEGIN class_body_declarations END
         '''
+        #p[0]={'code':}
+        print(p.slice)
 
     def p_interface_type_list(self, p):
         '''
@@ -63,6 +85,7 @@ class MyParser(object):
                                     | class_body_declarations constructor_declaration
                                     | empty
         '''
+
 
     def p_class_member_declaration(self, p):
         '''
@@ -98,6 +121,17 @@ class MyParser(object):
         '''
             field_declaration : type variable_declarators STMT_TERMINATOR
         '''
+        p[0]={'code':''}
+        print(*p)
+        if p[2] is None:
+            print("p2 is null"+str(p.slice))
+        else:
+            for i in p[2]:
+                #symentry = symtable.insert(p[1]['type'],i['name'])
+                symentry = 'thisIsMOckEntryForTest'
+                if i[1]!=None:
+                    p[0]['code']=p[0]['code']+self.gen('=',symentry,i[1])
+        print(p[0]['code'])
 
     ## variables
     def p_variable_declarators(self, p):
@@ -105,18 +139,44 @@ class MyParser(object):
             variable_declarators : variable_declarators COMMA variable_declarator
                                  | variable_declarator
         '''
+        print(*p)
+        if len(p.slice)==2:
+            p[0]=[]
+            p[0].append((p[1]['name'],p[1]['value']))
+        else:
+            print("the wrong"+str(p.slice))
+            #TODO, the below gives error
+            #p[0]=p[1].append((p[3]['name'],p[3]['value']))
 
     def p_variable_declarator(self, p):
         '''
             variable_declarator : variable_declarator_id
                                 | variable_declarator_id EQ variable_initializer
         '''
-        
+        print("157"+str(len(p.slice)))
+        print(p.slice)
+        if len(p.slice)==2:
+            p[0]={'name':p[1]['name'],'value':None}
+        else:
+            p[0]={'name':p[1]['name'],'value':'56'}
+            #TODO
+            pass
+            print('162'+str(p[0]))
+
     def p_variable_declarator_id(self, p):
         '''
             variable_declarator_id : variable_declarator_id LSQUARE RSQUARE
                                    | IDENTIFIER
         '''
+        print("168"+str(p.slice))
+        if str(p.slice[1])=='variable_declarator_id':
+            #TODO
+            pass
+        else:
+            p[0]={'name':p.slice[1].value}
+            print('174'+str(p[0]))
+            #p[0]=p[1]
+
 
     def p_variable_initializer(self, p):
         '''
@@ -203,6 +263,11 @@ class MyParser(object):
             type : primitive_type
                  | reference_type
         '''
+        if str(p.slice[1])=='primitive_type':
+           p[0]=p[1]
+        if str(p.slice[1])=='reference_type':
+            pass
+            #TODO
 
     def p_primitive_type(self, p):
         '''
@@ -211,6 +276,11 @@ class MyParser(object):
                            | BOOLEAN
                            | STRING
         '''
+        # str(p.slice[1])[9:].split(',')[0]
+        #print(p.slice[1].value)
+        #print(p.slice[1].type)
+        #print(p.slice[1].lineno)
+        p[0]={'type':p.slice[1].value}
 
     def p_reference_type(self, p):
         '''
@@ -334,6 +404,19 @@ class MyParser(object):
                              | RETURN STMT_TERMINATOR
         '''
 
+    def implicitTypeConversion(self,t1,v1,t2,v2):
+        #TODO if something is wrong throw error here
+        if t1==t2:
+            p={'type':t1,'value1':v1,'value2':v2}
+            return p
+        else:
+            #TODO type converseion
+            pass
+
+
+
+
+
     def p_expression(self, p):
         '''
             expression : expression binaryop expression
@@ -343,6 +426,35 @@ class MyParser(object):
                        | identifier_name_with_dot
                        | IDENTIFIER
         '''
+        #TODO I think the type convsersion is wrong, please check
+        print("416"+str(p.slice))
+        if str(p.slice[1])=='primary':
+            p[0]={'place':p[1]['value'],'type':p[1]['type'],'code':''}
+        elif len(p.slice)==4:
+            #TODO PRIORITY IS VIOLATED
+            res = self.implicitTypeConversion(p[1]['type'],p[1]['place'],p[3]['type'],p[3]['place'])
+            #temp = self.symtable.newTemp()
+            temp = 'temporary_temp1'
+            #TODO
+            p[0]={'place':temp,'type':res['type'],'code':p[1]['code']+p[3]['code']+self.gen(p[2],temp,res['value1'],res['value2'])}
+        elif len(p.slice)==2:
+            pass
+        elif str(p.slice[1])=='assignment':
+            pass
+        elif str(p.slice[1])=='identifier_name_with_dot':
+            pass
+        else
+            #CASE FOR IDENTIFIER
+            #symentry=lookup(p.slice[1].value)
+            symentry='test_symentry'
+            #TODO for above
+            #TODO for below do I need to separate expression and IDENTIFIER?, assuming same
+            here
+
+            
+        
+        print('----------------------------------------\n'+str(p[0]['code'])+'-----------------------------------\n')
+
 
     def p_binaryop(self, p):
         '''
@@ -365,6 +477,8 @@ class MyParser(object):
                      | BIT_OR
                      | BIT_AND
         '''
+        #TODO, whether all can be converted to their single token representation. Ask manish
+        p[0]=p.slice[1].value;
 
     def p_unaryop(self, p):
         '''
@@ -406,6 +520,9 @@ class MyParser(object):
             primary : primary_no_new_array
                     | array_creation_expression
         '''
+        print("480"+str(p.slice))
+        p[0]=p[1]
+        #TODO check
 
     def p_primary_no_new_array(self, p):
         '''
@@ -416,6 +533,12 @@ class MyParser(object):
                                  | method_invocation
                                  | array_access
         '''
+        print("491"+str(p.slice))
+        if str(p.slice[1])=='literal':
+            p[0]=p[1]
+        else:
+            #TODO
+            pass
 
     def p_class_instance_creation_expression(self, p):
         '''
@@ -470,6 +593,7 @@ class MyParser(object):
                             | IDENTIFIER DOT identifier_one_step
         '''
 
+
     def p_identifier_one_step(self,p):
         '''
             identifier_one_step : IDENTIFIER
@@ -483,6 +607,25 @@ class MyParser(object):
                     | STRING_LITERAL
                     | NIL
         '''
+        print("560"+str(p.slice))
+        tp = str(p.slice[1].type)
+        if str(tp)=='INTEGER_LITERAL':
+            p[0]={'type':'int','value':p.slice[1].value}
+
+        if str(tp)=='FLOAT_LITERAL':
+            p[0]={'type':'real','value':p.slice[1].value}
+            #TODO -- check whether there should be real or float in upper line
+
+        if str(tp)=='BOOLEAN_LITERAL':
+            p[0]={'type':'boolean','value':p.slice[1].value}
+
+        if str(tp)=='STRING_LITERAL':
+            p[0]={'type':'String','value':p.slice[1].value}
+
+        if str(tp)=='NIL':
+            assert(False)
+            #TODO what to do of this case
+            p[0]={'type':'NIL','value':p.slice[1].value}
 
     ## empty
     def p_empty(self, p):
@@ -585,4 +728,4 @@ if __name__=="__main__":
         else:
             filename = argv[1]
 
-        result = parser.parse_file(filename, debug = False)
+        result = parser.parse_file(filename, debug = True)
