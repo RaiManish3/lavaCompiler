@@ -36,8 +36,11 @@ class MyParser(object):
 
     def __init__(self, lexer):
         self.lexer = lex.lex(module=MyLexer())
-        self.symtable=SymTab.TableManager()
+        self.stManager=SymTab.TableManager()
 
+        #This is needed to make symtable entry before parsing the whole
+        #type-variabledeclarators , as to tackle with the problem - int a=2,b=a*a
+        self.recentType=None
 
     def gen(self,x,y,z=None,w=None):
         if w==None:
@@ -55,6 +58,9 @@ class MyParser(object):
                     | program STMT_TERMINATOR
                     | empty
         '''
+        if p.slice[1].type == 'class_declaration':
+            print("class declaration recognized");
+        print("recog");
         print(p.slice)
         #if p[2] is main:
         #    p[0]=p[2]+p[1]
@@ -130,7 +136,9 @@ class MyParser(object):
                 #symentry = symtable.insert(p[1]['type'],i['name'])
                 symentry = 'thisIsMOckEntryForTest'
                 if i[1]!=None:
-                    p[0]['code']=p[0]['code']+self.gen('=',symentry,i[1])
+                    #p[0]['code']=p[0]['code']+self.gen('=',symentry,i[1])
+                    p[0].ltype = p[1]['type']
+                    p[0].size = SymTab.typeSizeMap[p[1]['type']]
         print(p[0]['code'])
 
     ## variables
@@ -142,7 +150,7 @@ class MyParser(object):
         print(*p)
         if len(p.slice)==2:
             p[0]=[]
-            p[0].append((p[1]['name'],p[1]['value']))
+            p[0].append(p[1])
         else:
             print("the wrong"+str(p.slice))
             #TODO, the below gives error
@@ -158,7 +166,10 @@ class MyParser(object):
         if len(p.slice)==2:
             p[0]={'name':p[1]['name'],'value':None}
         else:
-            p[0]={'name':p[1]['name'],'value':'56'}
+            #TODO check
+            #TODO TYPE CHECK
+            #p[0]={'place':p[1],'value':p[3]['place']}
+            p[0] = {'place':p[1],'code':gen('=',p[1],p[3]['place'])}
             #TODO
             pass
             print('162'+str(p[0]))
@@ -168,15 +179,15 @@ class MyParser(object):
             variable_declarator_id : variable_declarator_id LSQUARE RSQUARE
                                    | IDENTIFIER
         '''
+        #p[0] contains symbol table entry of newly inserted IDENTIFIER,
+        #without type and size which will be added later
         print("168"+str(p.slice))
         if str(p.slice[1])=='variable_declarator_id':
             #TODO
             pass
         else:
-            p[0]={'name':p.slice[1].value}
+            p[0] = self.stManager.insert(p.slice[1].value,None,None)
             print('174'+str(p[0]))
-            #p[0]=p[1]
-
 
     def p_variable_initializer(self, p):
         '''
@@ -184,6 +195,8 @@ class MyParser(object):
                                  | array_initializer_with_curly
                                  | input
         '''
+        #TODO check
+        p[0]=p[1]
 
     def p_input(self, p):
         '''
@@ -210,6 +223,7 @@ class MyParser(object):
         '''
             method_declaration : method_header method_body
         '''
+        print(p.slice)
 
     def p_method_header(self, p):
         '''
@@ -263,6 +277,8 @@ class MyParser(object):
             type : primitive_type
                  | reference_type
         '''
+        print(p.slice)
+        self.recentType = p[1]
         if str(p.slice[1])=='primitive_type':
            p[0]=p[1]
         if str(p.slice[1])=='reference_type':
@@ -411,7 +427,11 @@ class MyParser(object):
             return p
         else:
             #TODO type converseion
-            pass
+            print(str(t1))
+            print(str(t2))
+            #assert(False)
+            p={'type':t1,'value1':v1,'value2':v2}
+            return p
 
 
 
@@ -426,6 +446,7 @@ class MyParser(object):
                        | identifier_name_with_dot
                        | IDENTIFIER
         '''
+
         #TODO I think the type convsersion is wrong, please check
         print("416"+str(p.slice))
         if str(p.slice[1])=='primary':
@@ -433,26 +454,40 @@ class MyParser(object):
         elif len(p.slice)==4:
             #TODO PRIORITY IS VIOLATED
             res = self.implicitTypeConversion(p[1]['type'],p[1]['place'],p[3]['type'],p[3]['place'])
-            #temp = self.symtable.newTemp()
-            temp = 'temporary_temp1'
+            temp = self.stManager.newTemp(p[1]['type'])
+            #temp = 'temporary_temp1'
             #TODO
             p[0]={'place':temp,'type':res['type'],'code':p[1]['code']+p[3]['code']+self.gen(p[2],temp,res['value1'],res['value2'])}
-        elif len(p.slice)==2:
-            pass
+        elif len(p.slice)==3:
+            #temp = 'temporary_temp2'
+            if p[2]['type']=='String' or p[2]['type']=='Boolean':
+                #TODO THROW ERROR
+                print("error")
+                assert(False)
+            temp = self.stManager.newTemp(p[2]['type'])
+            p[0]={'place':temp,'type':p[2]['type'],'code':p[2]['code']+self.gen(p[1],temp,p[2]['place'])}
         elif str(p.slice[1])=='assignment':
             pass
         elif str(p.slice[1])=='identifier_name_with_dot':
             pass
-        else
+        else:
             #CASE FOR IDENTIFIER
-            #symentry=lookup(p.slice[1].value)
-            symentry='test_symentry'
-            #TODO for above
-            #TODO for below do I need to separate expression and IDENTIFIER?, assuming same
-            here
+            #self.symtable.printMe(self.symtable)
+            #TODO Error in below and above line
+            #symentry=self.symtable.lookup(p.slice[1].value,self.symtable)
+            #print("symentry"+str(*symentry))
 
-            
-        
+            #symentry='test_symentry'
+            #TODO for above
+            #TODO for below do I need to separate expression and IDENTIFIER?   yesss
+            #TODO Remove below dummy values
+            #temp = 'temporary_temp5'
+            symentry = self.stManager.lookup(p.slice[1].value)
+            temp = self.stManager.newTemp()
+            print(*symentry)
+            p[0]={'place':temp,'type':symentry.ltype,'code':self.gen('=',temp,'loc_test_symentry')}
+
+
         print('----------------------------------------\n'+str(p[0]['code'])+'-----------------------------------\n')
 
 
@@ -485,6 +520,7 @@ class MyParser(object):
             unaryop : MINUS
                     | NOT
         '''
+        p[0]=p.slice[1].value;
 
     def p_assignment(self, p):
         '''
