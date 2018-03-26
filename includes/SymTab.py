@@ -5,7 +5,7 @@ import sys
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 
-typeSizeMap = {'int': 4, 'real': 8, 'boolean': 1, 'string': None} ## FIXME :: String size ??
+typeSizeMap = {'int': 4, 'real': 8, 'boolean': 1, 'String': None} ## FIXME :: String size ??
 
 class Category(Enum):
     Class=1
@@ -15,14 +15,14 @@ class Category(Enum):
 
 
 class VarType(object):
-    def __init__(self, name, category, vtype, size=None):
-        self.name=name
+    def __init__(self,lexeme,category, vtype, size=None):
         self.category = category
-        self.vtype = vtype
+        self.type = vtype
+        self.lexeme = lexeme
         #  self.size = size
 
     def __repr__(self):
-        return "category: {}, type: {}".format(self.category, self.vtype)
+        return "category: {}, type: {}".format(self.category, self.type)
 
 class SymbolTable(object):
     def __init__(self, category, attr, parent=None):
@@ -36,7 +36,10 @@ class SymbolTable(object):
     def insert(self, lexeme, ltype, category):
         ## category can either be array or a simple variable
         ## TODO :: case of array
-        size = typeSizeMap[ltype]
+        if ltype!=None:
+            size = typeSizeMap[ltype]
+        else:
+            size=None
         self.vars[lexeme] = VarType(lexeme,category, ltype, size)
         return self.vars[lexeme]
 
@@ -59,12 +62,12 @@ class SymbolTable(object):
         if len(self.attr) > 0:
             print("Attributes: ")
             for k,v in self.attr.items():
-                print(k + ":" + v)
+                print(k + ":" + str(v))
         ## printing vars
         if len(self.vars) > 0:
             print("Variables: ")
             for k,v in self.vars.items():
-                print(k + ":" + v)
+                print(k + ":" + str(v))
 
     def setAttr_Cat(self,category,attr):
         self.category = category
@@ -123,17 +126,17 @@ class TableManager(object):
         if type(self.currentTable) == dict:
             self.currentTable[lexeme] = {'ltype': ltype, 'category': category}
         else:
-            self.currentTable.insert(lexeme, ltype, category)
+            return self.currentTable.insert(lexeme, ltype, category)
 
     def beginScope(self, category, attr):
         newTab = SymbolTable(category, attr, self.currentTable)
         if type(self.currentTable) == dict:
             ## newTab has to be a class or an interface
             self.currentTable[attr['name']] = newTab
-        elif self.currentTable.category in ['class', 'interface']:
+        elif self.currentTable.category in [Category.Class, Category.Interface]:
             ## newTab cannot be a block but a function
             self.currentTable.children[attr['name']] = newTab
-        elif self.currentTable.category in ['function', 'block']:
+        elif self.currentTable.category in [Category.Function,Category.Block ]:
             self.currentTable.children.append[newTab]
         else:
             print("Unknown Argument !!")
@@ -148,7 +151,7 @@ class TableManager(object):
         if t == None:
             t = self.mainTable
         if type(t) == dict:
-            for k,v in t:
+            for k,v in t.items():
                 self.printMe(v)
         else:
             if t.category != 'block':
