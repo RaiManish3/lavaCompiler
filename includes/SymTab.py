@@ -83,7 +83,7 @@ class TableManager(object):
         self.labelCount += 1
         return "L" + str(self.labelCount - 1)
 
-    def lookup(self, lexeme, table = None):
+    def lookup(self, lexeme, table = None, flag = False):
         if table == None:
             table = self.currentTable
 
@@ -93,7 +93,9 @@ class TableManager(object):
                 return val
             if table.parent == None:
                 return None
-            return self.lookup(lexeme, table.parent)
+
+            if not flag:
+                return self.lookup(lexeme, table.parent)
 
         return None
 

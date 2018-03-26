@@ -89,7 +89,7 @@ class MyParser(object):
         else:
             ## case of unaryop
             if t1 in mapX[:len(mapX)-1]:
-                return t1
+                return p1
             # TODO :: make error more informative
             raise TypeError("Invalid Type")
 
@@ -115,7 +115,10 @@ class MyParser(object):
         '''
             seen_class_decl1 :
         '''
-        cattr = {'name':p[-3], 'interfaces':p[-1]}
+        cattr = {
+              'name':p[-3]
+            , 'interfaces':p[-1]
+        }
         self.stManager.beginScope(SymTab.Category.Class, cattr)
         print(p.slice)
 
@@ -123,7 +126,10 @@ class MyParser(object):
         '''
             seen_class_decl2 :
         '''
-        cattr = {'name':p[-1], 'interfaces':[]}
+        cattr = {
+              'name':p[-1]
+            , 'interfaces':[]
+        }
         self.stManager.beginScope(SymTab.Category.Class, cattr)
         print(p.slice)
         #  self.stManager.printMe(self.stManager.currentTable)
@@ -142,7 +148,7 @@ class MyParser(object):
         print(p.slice)
 
 
-    def p_class_body_declaration(self, p):
+    def p_class_body_declarations(self, p):
         '''
             class_body_declarations : class_body_declarations class_member_declaration
                                     | class_body_declarations constructor_declaration
@@ -216,8 +222,6 @@ class MyParser(object):
         else:
             p[0]=p[1]
             p[0].append(p[3])
-            #TODO, the below gives error
-            #p[0]=p[1].append((p[3]['name'],p[3]['value']))
         print(p.slice)
 
     def p_variable_declarator(self, p):
@@ -232,6 +236,9 @@ class MyParser(object):
             }
         else:
             #TODO TYPE CHECK
+            if p[1].type != p[3]['type']:
+                ## TODO :: more expressive message
+                raise TypeError("Assignments Type Mismatch")
             p[0] = {
                   'place':p[1]
                 , 'code':p[3]['code']+self.gen('=',p[1],p[3]['place'])
@@ -253,7 +260,12 @@ class MyParser(object):
             #TODO
             pass
         else:
-            p[0] = self.stManager.insert(p.slice[1].value, self.recentType, 'SIMPLE')
+            ## check for re-declaration of a variable
+            idVal = p.slice[1].value
+            checkReInitial = self.stManager.lookup(idVal, flag=True)
+            if checkReInitial != None:
+                raise NameError("Re-declaration of variable.")
+            p[0] = self.stManager.insert(idVal, self.recentType, 'SIMPLE')
         print(p.slice)
 
     def p_variable_initializer(self, p):
@@ -623,7 +635,7 @@ class MyParser(object):
             temp = SymTab.newTemp(res['type'])
             p[0] = {
                 'place': temp
-                ,'type': res[2]['type']
+                ,'type': res['type']
                 ,'code': p[2]['code'] + self.gen(p[1], temp, p[2]['place'])
             }
 
@@ -638,7 +650,7 @@ class MyParser(object):
             #TODO for below do I need to separate expression and IDENTIFIER?   yesss
             #TODO Remove below dummy values
             symEntry = self.stManager.lookup(p.slice[1].value)
-            if symEntry==None:
+            if symEntry == None:
                 ## TODO, make the error more expressive
                 raise NameError('Undefined variable %s at line %d\n' %(p.slice[1].value, p.lexer.lineno))
             p[0] = {
@@ -662,7 +674,7 @@ class MyParser(object):
             assignment : left_hand_side EQ expression
         '''
         #TODO DO TYPE CHECK HERE
-        if p[1].type != p[3].type:
+        if p[1].type != p[3]['type']:
             raise TypeError("Type Mismatch on Assignments")
         code = p[3]['code'] + self.gen('=', p[1], p[3]['place'])
         p[0] = {
@@ -824,16 +836,16 @@ class MyParser(object):
         '''
         tp = str(p.slice[1].type)
         if tp == 'INTEGER_LITERAL':
-            p[0]={'type': 'int', 'place': p.slice[1].value}
+            p[0]={'type': 'int'    , 'place': p.slice[1].value}
 
         elif tp == 'FLOAT_LITERAL':
-            p[0]={'type': 'real', 'place': p.slice[1].value}
+            p[0]={'type': 'real'   , 'place': p.slice[1].value}
 
         elif tp == 'BOOLEAN_LITERAL':
             p[0]={'type': 'boolean', 'place': p.slice[1].value}
 
         elif tp == 'STRING_LITERAL':
-            p[0]={'type': 'String', 'place': p.slice[1].value}
+            p[0]={'type': 'String' , 'place': p.slice[1].value}
 
         elif tp == 'NIL':
             #FIXME what to do of this case
@@ -850,8 +862,6 @@ class MyParser(object):
             empty :
         '''
         pass
-        print(p.slice)
-
 
     def p_error(self, p):
         print('\n-------------------------------------------------------')
