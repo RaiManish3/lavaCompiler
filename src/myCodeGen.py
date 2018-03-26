@@ -190,28 +190,33 @@ def dumpAllRegToMem():
 def translateMulDiv(op,X,Y,Z,lineno):
     global assemblyCode
 
-    if addressDescriptor[Y]=="mem":
+    regy=None
+    if Y not in symlist or addressDescriptor[Y]=="mem":
         regy=getRegWithContraints(0,None,None,lineno)
-        assemblyCode+="  mov "+regy+", dword ["+Y.name+"]\n"
-        associate(Y,regy)
-    if addressDescriptor[Y]=="eax":
+        assemblyCode+="  mov "+regy+", "+name(Y)+"\n"
+        if Y in symlist:
+            associate(Y,regy)
+    if regy=='eax' or (Y in symlist and addressDescriptor[Y]=="eax"):
         pass;
     elif registerDesc['eax']==None:
-        assemblyCode+="  mov eax, "+addressDescriptor[Y]+"\n"
-        registerDesc[addressDescriptor[Y]]=None
-        associate(Y,'eax')
+        assemblyCode+="  mov eax, "+name(Y)+"\n"
+        if Y in symlist:
+            registerDesc[addressDescriptor[Y]]=None
+            associate(Y,'eax')
     elif dirtybit[registerDesc['eax']]==False:
         associate(registerDesc['eax'],"mem")
-        assemblyCode+="  mov eax, "+addressDescriptor[Y]+"\n"
-        registerDesc[addressDescriptor[Y]]=None
-        associate(Y,'eax')
+        assemblyCode+="  mov eax, "+name(Y)+"\n"
+        if Y in symlist:
+            registerDesc[addressDescriptor[Y]]=None
+            associate(Y,'eax')
     else:
         dirtybit[registerDesc['eax']]=False
-        assemblyCode+="  mov dword ["+qregisterDesc['eax'].name+"], eax\n"
+        assemblyCode+="  mov dword ["+registerDesc['eax'].name+"], eax\n"
         associate(registerDesc['eax'],"mem")
-        assemblyCode+="mov eax, "+addressDescriptor[Y]+"\n"
-        registerDesc[addressDescriptor[Y]]=None
-        associate(Y,'eax')
+        assemblyCode+="mov eax, "+name(Y)+"\n"
+        if Y in symlist:
+            registerDesc[addressDescriptor[Y]]=None
+            associate(Y,'eax')
 
     if Y in symlist:
         regytemp=getRegWithContraints(nextUseTable[lineno][Y][1]+1,'eax','edx',lineno)
@@ -241,13 +246,14 @@ def translateMulDiv(op,X,Y,Z,lineno):
     if op =="/" or op =="%":
         assemblyCode += "  cdq\n"
 
-        if addressDescriptor[Z]=="mem":
-            regz=getRegWithContraints(nextUseTable[lineno][Z][1]+1,'eax','edx',lineno)
+        if Z not in symlist or addressDescriptor[Z]=="mem":
+            regz=getRegWithContraints(0,'eax','edx',lineno)
             print(regz)
             if regz!=None:
-                assemblyCode+="  mov "+regz+", dword ["+Z.name+"]\n"
-                associate(Z,regz)
-            assemblyCode += "  idiv " + name(Z) + "\n"
+                assemblyCode+="  mov "+regz+", "+name(Z)+"\n"
+                if Z in symlist:
+                    associate(Z,regz)
+            assemblyCode += "  idiv " + regz + "\n"
         else:
             assemblyCode += "  idiv " + addressDescriptor[Z] + "\n"
 
@@ -264,12 +270,13 @@ def translateMulDiv(op,X,Y,Z,lineno):
         dirtybit[X]=True
 
     elif op=="*":
-        if addressDescriptor[Z]=="mem":
-            regz=getRegWithContraints(nextUseTable[lineno][Z][1]+1,'eax','edx',lineno)
+        if Z not in symlist or addressDescriptor[Z]=="mem":
+            regz=getRegWithContraints(0,'eax','edx',lineno)
             if regz!=None:
-                assemblyCode+="  mov "+regz+", dword ["+Z.name+"]\n"
-                associate(Z,regz)
-            assemblyCode += "  imul " + name(Z) + "\n"
+                assemblyCode+="  mov "+regz+", "+name(Z)+"\n"
+                if Z in symlist:
+                    associate(Z,regz)
+            assemblyCode += "  imul " + regz + "\n"
         else:
             assemblyCode += "  imul " + addressDescriptor[Z] + "\n"
         remReg(X)
