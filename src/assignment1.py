@@ -6,8 +6,10 @@ import sys
 sys.path.extend(['.','..'])
 
 import ply.lex as lex
-from myLexer import MyLexer
+from src import myLexer
 import argparse
+
+MyLexer = myLexer.MyLexer
 
 def getTestFileName():
     argParser = argparse.ArgumentParser(description='Provide the filename which is to be lexed')

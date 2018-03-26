@@ -1,10 +1,14 @@
+#!/usr/bin/env python
+
 from sys import path
 import os
 path.extend(['.','..'])
 
 import ply.lex as lex
 import ply.yacc as yacc
-from myLexer import MyLexer
+from src import myLexer
+
+MyLexer = myLexer.MyLexer
 
 from sys import argv
 from includes import SymTab
@@ -36,21 +40,12 @@ class MyParser(object):
 
     def __init__(self, lexer):
         self.lexer = lex.lex(module=MyLexer())
-        self.stManager=SymTab.TableManager()
-
+        self.stManager = SymTab.TableManager()
         #This is needed to make symtable entry before parsing the whole
         #type-variabledeclarators , as to tackle with the problem - int a=2,b=a*a
-        self.recentType=None
+        self.recentType = None
 
-    def gen(self,x,y,z=None,w=None):
-        if isinstance(x,SymTab.VarType):
-            x = x.lexeme
-        if isinstance(y,SymTab.VarType):
-            y = y.lexeme
-        if isinstance(z,SymTab.VarType):
-            z = z.lexeme
-        if isinstance(w,SymTab.VarType):
-            w = w.lexeme
+    def gen(self, x, y, z=None ,w=None):
         if w==None:
             if z==None:
                 return str(x)+', '+str(y)+'\n'
@@ -66,43 +61,31 @@ class MyParser(object):
                     | program STMT_TERMINATOR
                     | empty
         '''
-        #if p.slice[1].type == 'class_declaration':
-        #    print("class declaration recognized");
-        #print("recog");
         print(p.slice)
-        #if p[2] is main:
-        #    p[0]=p[2]+p[1]
-        #else
-        #    p[0]=p[1]+p[2]
-
-        #p[0]={}
-        #p[0]['code']=p[1]['code']+p[2]['code']
-        #print(p[0])
 
     def p_class_declaration(self, p):
         '''
             class_declaration : CLASS IDENTIFIER IMPLEMENTS interface_type_list seen_class_decl1 BEGIN class_body_declarations END
                               | CLASS IDENTIFIER seen_class_decl2 BEGIN class_body_declarations END
         '''
-        #p[0]={'code':}
         print(p.slice)
 
     def p_seen_class_decl1(self,p):
         '''
             seen_class_decl1 :
         '''
-        cattr = {'name':p[-3],'interfaces':p[-1]}
-        self.stManager.beginScope(SymTab.Category.Class,cattr)
+        cattr = {'name':p[-3], 'interfaces':p[-1]}
+        self.stManager.beginScope(SymTab.Category.Class, cattr)
         print(p.slice)
 
     def p_seen_class_decl2(self,p):
         '''
             seen_class_decl2 :
         '''
-        cattr = {'name':p[-1],'interfaces':[]}
-        self.stManager.beginScope(SymTab.Category.Class,cattr)
+        cattr = {'name':p[-1], 'interfaces':[]}
+        self.stManager.beginScope(SymTab.Category.Class, cattr)
         print(p.slice)
-        #self.stManager.printMe(self.stManager.currentTable)
+        #  self.stManager.printMe(self.stManager.currentTable)
 
 
     def p_interface_type_list(self, p):
@@ -172,21 +155,12 @@ class MyParser(object):
         '''
             field_declaration : type variable_declarators STMT_TERMINATOR
         '''
-        #print(p[0])
         p[0]={'code':''}
-        #print(*p)
         if p[2] is None:
             print("p2 is null")
         else:
-            for i in p[2]:
-                #symentry = symtable.insert(p[1]['type'],i['name'])
-                #symentry = 'thisIsMOckEntryForTest'
-                #p[0]['code']=p[0]['code']+self.gen('=',symentry,i[1])
-                print(*i)
-                #i['place'].ltype = p[1]['type']
-                #i['place'].size = SymTab.typeSizeMap[p[1]['type']]
-                p[0]['code']=p[0]['code']+i['code'];
-        #print(p[0]['code'])
+            for var in p[2]:
+                p[0]['code'] += var['code']
         print(p.slice)
 
     ## variables
@@ -195,14 +169,12 @@ class MyParser(object):
             variable_declarators : variable_declarators COMMA variable_declarator
                                  | variable_declarator
         '''
-        #print(*p)
-        if len(p.slice)==2:
+        if len(p) == 2:
             p[0]=[]
             p[0].append(p[1])
         else:
             p[0]=p[1]
             p[0].append(p[3])
-            #print("the wrong"+str(p.slice))
             #TODO, the below gives error
             #p[0]=p[1].append((p[3]['name'],p[3]['value']))
         print(p.slice)
@@ -212,20 +184,12 @@ class MyParser(object):
             variable_declarator : variable_declarator_id
                                 | variable_declarator_id EQ variable_initializer
         '''
-        #print("157"+str(len(p.slice)))
-        #print(p.slice)
-        if len(p.slice)==2:
-            p[0] ={'place':p[1],'code':''}
-            pass
-            #p[0]={'place':p[1]}
+        if len(p) == 2:
+            p[0] = {'place':p[1], 'code':''}
         else:
-            #TODO check
             #TODO TYPE CHECK
-            #p[0]={'place':p[1],'value':p[3]['place']}
-            p[0] = {'place':p[1],'code':p[3]['code']+self.gen('=',p[1],p[3]['place'])}
+            p[0] = {'place':p[1], 'code':p[3]['code']+self.gen('=',p[1],p[3]['place'])}
             #TODO
-            pass
-            #print('162'+str(p[0]))
         print("-"*30)
         print(p[0]['code'])
         print("-"*30)
@@ -239,12 +203,11 @@ class MyParser(object):
         #p[0] contains symbol table entry of newly inserted IDENTIFIER,
         #without type and size which will be added later
         #print("168"+str(p.slice))
-        if str(p.slice[1])=='variable_declarator_id':
+        if str(p.slice[1]) == 'variable_declarator_id':
             #TODO
             pass
         else:
-            p[0] = self.stManager.insert(p.slice[1].value,self.recentType,'SIMPLE')
-            #print('174'+str(p[0]))
+            p[0] = self.stManager.insert(p.slice[1].value, self.recentType, 'SIMPLE')
         print(p.slice)
 
     def p_variable_initializer(self, p):
@@ -254,7 +217,7 @@ class MyParser(object):
                                  | input
         '''
         #TODO check
-        p[0]=p[1]
+        p[0] = p[1]
         print(p.slice)
         #print("-"*30)
         #print(p[0]['place'])
@@ -289,20 +252,17 @@ class MyParser(object):
             method_declaration : method_header method_body
         '''
         #TODO END SCOPE HERE
-        print("THE SCOPR FOR HAS ENDED");
+        print("THE SCOPE FOR HAS ENDED");
         self.stManager.endScope()
-        print("-"*40)
         self.stManager.printMe()
-        print("-"*40)
         print(p.slice)
 
     def p_method_header(self, p):
         '''
             method_header : FUNCTION DCOLON result_type method_declarator
         '''
-        #self.stManager.beginScope(SymTab.Category.Function,{'type':p[3],'name':p[4]['name'],'arg_types':p[4]['types']})
         self.stManager.currentTable.attr['args_types']=p[4]['types']
-        print("THE SCOPR FOR "+str(p[4]['name'])+"HAS BEGUN");
+        print("THE SCOPE FOR "+str(p[4]['name'])+" HAS BEGUN");
         print(p.slice)
 
     def p_result_type(self, p):
@@ -310,11 +270,10 @@ class MyParser(object):
             result_type : type
                         | VOID
         '''
-        if str(p.slice[1])=='type':
-            p[0]=p[1]
+        if str(p.slice[1]) == 'type':
+            p[0] = p[1]
         else:
-            p[0]='void'
-        #print("--------->"+str(p.slice[1]))
+            p[0] = p.slice[1].value
         print(p.slice)
 
     def p_method_declarator(self, p):
@@ -381,8 +340,8 @@ class MyParser(object):
         if str(p.slice[1])=='primitive_type':
            p[0]=p[1]
         if str(p.slice[1])=='reference_type':
-            pass
             #TODO
+            pass
         print(p.slice)
 
     def p_primitive_type(self, p):
@@ -392,11 +351,6 @@ class MyParser(object):
                            | BOOLEAN
                            | STRING
         '''
-        # str(p.slice[1])[9:].split(',')[0]
-        #print(p.slice[1].value)
-        #print(p.slice[1].type)
-        #print(p.slice[1].lineno)
-        #p[0]={'type':p.slice[1].value}
         p[0]=p.slice[1].value
         print(p.slice)
 
@@ -572,12 +526,6 @@ class MyParser(object):
             p={'type':t1,'value1':v1,'value2':v2}
             return p
 
-
-
-
-
-            #expression : expression binaryop expression
-
     def p_expression(self, p):
         '''
             expression : expression MULTIPLY expression
@@ -605,8 +553,7 @@ class MyParser(object):
                        | IDENTIFIER
         '''
 
-        #TODO I think the type convsersion is wrong, please check
-        #print("416"+str(p.slice))
+        #TODO I think the type conversion is wrong, please check
         if str(p.slice[1])=='primary':
             p[0]={'place':p[1]['place'],'type':p[1]['type'],'code':''}
         elif len(p.slice)==4:
@@ -616,8 +563,9 @@ class MyParser(object):
                     raise TypeError("+ not defined on string")
                     pass
                 elif str(p[1]['type']) in ('int','real') and str(p[3]['type']) in ('int','real'):
+                    pass
             res = self.implicitTypeConversion(p[1]['type'],p[1]['place'],p[3]['type'],p[3]['place'])
-            temp = self.stManager.newTemp(p[1]['type'])
+            temp = SymTab.newTemp(p[1]['type'])
             #temp = 'temporary_temp1'
             #TODO
             p[0]={'place':temp,'type':res['type'],'code':p[1]['code']+p[3]['code']+self.gen(p.slice[2].value,temp,res['value1'],res['value2'])}
@@ -629,7 +577,7 @@ class MyParser(object):
                 #TODO THROW ERROR
                 print("error")
                 assert(False)
-            temp = self.stManager.newTemp(p[2]['type'])
+            temp = SymTab.newTemp(p[2]['type'])
             p[0]={'place':temp,'type':p[2]['type'],'code':p[2]['code']+self.gen(p[1],temp,p[2]['place'])}
         elif str(p.slice[1])=='assignment':
             pass
@@ -653,7 +601,7 @@ class MyParser(object):
                 raise NameError('Undefined variable %s at line %d\n' %(p.slice[1].value, p.lexer.lineno))
                 assert(False)
             p[0]={'place':symentry,'code':'','type':symentry.type}
-            #temp = self.stManager.newTemp(None)
+            #temp = SymTab.newTemp(None)
             #print(*symentry)
             #p[0]={'place':temp,'type':symentry.ltype,'code':self.gen('=',temp,'loc_test_symentry')}
 
@@ -725,7 +673,6 @@ class MyParser(object):
             primary : primary_no_new_array
                     | array_creation_expression
         '''
-        #print("480"+str(p.slice))
         p[0]=p[1]
         #TODO check
         print(p.slice)
@@ -824,7 +771,6 @@ class MyParser(object):
                     | STRING_LITERAL
                     | NIL
         '''
-        #print("560"+str(p.slice))
         tp = str(p.slice[1].type)
         if str(tp)=='INTEGER_LITERAL':
             p[0]={'type':'int','place':p.slice[1].value}

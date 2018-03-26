@@ -1,9 +1,15 @@
 CC=python3
 SRC=src
+INC=includes
 BIN=bin
 TEST=test
 
-.DEFAULT_GOAL := ass3
+.DEFAULT_GOAL := ass4
+
+ass4: $(SRC)/myParser.py $(SRC)/myLexer.py $(INC)/SymTab.py
+	@mkdir -p $(BIN)
+	@cp $(SRC)/myParser.py $(BIN)/parser
+	@chmod +x $(BIN)/parser
 
 ass3: $(SRC)/myParser.py $(SRC)/myLexer.py $(SRC)/htmlWriter.py $(SRC)/parserHtmlScipt.sh
 	@mkdir -p $(BIN)
