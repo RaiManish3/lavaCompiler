@@ -45,13 +45,11 @@ class MyParser(object):
         #type-variabledeclarators , as to tackle with the problem - int a=2,b=a*a
         self.recentType = None
 
-    def gen(self, x, y, z=None ,w=None):
-        if w==None:
-            if z==None:
-                return str(x)+', '+str(y)+'\n'
-            else:
-                return str(x)+', '+str(y)+', '+str(z)+'\n'
-        return str(x)+', '+str(y)+', '+str(z)+', '+str(w)+'\n'
+    def gen(self, *argv):
+        strx = ''
+        for arg in argv:
+            strx += str(arg) + ', '
+        return strx[:-2] + '\n'
 
     def isTypeConvertible(self, t1, t2):
         if (t1 == 'int' and t2 == 'real') or (t1 == 'real' and t2 == 'int'):
@@ -154,6 +152,17 @@ class MyParser(object):
                                     | class_body_declarations constructor_declaration
                                     | empty
         '''
+        if len(p) == 2:
+            ## TODO :: should I assign place attr
+            p[0] = {'code': ''}
+        else:
+            xRule = str(p.slice[2])
+            if xRule == 'class_member_declaration':
+                p[1]['code'] += p[2]['code']
+                p[0] = p[1]
+            else:
+                ## TODO :: constructor case
+                pass
         print(p.slice)
 
 
@@ -162,6 +171,7 @@ class MyParser(object):
             class_member_declaration : field_declaration
                                      | method_declaration
         '''
+        p[0] = p[1]
         print(p.slice)
 
     ## constructor
@@ -203,11 +213,8 @@ class MyParser(object):
             field_declaration : type variable_declarators STMT_TERMINATOR
         '''
         p[0]={'code':''}
-        if p[2] is None:
-            print("p2 is null")
-        else:
-            for var in p[2]:
-                p[0]['code'] += var['code']
+        for var in p[2]:
+            p[0]['code'] += var['code']
         print(p.slice)
 
     ## variables
@@ -308,16 +315,22 @@ class MyParser(object):
         '''
         #TODO END SCOPE HERE
         print("THE SCOPE FOR HAS ENDED");
+        curFunction = self.stManager.currentTable.attr['name']
+        p[0] = {
+            'code' : self.gen("function", curFunction) +
+                     p[2]['code'] + "\n"
+        }
         self.stManager.endScope()
-        self.stManager.printMe()
+        #  self.stManager.printMe()
+        print(p[0]['code'])
         print(p.slice)
 
     def p_method_header(self, p):
         '''
             method_header : FUNCTION DCOLON result_type method_declarator
         '''
-        self.stManager.currentTable.attr['args_types']=p[4]['types']
-        print("THE SCOPE FOR "+str(p[4]['name'])+" HAS BEGUN");
+        self.stManager.currentTable.attr['args_types'] = p[4]['types']
+        print("THE SCOPE FOR "+ p[4]['name'] + " HAS BEGUN");
         print(p.slice)
 
     def p_result_type(self, p):
@@ -336,7 +349,7 @@ class MyParser(object):
             method_declarator : IDENTIFIER seen_method_name LPAREN formal_parameter_list RPAREN
                               | IDENTIFIER seen_method_name LPAREN RPAREN
         '''
-        if len(p)==6:
+        if len(p) == 6:
             p[0]={
                 'name':p.slice[1].value
                 ,'types':p[4]
@@ -352,7 +365,12 @@ class MyParser(object):
         '''
             seen_method_name :
         '''
-        self.stManager.beginScope(SymTab.Category.Function,{'type':p[-2],'name':p[-1],'args_types':[]})
+        mAttr = {
+            'type':p[-2]
+            ,'name':p[-1]
+            ,'args_types':[]
+        }
+        self.stManager.beginScope(SymTab.Category.Function, mAttr)
 
 
     def p_method_body(self, p):
@@ -360,9 +378,12 @@ class MyParser(object):
             method_body : block
                         | STMT_TERMINATOR
         '''
-        p[0] = {
-            'code': p[1]['code']
-        }
+        if str(p.slice[1]) == 'block':
+            p[0] = {
+                'code': p[1]['code']
+            }
+        else:
+            p[0] = { 'code': ''}
         print(p.slice)
 
     ## interfaces
@@ -461,14 +482,12 @@ class MyParser(object):
                              | block_statement
         '''
         if len(p)==3:
-            p[0]={
-                'code':p[1]['code'] + p[2]['code']
-            }
+            p[1]['code'] += p[2]['code']
+            p[0] = p[1]
         else:
             p[0]={
                 'code':p[1]['code']
             }
-        print(p[0])
         print(p.slice)
 
     def p_block_statement(self, p):
@@ -485,7 +504,7 @@ class MyParser(object):
         '''
             local_variable_declaration : type variable_declarators
         '''
-        p[0]={'code':''}
+        p[0] = {'code': ''}
         for i in p[2]:
            p[0]['code'] += i['code']
         print(p.slice)
@@ -582,6 +601,15 @@ class MyParser(object):
             return_statement : RETURN expression STMT_TERMINATOR
                              | RETURN STMT_TERMINATOR
         '''
+        if len(p) == 3:
+            p[0] = {
+                'code' : self.gen("return")
+            }
+        else:
+            ## TODO :: DISCUSS
+            p[0] = {
+                'code' : p[2]['code'] + self.gen("return", str(p[2]['place']))
+            }
         print(p.slice)
 
     def p_expression(self, p):
@@ -614,9 +642,11 @@ class MyParser(object):
         #TODO I think the type conversion is wrong, please check
         p1 = str(p.slice[1])
         if p1 == 'primary':
-            p[0] = {'place':p[1]['place'],
-                    'type':p[1]['type'],
-                    'code':''}
+            p[0] = {
+                  'place': p[1]['place']
+                , 'type' : p[1]['type']
+                , 'code' : ''
+            }
 
         elif len(p) == 4:
             res = self.typeHandler(p[1], p[3], p.slice[2].type)
@@ -654,9 +684,9 @@ class MyParser(object):
                 ## TODO, make the error more expressive
                 raise NameError('Undefined variable %s at line %d\n' %(p.slice[1].value, p.lexer.lineno))
             p[0] = {
-                'place':symEntry
-                ,'code':''
-                ,'type':symEntry.type
+                 'place': symEntry
+                ,'code' : ''
+                ,'type' : symEntry.type
             }
 
         print(p.slice)
