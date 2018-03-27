@@ -108,6 +108,7 @@ class MyParser(object):
                               | CLASS IDENTIFIER seen_class_decl2 BEGIN class_body_declarations END
         '''
         self.stManager.endScope()
+        self.stManager.printMe()
         print(p.slice)
 
     def p_seen_class_decl1(self,p):
@@ -159,6 +160,7 @@ class MyParser(object):
             xRule = str(p.slice[2])
             if xRule == 'class_member_declaration':
                 ## TODO :: how the different member code be organised
+                print(p[2]['code'])
                 pass
             else:
                 ## TODO :: constructor case
@@ -285,11 +287,13 @@ class MyParser(object):
         #        print("168"+str(p.slice))
         if str(p.slice[1]) == 'variable_declarator_id':
             #TODO
-            pass
+            symEntry = self.stManager.currentTable.lookup(p[1].lexeme) ## would return a varType
+            symEntry.updateCategory('ARRAY')
+            symEntry.updateType(symEntry.type + "[]")
         else:
             ## check for re-declaration of a variable
             idVal = p.slice[1].value
-            checkReInitial = self.stManager.lookup(idVal, flag=True)
+            checkReInitial = self.stManager.currentTable.lookup(idVal)
             if checkReInitial != None:
                 raise NameError("Re-declaration of variable.")
             p[0] = self.stManager.insert(idVal, self.recentType, 'SIMPLE')
@@ -346,7 +350,6 @@ class MyParser(object):
         '''
             method_declaration : method_header method_body
         '''
-        #TODO END SCOPE HERE
         print("THE SCOPE FOR HAS ENDED");
         curFunction = self.stManager.currentTable.attr['name']
         p[0] = {
@@ -354,7 +357,6 @@ class MyParser(object):
                      p[2]['code'] + "\n"
         }
         self.stManager.endScope()
-        #  self.stManager.printMe()
         print(p[0]['code'])
         print(p.slice)
 
@@ -388,6 +390,10 @@ class MyParser(object):
         '''
             seen_method_name :
         '''
+        symEntry = self.stManager.currentTable.lookup(p[-1])
+        if symEntry != None:
+            raise NameError("Duplicate Function name")
+
         mAttr = {
             'type':p[-2]
             ,'name':p[-1]
@@ -413,9 +419,22 @@ class MyParser(object):
     ## interfaces
     def p_interface_declaration(self, p):
         '''
-            interface_declaration : INTERFACE IDENTIFIER interface_body
+            interface_declaration : INTERFACE IDENTIFIER seen_interface_name interface_body
         '''
+        self.stManager.endScope()
         print(p.slice)
+
+    def p_seen_interface_name(self, p):
+        '''
+            seen_interface_name :
+        '''
+        symEntry = self.stManager.currentTable.lookup(p[-1])
+        if symEntry != None:
+            raise NameError("Duplicate Interface name")
+        iAttr = {
+              'name': p[-1]
+        }
+        self.stManager.beginScope(SymTab.Category.Interface, iAttr)
 
     def p_interface_body(self, p):
         '''
@@ -443,11 +462,10 @@ class MyParser(object):
             type : primitive_type
                  | reference_type
         '''
-        #print(p.slice)
         self.recentType = p[1]
         if str(p.slice[1])=='primitive_type':
            p[0]=p[1]
-        if str(p.slice[1])=='reference_type':
+        elif str(p.slice[1])=='reference_type':
             #TODO
             pass
         print(p.slice)
@@ -465,14 +483,16 @@ class MyParser(object):
     def p_reference_type(self, p):
         '''
             reference_type : class_type
-                            | array_type
+                           | array_type
         '''
+        p[0] = p[1]
         print(p.slice)
 
     def p_class_type(self, p):
         '''
             class_type : type_name
         '''
+        p[0] = p[1]
         print(p.slice)
 
     def p_interface_type(self, p):
@@ -554,6 +574,9 @@ class MyParser(object):
         '''
             print_statement : PRINT LPAREN expression RPAREN STMT_TERMINATOR
         '''
+        p[0] = {
+            'code': p[3]['code'] + self.gen("print", p[3]['place'])
+        }
         print(p.slice)
 
     def p_statement_expression(self, p):
@@ -563,7 +586,7 @@ class MyParser(object):
                                  | class_instance_creation_expression
         '''
         #TODO check
-        p[0]={'code':p[1]['code']}
+        p[0] = p[1]
         print(p.slice)
 
     def p_if_then_else_statement(self, p):
@@ -571,6 +594,12 @@ class MyParser(object):
             if_then_else_statement : IF LPAREN expression RPAREN THEN block_statements ELSE block_statements END
                                    | IF LPAREN expression RPAREN THEN block_statements END
         '''
+        if len(p) == 8:
+            ## without else
+            pass
+        else:
+            ## with else
+            pass
         print(p.slice)
 
     def p_while_statement(self, p):
@@ -666,18 +695,15 @@ class MyParser(object):
         #TODO I think the type conversion is wrong, please check
         p1 = str(p.slice[1])
         if p1 == 'primary':
-            p[0] = {
-                  'place': p[1]['place']
-                , 'type' : p[1]['type']
-                , 'code' : ''
-            }
+            p[0] = p[1]
 
         elif len(p) == 4:
             res = self.typeHandler(p[1], p[3], p.slice[2].type)
             temp = SymTab.newTemp(res['type'])
             ## TODO :: DISCUSS -> IS THE TYPE CONVERSION NOT A PART OF IR CODE
+            ## TODO :: SHORT CIRCUIT BOOLEAN 'AND' AND 'OR' 
             p[0] = {
-                'place': temp
+                 'place': temp
                 ,'type': res['type']
                 ,'code': p[1]['code'] + p[3]['code'] +
                          self.gen(p.slice[2].value, temp, res['value1'], res['value2'])
@@ -688,7 +714,7 @@ class MyParser(object):
             res = self.typeHandler(p[2], None, p.slice[1].type)
             temp = SymTab.newTemp(res['type'])
             p[0] = {
-                'place': temp
+                 'place': temp
                 ,'type': res['type']
                 ,'code': p[2]['code'] + self.gen(p[1], temp, p[2]['place'])
             }
@@ -772,6 +798,22 @@ class MyParser(object):
                               | field_access LPAREN RPAREN
 
         '''
+        xRule = str(p.slice[1])
+        if xRule == "identifier_name_with_dot":
+            pass
+        elif xRule == "field_access":
+            pass
+        else:
+            funcID = p.slice[1].value
+            symEntry = self.stManager.lookup(funcID)
+            if symEntry == None:
+                raise NameError("Function not defined")
+            temp = SymTab.newTemp(symEntry.attr['type'])
+            p[0] = {
+                  'place': temp
+                , 'type': temp.type
+                , 'code': self.gen('call', funcID, temp)  ## FIXME :: generate approriate IR
+            }
         print(p.slice)
 
     def p_field_access(self, p):
@@ -798,7 +840,7 @@ class MyParser(object):
                                  | method_invocation
                                  | array_access
         '''
-        if str(p.slice[1]) == 'literal':
+        if str(p.slice[1]) in ['literal', 'method_invocation']:
             p[0] = p[1]
         else:
             #TODO
@@ -898,16 +940,32 @@ class MyParser(object):
         '''
         tp = str(p.slice[1].type)
         if tp == 'INTEGER_LITERAL':
-            p[0]={'type': 'int'    , 'place': p.slice[1].value}
+            p[0]={
+                  'type': 'int'
+                , 'place': p.slice[1].value
+                , 'code': ''
+            }
 
         elif tp == 'FLOAT_LITERAL':
-            p[0]={'type': 'real'   , 'place': p.slice[1].value}
+            p[0]={
+                  'type': 'real'
+                , 'place': p.slice[1].value
+                , 'code': ''
+            }
 
         elif tp == 'BOOLEAN_LITERAL':
-            p[0]={'type': 'boolean', 'place': p.slice[1].value}
+            p[0]={
+                  'type': 'boolean'
+                , 'place': p.slice[1].value
+                , 'code': ''
+            }
 
         elif tp == 'STRING_LITERAL':
-            p[0]={'type': 'String' , 'place': p.slice[1].value}
+            p[0]={
+                  'type': 'String'
+                , 'place': p.slice[1].value
+                , 'code': ''
+            }
 
         elif tp == 'NIL':
             #FIXME what to do of this case
@@ -915,7 +973,11 @@ class MyParser(object):
             # Nil is not a type but a value which is not initialized yet
             # Similar to Java's null
             # https://stackoverflow.com/questions/2707322/what-is-null-in-java
-            p[0]={'type': 'nil', 'place': p.slice[1].value}
+            p[0]={
+                  'type': 'nil'
+                , 'place': p.slice[1].value
+                , 'code': ''
+            }
         print(p.slice)
 
     ## empty

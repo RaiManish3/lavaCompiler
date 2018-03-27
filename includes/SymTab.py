@@ -20,6 +20,12 @@ class VarType(object):
         self.type = vtype
         self.size = size
 
+    def updateCategory(self, newCategory):
+        self.category = newCategory
+
+    def updateType(self, newType):
+        self.type = newType
+
     def __repr__(self):
         return "category: {}, type: {}".format(self.category, self.type)
 
@@ -86,7 +92,7 @@ class TableManager(object):
         self.labelCount += 1
         return "L" + str(self.labelCount - 1)
 
-    def lookup(self, lexeme, table = None, flag = False):
+    def lookup(self, lexeme, table = None):
         if table == None:
             table = self.currentTable
 
@@ -97,9 +103,12 @@ class TableManager(object):
             if table.parent == None:
                 return None
 
-            if not flag:
-                return self.lookup(lexeme, table.parent)
+            return self.lookup(lexeme, table.parent)
 
+        else:
+            for k in table:
+                if k == lexeme:
+                    return table[k]
         return None
 
     def insert(self, lexeme, ltype, category):
