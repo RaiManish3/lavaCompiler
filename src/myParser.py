@@ -107,6 +107,7 @@ class MyParser(object):
             class_declaration : CLASS IDENTIFIER IMPLEMENTS interface_type_list seen_class_decl1 BEGIN class_body_declarations END
                               | CLASS IDENTIFIER seen_class_decl2 BEGIN class_body_declarations END
         '''
+        self.stManager.endScope()
         print(p.slice)
 
     def p_seen_class_decl1(self,p):
@@ -130,7 +131,6 @@ class MyParser(object):
         }
         self.stManager.beginScope(SymTab.Category.Class, cattr)
         print(p.slice)
-        #  self.stManager.printMe(self.stManager.currentTable)
 
 
     def p_interface_type_list(self, p):
@@ -158,8 +158,8 @@ class MyParser(object):
         else:
             xRule = str(p.slice[2])
             if xRule == 'class_member_declaration':
-                p[1]['code'] += p[2]['code']
-                p[0] = p[1]
+                ## TODO :: how the different member code be organised
+                pass
             else:
                 ## TODO :: constructor case
                 pass
@@ -179,20 +179,40 @@ class MyParser(object):
         '''
             constructor_declaration : FUNCTION constructor_declarator constructor_body
         '''
+        self.stManager.endScope()
         print(p.slice)
 
     def p_constructor_declarator(self, p):
         '''
-            constructor_declarator : type_name LPAREN formal_parameter_list RPAREN
-                                   | type_name LPAREN RPAREN
+            constructor_declarator : type_name seen_cons_name LPAREN formal_parameter_list RPAREN
+                                   | type_name seen_cons_name LPAREN RPAREN
         '''
+        if len(p) == 6:
+            self.stManager.currentTable.attr['args_types'] = p[4]
         print(p.slice)
+
+    def p_seen_cons_name(self, p):
+        '''
+            seen_cons_name :
+        '''
+        ## check if the constructor name matches the class name
+        if p[-1] != self.stManager.currentTable.attr['name']:
+            raise NameError("Constructor name should be same as that of class")
+        mAttr = {
+              'name': p[-1]
+            , 'args_types': []
+        }
+        self.stManager.beginScope(SymTab.Category.Function, mAttr)
+
 
     def p_constructor_body(self, p):
         '''
             constructor_body : BEGIN block_statement END
                              | BEGIN END
         '''
+        p[0] = {'code': ''}
+        if len(p) == 4:
+            p[0]['code'] = p[2]['code']
         print(p.slice)
 
     def p_formal_parameter_list(self, p):
@@ -282,7 +302,19 @@ class MyParser(object):
                                  | input
         '''
         #TODO check
-        p[0] = p[1]
+        xRule = str(p.slice[1])
+        if xRule == 'expression':
+            p[0] = p[1]
+        elif xRule == 'array_initializer_with_curly':
+            pass
+        elif xRule == 'input':
+            xType = p[1][4:].lower()
+            temp = SymTab.newTemp(xType)
+            p[0] = {
+                  'place': temp
+                , 'type': xType 
+                , 'code': self.gen(p[1], temp)
+            }
         print(p.slice)
 
     def p_input(self, p):
@@ -291,6 +323,7 @@ class MyParser(object):
                   | READREAL LPAREN RPAREN
                   | READSTRING LPAREN RPAREN
         '''
+        p[0] = self.gen(p.slice[1].value)
         print(p.slice)
 
     def p_array_initializer_with_curly(self, p):
@@ -329,8 +362,6 @@ class MyParser(object):
         '''
             method_header : FUNCTION DCOLON result_type method_declarator
         '''
-        self.stManager.currentTable.attr['args_types'] = p[4]['types']
-        print("THE SCOPE FOR "+ p[4]['name'] + " HAS BEGUN");
         print(p.slice)
 
     def p_result_type(self, p):
@@ -350,15 +381,7 @@ class MyParser(object):
                               | IDENTIFIER seen_method_name LPAREN RPAREN
         '''
         if len(p) == 6:
-            p[0]={
-                'name':p.slice[1].value
-                ,'types':p[4]
-            }
-        else:
-            p[0]={
-                'name':p.slice[1].value
-                ,'types':[]
-            }
+            self.stManager.currentTable.attr['args_types'] = p[4]
         print(p.slice)
 
     def p_seen_method_name(self, p):
@@ -371,6 +394,7 @@ class MyParser(object):
             ,'args_types':[]
         }
         self.stManager.beginScope(SymTab.Category.Function, mAttr)
+        print("THE SCOPE FOR "+ mAttr['name'] + " HAS BEGUN");
 
 
     def p_method_body(self, p):
@@ -828,6 +852,14 @@ class MyParser(object):
                          | IDENTIFIER LSQUARE expression RSQUARE
                          | primary_no_new_array LSQUARE expression RSQUARE
         '''
+        xRule = str(p.slice[1])
+        if xRule == 'identifier_name_with_dot':
+            pass
+        elif xRule == 'primary_no_new_array':
+            pass
+        else:
+            ## IDENTIFIER [exp] case
+            pass
         print(p.slice)
 
     def p_type_name(self, p):
@@ -843,7 +875,7 @@ class MyParser(object):
                                      | IDENTIFIER DOT identifier_one_step
         '''
         if str(p.slice[1]) == "identifier_name_with_dot":
-            p[0] = p[1] + '.' + p.slice[3].value  #string concat
+            p[0] = p[1] + '.' + p.slice[3].value
         else:
             p[0] = p.slice[1].value + '.' + p[3]
         print(p.slice)

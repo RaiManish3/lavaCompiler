@@ -1,7 +1,13 @@
 class x1
 begin
-    int x;
-    function::int main()
+    int x = 5;
+
+    function x1()
+    begin
+     int m;
+    end
+
+    function::int ff()
     begin
       int m,x;
       String a, b = a;
@@ -9,7 +15,8 @@ begin
       return x+3*5;
     end
 
-    function::int ff()
+    int y = 10;
+    function::int main()
     begin
       int m,x;
       String a, b = a;

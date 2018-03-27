@@ -33,7 +33,7 @@ class SymbolTable(object):
         self.attr = deepcopy(attr)  ## holds all relevant information for this block
         self.vars = {}  ## contains variables directly under it
         self.temps= {}  ## contains temporaries direclty under it
-        self.children = [] if category in ['function', 'block'] else {}  ## list of blocks under it
+        self.children = [] if category in [Category.Function, Category.Block] else {}
 
     def insert(self, lexeme, ltype, category):
         ## category can either be array or a simple variable
@@ -49,6 +49,9 @@ class SymbolTable(object):
         #TODO DO WE NEED TO CHECK THE FUNCTIONS ALSO HERE ???
         if lexeme in self.vars:
             return self.vars[lexeme]
+        if self.category in [Category.Class, Category.Interface]:
+            if lexeme in self.children:
+                return self.children[lexeme]
         return None
 
     def printMe(self):
