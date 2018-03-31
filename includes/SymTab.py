@@ -44,7 +44,7 @@ class SymbolTable(object):
     def insert(self, lexeme, ltype, category):
         ## category can either be array or a simple variable
         ## TODO :: case of array
-        if ltype != None:
+        if ltype in typeSizeMap.keys():
             size = typeSizeMap[ltype]
         else:
             size = None
@@ -124,7 +124,7 @@ class TableManager(object):
             ## newTab cannot be a block but a function
             self.currentTable.children[attr['name']] = newTab
         elif self.currentTable.category in [Category.Function, Category.Block]:
-            self.currentTable.children.append[newTab]
+            self.currentTable.children.append(newTab)
         else:
             raise ValueError("Invalid Category Encountered")
         self.currentTable = newTab
