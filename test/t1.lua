@@ -15,13 +15,19 @@ begin
       return x+3*5;
     end
 
-    int y = 10;
     function::int ff()
     begin
-      int m,x;
-      String a, b = a;
-      int t = main();
-      int y = 5 * 4 + m;
-      return x+3*5;
+       int a,b;
+       if (a < b or a == b)
+         then
+            print("Hello");
+            return 1;
+         end
+         return 2;
+    end
+
+    function::real xm()
+    begin
+      return 1.0;
     end
 end
