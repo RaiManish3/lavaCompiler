@@ -1203,8 +1203,7 @@ class MyParser(object):
                 if str(a.type)[:pos]!=p.slice[2].value:
                     raise TypeError("Type Mismatch at at array initilization line %d"%(p.lexer.lineno))
                 else:
-                    #NOTE, DO MEMORY ALLOCATION IN ASSEMBLY FOR A SINGLE DIMENSIO ARRAY OF LENGTH = t: where t=1 initially and t = t * p[3][i]['place'] for i=0 to len(p[3])-1
-                    #THIS ARRAY WILL HAVE ELEMENTS OF TYPE <primitive_type>[][]....[] where ( number of []'s' )=p[4]
+                    #NOTE, ARRAY IS IMPLEMENTED AS LINKED LIST, EX. int a[][][]=new int [2][3][]; then Malloc has reserved 2*3=6 space for elements of type int[],
                     #TODO CHANGE OTHER THINGS TO BE CONSISTENT WITH THIS DEFINITION OF SIZE FOR ARRAYS
                     a.size={'valuedDimensions':p[3]['place'],'numUnvaluedDimensions':p[4]}
                     malloc_code=''
