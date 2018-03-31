@@ -44,6 +44,7 @@ class MyParser(object):
         #This is needed to make symtable entry before parsing the whole
         #type-variabledeclarators , as to tackle with the problem - int a=2,b=a*a
         self.recentType = None
+        self.printParseTree = False
 
     def gen(self, *argv):
         strx = ''
@@ -71,7 +72,7 @@ class MyParser(object):
                         ,'value2': v2
                         }
                 else:
-                    t3 = self.isTypeConvertible(t1, t2) 
+                    t3 = self.isTypeConvertible(t1, t2)
                     if t3 != None:
                         return {
                              'type': t3
@@ -92,6 +93,7 @@ class MyParser(object):
             raise TypeError("Invalid Type")
 
 
+
     ## program and class
     def p_program(self, p):
         '''
@@ -100,7 +102,17 @@ class MyParser(object):
                     | program STMT_TERMINATOR
                     | empty
         '''
-        print(p.slice)
+        if len(p)==3:
+            p[0]={'code':p[1]['code']}
+            # print(p.slice[2])
+            if str(p.slice[2])=='class_declaration' or str(p.slice[2])=='interface_declaration':
+                p[0]['code']=p[0]['code']+p[2]['code']
+                print(p[2]['code'])
+        else:
+            p[0]={'code':''}
+        if self.printParseTree:
+            print(p.slice)
+
 
     def p_class_declaration(self, p):
         '''
@@ -108,8 +120,15 @@ class MyParser(object):
                               | CLASS IDENTIFIER seen_class_decl2 BEGIN class_body_declarations END
         '''
         self.stManager.endScope()
-        self.stManager.printMe()
-        print(p.slice)
+        ## TODO: OOP CONCEPT TO BE IMPLEMENTED:
+        if len(p)==9:
+            p[0]=p[7]
+        else:
+            p[0]=p[5]
+        # print(p[0]['code'])
+        # self.stManager.printMe()
+        if self.printParseTree:
+            print(p.slice)
 
     def p_seen_class_decl1(self,p):
         '''
@@ -120,7 +139,8 @@ class MyParser(object):
             , 'interfaces':p[-1]
         }
         self.stManager.beginScope(SymTab.Category.Class, cattr)
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_seen_class_decl2(self,p):
         '''
@@ -131,7 +151,8 @@ class MyParser(object):
             , 'interfaces':[]
         }
         self.stManager.beginScope(SymTab.Category.Class, cattr)
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
 
     def p_interface_type_list(self, p):
@@ -144,7 +165,8 @@ class MyParser(object):
             p[0]=p[1]
         else:
             p[0]=[p[1]]
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
 
     def p_class_body_declarations(self, p):
@@ -153,19 +175,23 @@ class MyParser(object):
                                     | class_body_declarations constructor_declaration
                                     | empty
         '''
+        p[0] = {'code': ''}
         if len(p) == 2:
             ## TODO :: should I assign place attr
-            p[0] = {'code': ''}
+            pass
         else:
             xRule = str(p.slice[2])
             if xRule == 'class_member_declaration':
+                p[0]['code']=p[1]['code']+p[2]['code']
                 ## TODO :: how the different member code be organised
-                print(p[2]['code'])
+                #print(p[2]['code'])
                 pass
             else:
-                ## TODO :: constructor case
+                ## TODO :: constructor case THIS IS AN OOP CONECPT HANDLE later
+                p[0]['code']=p[1]['code']+p[2]['code']
                 pass
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
 
     def p_class_member_declaration(self, p):
@@ -174,7 +200,8 @@ class MyParser(object):
                                      | method_declaration
         '''
         p[0] = p[1]
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     ## constructor
     def p_constructor_declaration(self, p):
@@ -182,7 +209,10 @@ class MyParser(object):
             constructor_declaration : FUNCTION constructor_declarator constructor_body
         '''
         self.stManager.endScope()
-        print(p.slice)
+        ## TODO: THIS IS AN OOP CONCEPT HANDLER IT, WHILE MAKING OBJECT
+        p[0]={'code':p[3]['code']}
+        if self.printParseTree:
+            print(p.slice)
 
     def p_constructor_declarator(self, p):
         '''
@@ -191,7 +221,8 @@ class MyParser(object):
         '''
         if len(p) == 6:
             self.stManager.currentTable.attr['args_types'] = p[4]
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_seen_cons_name(self, p):
         '''
@@ -215,7 +246,8 @@ class MyParser(object):
         p[0] = {'code': ''}
         if len(p) == 4:
             p[0]['code'] = p[2]['code']
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_formal_parameter_list(self, p):
         '''
@@ -228,7 +260,8 @@ class MyParser(object):
             p[0]=p[1]
         else:
             p[0]=[p[1]]
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_field_declaration(self, p):
         '''
@@ -237,7 +270,8 @@ class MyParser(object):
         p[0]={'code':''}
         for var in p[2]:
             p[0]['code'] += var['code']
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     ## variables
     def p_variable_declarators(self, p):
@@ -251,7 +285,8 @@ class MyParser(object):
         else:
             p[0]=p[1]
             p[0].append(p[3])
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_variable_declarator(self, p):
         '''
@@ -265,17 +300,25 @@ class MyParser(object):
             }
         else:
             #TODO TYPE CHECK
+            #print(p[3])
             if p[1].type != p[3]['type']:
                 ## TODO :: more expressive message
                 raise TypeError("Assignments Type Mismatch")
-            p[0] = {
-                  'place':p[1]
-                , 'code':p[3]['code']+self.gen('=',p[1],p[3]['place'])
-            }
-        print("-"*30)
-        print(p[0]['code'])
-        print("-"*30)
-        print(p.slice)
+            if p[3]['place']==None or isinstance(p[3]['place'],SymTab.VarType):
+                p[0] = {
+                      'place':p[1]
+                    , 'code':p[3]['code']
+                }
+            else:
+                p[0] = {
+                      'place':p[1]
+                    , 'code':p[3]['code']+self.gen('=',p[1],p[3]['place'])
+                }
+        # print("-"*30)
+        # print(p[0]['code'])
+        # print("-"*30)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_variable_declarator_id(self, p):
         '''
@@ -290,6 +333,7 @@ class MyParser(object):
             symEntry = self.stManager.currentTable.lookup(p[1].lexeme) ## would return a varType
             symEntry.updateCategory('ARRAY')
             symEntry.updateType(symEntry.type + "[]")
+            p[0] = symEntry
         else:
             ## check for re-declaration of a variable
             idVal = p.slice[1].value
@@ -297,7 +341,8 @@ class MyParser(object):
             if checkReInitial != None:
                 raise NameError("Re-declaration of variable.")
             p[0] = self.stManager.insert(idVal, self.recentType, 'SIMPLE')
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_variable_initializer(self, p):
         '''
@@ -309,6 +354,8 @@ class MyParser(object):
         xRule = str(p.slice[1])
         if xRule == 'expression':
             p[0] = p[1]
+            if(p[1]==None):
+                assert(False)
         elif xRule == 'array_initializer_with_curly':
             pass
         elif xRule == 'input':
@@ -316,10 +363,12 @@ class MyParser(object):
             temp = SymTab.newTemp(xType)
             p[0] = {
                   'place': temp
-                , 'type': xType 
+                , 'type': xType
                 , 'code': self.gen(p[1], temp)
             }
-        print(p.slice)
+        # print(p[0])
+        if self.printParseTree:
+            print(p.slice)
 
     def p_input(self, p):
         '''
@@ -328,7 +377,8 @@ class MyParser(object):
                   | READSTRING LPAREN RPAREN
         '''
         p[0] = self.gen(p.slice[1].value)
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_array_initializer_with_curly(self, p):
         '''
@@ -336,35 +386,39 @@ class MyParser(object):
                                          | LCURLY RCURLY
 
         '''
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_array_initializer_without_curly(self, p):
         '''
             array_initializer_without_curly : array_initializer_without_curly COMMA variable_initializer
                                             | variable_initializer
         '''
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     ## methods
     def p_method_declaration(self, p):
         '''
             method_declaration : method_header method_body
         '''
-        print("THE SCOPE FOR HAS ENDED");
+        # print("THE SCOPE FOR HAS ENDED");
         curFunction = self.stManager.currentTable.attr['name']
         p[0] = {
             'code' : self.gen("function", curFunction) +
-                     p[2]['code'] + "\n"
+                     p[2]['code'] + self.gen("return")+"\n"
         }
         self.stManager.endScope()
-        print(p[0]['code'])
-        print(p.slice)
+        # print(p[0]['code'])
+        if self.printParseTree:
+            print(p.slice)
 
     def p_method_header(self, p):
         '''
             method_header : FUNCTION DCOLON result_type method_declarator
         '''
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_result_type(self, p):
         '''
@@ -375,7 +429,8 @@ class MyParser(object):
             p[0] = p[1]
         else:
             p[0] = p.slice[1].value
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_method_declarator(self, p):
         '''
@@ -384,7 +439,8 @@ class MyParser(object):
         '''
         if len(p) == 6:
             self.stManager.currentTable.attr['args_types'] = p[4]
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_seen_method_name(self, p):
         '''
@@ -400,7 +456,7 @@ class MyParser(object):
             ,'args_types':[]
         }
         self.stManager.beginScope(SymTab.Category.Function, mAttr)
-        print("THE SCOPE FOR "+ mAttr['name'] + " HAS BEGUN");
+        # print("THE SCOPE FOR "+ mAttr['name'] + " HAS BEGUN");
 
 
     def p_method_body(self, p):
@@ -414,7 +470,9 @@ class MyParser(object):
             }
         else:
             p[0] = { 'code': ''}
-        print(p.slice)
+        # print(p[0]['code'])
+        if self.printParseTree:
+            print(p.slice)
 
     ## interfaces
     def p_interface_declaration(self, p):
@@ -422,7 +480,8 @@ class MyParser(object):
             interface_declaration : INTERFACE IDENTIFIER seen_interface_name interface_body
         '''
         self.stManager.endScope()
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_seen_interface_name(self, p):
         '''
@@ -441,20 +500,23 @@ class MyParser(object):
             interface_body : BEGIN interface_member_declarations END
                            | BEGIN END
         '''
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_interface_member_declarations(self, p):
         '''
             interface_member_declarations : interface_member_declarations interface_member_declaration
                                           | interface_member_declaration
         '''
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_interface_member_declaration(self, p):
         '''
             interface_member_declaration : method_header STMT_TERMINATOR
         '''
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     ## types
     def p_type(self, p):
@@ -468,7 +530,8 @@ class MyParser(object):
         elif str(p.slice[1])=='reference_type':
             #TODO
             pass
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_primitive_type(self, p):
         '''
@@ -478,7 +541,8 @@ class MyParser(object):
                            | STRING
         '''
         p[0] = p.slice[1].value
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_reference_type(self, p):
         '''
@@ -486,27 +550,31 @@ class MyParser(object):
                            | array_type
         '''
         p[0] = p[1]
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_class_type(self, p):
         '''
             class_type : type_name
         '''
         p[0] = p[1]
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_interface_type(self, p):
         '''
             interface_type : type_name
         '''
         p[0] = p[1]
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_array_type(self, p):
         '''
             array_type : type LSQUARE RSQUARE
         '''
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     ## block statements
     def p_block(self, p):
@@ -518,7 +586,8 @@ class MyParser(object):
             p[0]={'code':p[2]['code']}
         else:
             p[0]={'code':''}
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_block_statements(self, p):
         '''
@@ -532,7 +601,8 @@ class MyParser(object):
             p[0]={
                 'code':p[1]['code']
             }
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_block_statement(self, p):
         '''
@@ -542,7 +612,8 @@ class MyParser(object):
         p[0]={
             'code': p[1]['code']
         }
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_local_variable_declaration(self, p):
         '''
@@ -551,7 +622,8 @@ class MyParser(object):
         p[0] = {'code': ''}
         for i in p[2]:
            p[0]['code'] += i['code']
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_statement(self, p):
         '''
@@ -565,10 +637,12 @@ class MyParser(object):
                       | for_statement
                       | print_statement
         '''
+        if self.printParseTree:
+            print(p.slice)
+
         p[0] = {
             'code': p[1]['code']
         }
-        print(p.slice)
 
     def p_print_statement(self, p):
         '''
@@ -577,7 +651,8 @@ class MyParser(object):
         p[0] = {
             'code': p[3]['code'] + self.gen("print", p[3]['place'])
         }
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_statement_expression(self, p):
         '''
@@ -587,40 +662,130 @@ class MyParser(object):
         '''
         #TODO check
         p[0] = p[1]
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
+
+    def p_seenif_for_while(self,p):
+        '''
+            seenif_for_while :
+        '''
+        self.stManager.beginScope(SymTab.Category.Block, {'name':p[-1]})
+        if str(p[-1])!='if':
+            update_block=self.stManager.newLabel()
+            after_block=self.stManager.newLabel()
+            self.stManager.insert('`update_block',update_block,None)
+            self.stManager.insert('`after_block',after_block,None)
 
     def p_if_then_else_statement(self, p):
         '''
-            if_then_else_statement : IF LPAREN expression RPAREN THEN block_statements ELSE block_statements END
-                                   | IF LPAREN expression RPAREN THEN block_statements END
+            if_then_else_statement : IF seenif_for_while LPAREN expression RPAREN THEN block_statements ELSE block_statements END
+                                   | IF seenif_for_while LPAREN expression RPAREN THEN block_statements END
         '''
-        if len(p) == 8:
-            ## without else
-            pass
+        p[0] = {
+            'code':''
+        }
+        tstr=''
+        if p[4]['type']!='boolean':
+            raise TypeError("Error at line No. %d :: Expression inside if must be of type boolean !!! \n"%(p.lexer.lineno,))
+        if len(p) == 11:
+            false_block=self.stManager.newLabel()
+            after_block=self.stManager.newLabel()
+            tstr=tstr+ p[4]['code']
+            tstr=tstr+ self.gen('ifgoto','==',p[4]['place'],'false',false_block)
+            tstr=tstr+ p[7]['code']
+            tstr=tstr+ self.gen('goto',after_block)
+            tstr=tstr+ self.gen(false_block+":")
+            tstr=tstr+ p[9]['code']
+            tstr=tstr+ self.gen(after_block+":")
         else:
-            ## with else
-            pass
-        print(p.slice)
+            true_block=self.stManager.newLabel()
+            after_block=self.stManager.newLabel()
+            tstr=tstr+ p[4]['code']
+            tstr=tstr+ self.gen('ifgoto','==',p[4]['place'],'false',after_block)
+            tstr=tstr+ p[7]['code']
+            tstr=tstr+ self.gen(after_block+":")
+        p[0]['code']=p[0]['code']+tstr
+        self.stManager.endScope()
+        if self.printParseTree:
+            print(p.slice)
 
     def p_while_statement(self, p):
         '''
-            while_statement : WHILE LPAREN expression RPAREN block
+            while_statement : WHILE seenif_for_while LPAREN expression RPAREN block
         '''
-        print(p.slice)
+        #TODO, IMPLEMENTATION OF BREAK OR CONTINUE:???? WE NEED TO STORE after_block and loop_block labels in SymTabl entry for for loop
+        update_block = self.stManager.lookup('`lookup_block').type
+        #loop_block = self.stManager.newLabel()
+        loop_block = update_block
+        after_block = self.stManager.lookup('`after_block').type
+        if p[4]['type']!='boolean':
+            raise TypeError("Error at line No. %d :: while expression must be of type boolean !!! \n"%(p.lexer.lineno,))
+        tstr=tstr+ p[4]['code']
+        tstr=tstr+ self.gen(loop_block+":")
+        tstr=tstr+ self.gen('ifgoto','==',p[4]['place'],'false',after_block)
+        tstr=tstr+ p[6]['code']
+        tstr=tstr+ self.gen('goto',loop_block)
+        tstr=tstr+ self.gen(after_block+":")
+        self.stManager.endScope()
+        if self.printParseTree:
+            print(p.slice)
 
     def p_for_statement(self, p):
         '''
-            for_statement : FOR LPAREN for_init STMT_TERMINATOR expression STMT_TERMINATOR for_update RPAREN block
-                          | FOR LPAREN for_init STMT_TERMINATOR STMT_TERMINATOR for_update RPAREN block
+            for_statement : FOR seenif_for_while LPAREN for_init STMT_TERMINATOR expression STMT_TERMINATOR for_update RPAREN block
+                          | FOR seenif_for_while LPAREN for_init STMT_TERMINATOR STMT_TERMINATOR for_update RPAREN block
         '''
-        print(p.slice)
+        update_block = self.stManager.lookup('`update_block').type
+        after_block = self.stManager.lookup('`after_block').type
+        loop_block = self.stManager.newLabel()
+        p[0]={'code':''}
+        tstr=''
+        #TODO, IMPLEMENTATION OF BREAK OR CONTINUE:???? WE NEED TO STORE after_block and loop_block labels in SymTabl entry for for loop
+        if len(p)==11:
+            #print(p[5])
+            #TODO, BELOW CHECK IS TEMPORARY COMMENTED, COMPLETE THE TYPE CHECKING EXPRESSION RULE, THEN UNCOMMENT THIS
+            #if p[5]['type']!='boolean':
+            #    raise TypeError("Error at line No. %d :: for expression must be of type boolean !!! \n"%(p.lexer.lineno,))
+            tstr=tstr+ p[4]['code']
+            tstr=tstr+ self.gen(loop_block+":")
+            tstr=tstr+ p[6]['code']
+            tstr=tstr+ self.gen('ifgoto','==',p[6]['place'],'false',after_block)
+            tstr=tstr+ p[10]['code']
+            tstr=tstr+ self.gen(update_block+":")
+            tstr=tstr+ p[8]['code']
+            tstr=tstr+ self.gen('goto',loop_block)
+            tstr=tstr+ self.gen(after_block+":")
+        else:
+            after_block=self.stManager.newLabel()
+            loop_block=self.stManager.newLabel()
+            tstr=tstr+ p[4]['code']
+            tstr=tstr+ self.gen(loop_block+":")
+            tstr=tstr+ p[9]['code']
+            tstr=tstr+ self.gen(update_block+":")
+            tstr=tstr+ p[7]['code']
+            tstr=tstr+ self.gen('goto',loop_block)
+            tstr=tstr+ self.gen(after_block+":")
+        p[0]['code']=tstr
+        # print("-"*40)
+        # print(p[0]['code'])
+        # print("-"*40)
+        self.stManager.endScope()
+        if self.printParseTree:
+            print(p.slice)
 
     def p_statement_expressions(self, p):
         '''
             statement_expressions : statement_expressions COMMA statement_expression
                                   | statement_expression
         '''
-        print(p.slice)
+        #NOTE p[1]['code'] or p[3]['code'] MUST NOT HAVE A MEANINGFUL SEMICOLON
+        p[0]={'code':''}
+        if len(p)==4:
+            p[0]['code']=p[1]['code']+p[3]['code']
+        else:
+            p[0]['code']=p[1]['code']
+        if self.printParseTree:
+            print(p.slice)
 
     def p_for_init(self, p):
         '''
@@ -628,26 +793,39 @@ class MyParser(object):
                      | local_variable_declaration
                      | empty
         '''
-        print(p.slice)
+        p[0]={'code':''}
+        p[0]['code']=p[1]['code']
+        if self.printParseTree:
+            print(p.slice)
 
     def p_for_update(self, p):
         '''
             for_update : statement_expressions
                        | empty
         '''
-        print(p.slice)
+        p[0]={'code':''}
+        p[0]['code']=p[1]['code']
+        if self.printParseTree:
+            print(p.slice)
 
     def p_break_statement(self, p):
         '''
             break_statement : BREAK STMT_TERMINATOR
         '''
-        print(p.slice)
+        #TODO LOOK AT #TODO OF FOR LOOP
+        p[0]={'code':self.gen('goto',self.stManager.lookup('`after_block').type)}
+        if self.printParseTree:
+            print(p.slice)
 
     def p_continue_statement(self, p):
         '''
             continue_statement : CONTINUE STMT_TERMINATOR
         '''
-        print(p.slice)
+        # self.stManager.printMe()
+        p[0]={'code':self.gen('goto',self.stManager.lookup('`update_block').type)}
+        #TODO LOOK AT #TODO OF FOR LOOP
+        if self.printParseTree:
+            print(p.slice)
 
     def p_return_statement(self, p):
         '''
@@ -663,7 +841,8 @@ class MyParser(object):
             p[0] = {
                 'code' : p[2]['code'] + self.gen("return", str(p[2]['place']))
             }
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_expression(self, p):
         '''
@@ -690,39 +869,83 @@ class MyParser(object):
                        | primary
                        | identifier_name_with_dot
                        | IDENTIFIER
+
         '''
+        #NOTE, FOR EVERY CASE check if p[-1] is NOT NOne, if so, then choose p[-2] as E['place']
+        # print("^"*70)
+        # print(p[-1])
+        # print(type(p[-2]))
+        # print("^"*70)
 
         #TODO I think the type conversion is wrong, please check
         p1 = str(p.slice[1])
         if p1 == 'primary':
             p[0] = p[1]
+            if p[1]==None:
+                assert(False)
 
         elif len(p) == 4:
             res = self.typeHandler(p[1], p[3], p.slice[2].type)
-            temp = SymTab.newTemp(res['type'])
+            #TODO, DO TYPE CHECK & PROPER CONVERSION CONSIDERING TYPE FOR self.expressionPlace, the variable where the final result goes. also !!!!!!!!!1
+
             ## TODO :: DISCUSS -> IS THE TYPE CONVERSION NOT A PART OF IR CODE
-            ## TODO :: SHORT CIRCUIT BOOLEAN 'AND' AND 'OR' 
-            p[0] = {
-                 'place': temp
-                ,'type': res['type']
-                ,'code': p[1]['code'] + p[3]['code'] +
-                         self.gen(p.slice[2].value, temp, res['value1'], res['value2'])
-            }
+            ## TODO :: SHORT CIRCUIT BOOLEAN 'AND' AND 'OR'
+            if p[-1]!='=':
+                temp = SymTab.newTemp(res['type'])
+                p[0] = {
+                     'place': temp
+                    ,'type': res['type']
+                    ,'code': p[1]['code'] + p[3]['code'] +
+                             self.gen(p.slice[2].value, temp, res['value1'], res['value2'])
+                }
+            else:
+                p[0] = {
+                     'place': p[-2]
+                    ,'type': p[-2].type
+                    ,'code': p[1]['code'] + p[3]['code'] +
+                             self.gen(p.slice[2].value, p[-2], res['value1'], res['value2'])
+                }
 
         elif len(p) == 3:
             ## case of unaryop
             res = self.typeHandler(p[2], None, p.slice[1].type)
             temp = SymTab.newTemp(res['type'])
-            p[0] = {
-                 'place': temp
-                ,'type': res['type']
-                ,'code': p[2]['code'] + self.gen(p[1], temp, p[2]['place'])
-            }
+            if p[-1]!='=':
+                temp = SymTab.newTemp(res['type'])
+                p[0] = {
+                     'place': temp
+                    ,'type': res['type']
+                    ,'code': p[2]['code'] + self.gen(p[1], temp, p[2]['place'])
+                }
+            else:
+                p[0] = {
+                     'place': p[-2]
+                    ,'type': p[-2].type
+                    ,'code': p[2]['code'] + self.gen(p[1], p[-2], p[2]['place'])
+                }
 
         elif p1 == 'assignment':
+            if str(type(p[1]))=="<class 'dict'>":
+                # print(p[1])
+                #assert(False)
+                if 'specialForArrayWrite' in p[1].keys():
+                    p[0]=p[1]
+                    # print("5"*44)
+
+                    tmpk=SymTab.newTemp(str(p[1]['specialForArrayWrite']['place'].type)[:len(str(p[1]['specialForArrayWrite']['place'].type))-2])
+                    p[0]['code']=p[0]['code']+self.gen("readarray",p[1]['specialForArrayWrite']['place'],p[1]['specialForArrayWrite']['index'],tmpk)
+                    p[0]['place']=tmpk
+                else:
+                    p[0]=p[1]
+            else:
+                p[0]=p[1]
+            # print(p[0]['code'])
+            #p[0]=p[1]
+            #assert(False)
             pass
 
         elif p1 == 'identifier_name_with_dot':
+            #TODO AS A OOP CONCEPT
             pass
 
         else:
@@ -738,8 +961,10 @@ class MyParser(object):
                 ,'code' : ''
                 ,'type' : symEntry.type
             }
-
-        print(p.slice)
+        #NOTE THIS IS IMPORTANT DO NOT REMOVE This
+        # print("--------00000000000000000000")
+        if self.printParseTree:
+            print(p.slice)
 
     def p_unaryop(self, p):
         '''
@@ -747,25 +972,43 @@ class MyParser(object):
                     | NOT
         '''
         p[0]=p.slice[1].value;
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_assignment(self, p):
         '''
             assignment : left_hand_side EQ expression
         '''
         #TODO DO TYPE CHECK HERE
-        if p[1].type != p[3]['type']:
-            raise TypeError("Type Mismatch on Assignments")
-        code = p[3]['code'] + self.gen('=', p[1], p[3]['place'])
-        p[0] = {
-              'place': p[1]
-            , 'type': p[1].type
-            , 'code': code
-        }
-        print("-"*30)
-        print(p[0]['code'])
-        print("-"*30)
-        print(p.slice)
+        # print(p[3])
+        # print(p[1])
+        if isinstance(p[1],SymTab.VarType):
+            if p[1].type != p[3]['type']:
+                raise TypeError("Type Mismatch on Assignments")
+            # if p[1]['place']==p[3]:
+            #     p[0]
+            p[0] = {
+                  'place': p[1]
+                , 'type': p[1].type
+                , 'code': p[3]['code']+self.gen("=",p[1],p[3]['place'])
+            }
+        else:
+            # print(p[3]['type'])
+            # print(p[1]['place'].type)
+            #if p[1]['place'].type != p[3]['type']+"[]":
+            #    raise TypeError("Type Mismatch on Assignments")
+            #TODO, THIS MUST ONLY BE FOR ARRAYS
+            p[0] = {
+                  'place': p[1]['place']
+                , 'type': p[1]['place'].type
+                , 'code': p[1]['specialForArrayWrite']['code']+p[3]['code'] + self.gen('writearray',p[1]['specialForArrayWrite']['place'],p[1]['specialForArrayWrite']['index'],p[3]['place'])
+                , 'specialForArrayWrite': p[1]['specialForArrayWrite']
+            }
+        # print("-"*30)
+        # print(p[0]['code'])
+        # print("-"*30)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_left_hand_side(self, p):
         '''
@@ -774,6 +1017,8 @@ class MyParser(object):
                            | field_access
                            | array_access
         '''
+        #ASSUMPTION, IF P[0] is not null, then it should be symbol table entry
+        #TODO REMOVE REDUDANT EXPRESSIONS OF THE FORM , `t0 = x,  y = `t0   for expression like y=x, particularly in header of for loop
         #NOTE p[0] is a symbol table entry
         #TODO
         x = str(p.slice[1])
@@ -782,11 +1027,13 @@ class MyParser(object):
         elif x == 'field_access':
             pass
         elif x == 'array_access':
+            p[0]=p[1]
             pass
         else:
             symEntry = self.stManager.lookup(p.slice[1].value)
             p[0] = symEntry
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_method_invocation(self, p):
         '''
@@ -809,18 +1056,27 @@ class MyParser(object):
             if symEntry == None:
                 raise NameError("Function not defined")
             temp = SymTab.newTemp(symEntry.attr['type'])
+            param_code=''
+            if len(p)==5:
+                param_code=p[3]['code']
+                for k in p[3]['place']:
+                    param_code+=self.gen("param",k)
             p[0] = {
                   'place': temp
                 , 'type': temp.type
-                , 'code': self.gen('call', funcID, temp)  ## FIXME :: generate approriate IR
+                , 'code': param_code+self.gen('call', funcID, temp)
             }
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
+        # print(p[0]['code'])
 
     def p_field_access(self, p):
         '''
             field_access : primary DOT IDENTIFIER
         '''
-        print(p.slice)
+        ## TODO: comes under domain of oops
+        if self.printParseTree:
+            print(p.slice)
 
     def p_primary(self, p):
         '''
@@ -828,8 +1084,14 @@ class MyParser(object):
                     | array_creation_expression
         '''
         p[0] = p[1]
+        if p[1]==None:
+            assert(False)
+        #if str(p.slice[1].value)[0]=="[":
+        #    raise SyntaxError("Unexpected [ at Line no "%(p.lexer.lineno))
+
         #TODO check
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_primary_no_new_array(self, p):
         '''
@@ -840,55 +1102,177 @@ class MyParser(object):
                                  | method_invocation
                                  | array_access
         '''
-        if str(p.slice[1]) in ['literal', 'method_invocation']:
+        #CONTINUE FROM HERE
+        if str(p.slice[1]) in ['literal', 'method_invocation','array_access']:
             p[0] = p[1]
+        elif len(p)==4:
+            p[0]=p[2]
         else:
+            #COMES INSDIDE DOMAINS OF Oop
             #TODO
             pass
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_class_instance_creation_expression(self, p):
         '''
             class_instance_creation_expression : NEW class_type LPAREN argument_list RPAREN
                                                | NEW class_type LPAREN RPAREN
         '''
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_argument_list(self, p):
         '''
             argument_list : argument_list COMMA expression
                           | expression
         '''
-        print(p.slice)
+        if len(p)==4:
+            p[1]['place'].append(p[3]['place'])
+            p[0]={'code':p[1]['code']+p[3]['code'],'place':p[1]['place']}
+        else:
+            p[0]={'code':p[1]['code'],'place':[p[1]['place']]}
+        if self.printParseTree:
+            print(p.slice)
+
+    def mallocInLoop(self,arr,list,alloc_size):
+        tmp=SymTab.newTemp(str(arr.type)[:len(str(arr.type))-2])
+        i=SymTab.newTemp('int')
+        malloc_code=""
+        loop_block=self.stManager.newLabel()
+        after_block=self.stManager.newLabel()
+        size = SymTab.newTemp('int')
+        malloc_code=malloc_code+ self.gen("*",size,list[0],alloc_size)
+
+
+        malloc_code=malloc_code+self.gen("=",i,'0')
+        malloc_code=malloc_code+ self.gen(loop_block+":")
+        malloc_code=malloc_code+ self.gen("ifgoto",">=",i,list[0],after_block)
+        malloc_code=malloc_code+ self.gen("malloc",tmp,size)
+        malloc_code=malloc_code+ self.gen("writearray",arr,i,tmp)
+        if len(list)>1:
+            malloc_code=malloc_code+ self.mallocInLoop(tmp,list[1:],alloc_size)
+        malloc_code=malloc_code+ self.gen("+",i,i,"1")
+        malloc_code=malloc_code+ self.gen("goto",loop_block)
+        malloc_code=malloc_code+ self.gen(after_block+":")
+
+        return malloc_code
 
     def p_array_creation_expression(self, p):
         '''
             array_creation_expression : NEW primitive_type dim_exprs dims
                                       | NEW class_type dim_exprs dims
         '''
-        print(p.slice)
+        # print("%"*70)
+        # print(p[-1])
+        # print("$"*100+str(p[-2]))
+        # print(p[-2])
+        # print("%"*70)
+
+        p[0]={'type':''}
+        if str(p[-1])=='=':
+            #TODO type match checking and dimension match checking
+
+            if isinstance(p[-2],SymTab.VarType):
+                access_code=''
+                a =  p[-2] # for type int a[]=new int[];
+            elif isinstance(p[-2],dict):
+                #lhs is an array access
+                a = p[-2]['specialForArrayWrite']['place']
+                access_code=p[-2]['specialForArrayWrite']['code']
+                index=p[-2]['specialForArrayWrite']['index']
+            else:
+                assert(False)
+            # print("v"*70)
+            #print(a.size)
+            # print(a)
+            # print(a.type)
+            # print(access_code)
+            pos = str(a.type).find("[]")
+            if pos==-1:
+                ndims=0
+            else:
+                ndims=(len(str(a.type))-pos)/2
+            if access_code!='':
+                ndims-=1
+            if p[3]['count']+p[4]!=ndims:
+                raise ValueError("Array Dimension Mismatch at array initilization at line %d"%(p.lexer.lineno))
+            # print(p.slice[2])
+            #TODO, GENERATE IR MEM ALLOCATION FOR ARRAYS' like "malloc, a, <size in bytes>"
+            if str(p.slice[2])=="primitive_type":
+                if str(a.type)[:pos]!=p.slice[2].value:
+                    raise TypeError("Type Mismatch at at array initilization line %d"%(p.lexer.lineno))
+                else:
+                    #NOTE, ARRAY IS IMPLEMENTED AS LINKED LIST, EX. int a[][][]=new int [2][3][]; then Malloc has reserved 2*3=6 space for elements of type int[],
+                    #TODO CHANGE OTHER THINGS TO BE CONSISTENT WITH THIS DEFINITION OF SIZE FOR ARRAYS
+                    a.size={'valuedDimensions':p[3]['place'],'numUnvaluedDimensions':p[4]}
+                    malloc_code=''
+                    tmp=None
+                    if str(a.type)[:pos]!="String":
+                            size = SymTab.newTemp('int')
+                            malloc_code=malloc_code+ self.gen("*",size,p[3]['place'][0],SymTab.typeSizeMap[str(a.type[:pos])])
+                            if access_code=='':
+                                malloc_code=malloc_code+ self.gen("malloc",a,size)
+                            else:
+                                tmp=SymTab.newTemp(str(a.type)[:len(str(a.type))-2])
+                                malloc_code=malloc_code+ self.gen("malloc",tmp,size)
+                                #malloc_code=malloc_code+ self.gen("writearray",a,index,tmp)
+                            if len(p[3]['place'])>1:
+                                malloc_code=malloc_code+self.mallocInLoop(a,p[3]['place'][1:],SymTab.typeSizeMap[str(a.type[:pos])])
+                    else:
+                        #TODO handle the case for String separately
+                        pass
+                    p[0]['type']=str(a.type)
+                    p[0]['code']=p[3]['code']+malloc_code
+                    p[0]['place']=tmp
+            else:
+                #TODO:
+                #class instance array creation
+                pass
+        # self.stManager.printMe()
+        # print(p[0])
+        # print("->"*100)
+        #print(a.size)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_dim_exprs(self, p):
         '''
             dim_exprs : dim_exprs dim_expr
                       | empty
         '''
-        print(p.slice)
+        if len(p)==3:
+            p[1]['place'].append(p[2]['place'])
+            p[0]={'count':1+p[1]['count'],'place':p[1]['place'],'code':p[1]['code']+p[2]['code']}
+        else:
+            p[0]={'count':0,'place':[],'code':''}
+        if self.printParseTree:
+            print(p.slice)
 
     def p_dim_expr(self, p):
         '''
             dim_expr : LSQUARE expression RSQUARE
         '''
-        print(p.slice)
+        p[0]={'count':1,'place':p[2]['place'],'code':p[2]['code']}
+        if self.printParseTree:
+            print(p.slice)
 
     def p_dims(self, p):
         '''
             dims : LSQUARE RSQUARE dims
                  | empty
         '''
-        print(p.slice)
+        #STORES COUNT
+        if len(p)==2:
+            p[0]=0
+        else:
+            p[0]=p[3]+1
+        if self.printParseTree:
+            print(p.slice)
 
     def p_array_access(self, p):
+        #NOTE NOTE NOTE STRICT ASSUMPTION #RULE
+        #IF ARRAY DELCLARATION IF OF TYPE
         '''
             array_access : identifier_name_with_dot LSQUARE expression RSQUARE
                          | IDENTIFIER LSQUARE expression RSQUARE
@@ -898,18 +1282,30 @@ class MyParser(object):
         if xRule == 'identifier_name_with_dot':
             pass
         elif xRule == 'primary_no_new_array':
+            arr=p[1]['place']
+            tmp=SymTab.newTemp(str(arr.type)[:len(str(arr.type))-2])
+            p[0]={'type':str(arr.type)[:len(str(arr.type))-2],'place':tmp,'code':p[1]['code']+p[3]['code']+self.gen("readarray",arr,p[3]['place'],tmp),'specialForArrayWrite':{'code': p[1]['code']+p[3]['code'],'place':arr,'index':p[3]['place']}}
             pass
         else:
             ## IDENTIFIER [exp] case
+            #TODO WORKOUT IN CODEGEN AS NOW INDEX CAN ALSO BE SYMBOL TALBE ENTRIES
+            arr=self.stManager.lookup(p[1])
+            typ = str(arr.type)[:len(str(arr.type))-2]
+            # print(typ)
+            #print(str(arr.type)[:pos])
+            tmp=SymTab.newTemp(typ)
+            p[0]={'type':typ,'place':tmp,'code':p[3]['code']+self.gen("readarray",arr,p[3]['place'],tmp),'specialForArrayWrite':{'code':p[3]['code'],'place':arr,'index':p[3]['place']}}
             pass
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_type_name(self, p):
         '''
             type_name : IDENTIFIER
         '''
         p[0] = p.slice[1].value
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_identifier_name_with_dot(self, p):
         '''
@@ -920,7 +1316,8 @@ class MyParser(object):
             p[0] = p[1] + '.' + p.slice[3].value
         else:
             p[0] = p.slice[1].value + '.' + p[3]
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
 
     def p_identifier_one_step(self,p):
@@ -928,7 +1325,8 @@ class MyParser(object):
             identifier_one_step : IDENTIFIER
         '''
         p[0] = p.slice[1].value
-        print(p.slice)
+        if self.printParseTree:
+            print(p.slice)
 
     def p_literal(self, p):
         '''
@@ -978,13 +1376,14 @@ class MyParser(object):
                 , 'place': p.slice[1].value
                 , 'code': ''
             }
-        print(p.slice)
-
+        if self.printParseTree:
+            print(p.slice)
     ## empty
     def p_empty(self, p):
         '''
             empty :
         '''
+        p[0]={'code':''}
         pass
 
     def p_error(self, p):
@@ -1068,9 +1467,9 @@ if __name__=="__main__":
     # initialize Parser
     parser = Parser()
     handle_errors(argv)
-    ## NOTE :: expTypeMap entry has value 
+    ## NOTE :: expTypeMap entry has value
     ##         (possible types input, ..., expected return type)
-    ##         if return type is None, return the most closet input type 
+    ##         if return type is None, return the most closet input type
     expTypeMap = {
           'MULTIPLY': ('int', 'real', None)
         , 'PLUS': ('int', 'real', None)
