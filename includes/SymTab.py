@@ -36,14 +36,13 @@ class SymbolTable(object):
     def __init__(self, category, attr, parent=None):
         self.category = category  ## class or function or interface or block
         self.parent = parent
-        self.attr = deepcopy(attr)  ## holds all relevant information for this block
-        self.vars = {}  ## contains variables directly under it
-        self.temps= {}  ## contains temporaries direclty under it
+        self.attr = attr          ## holds all relevant information for this block
+        self.vars = {}            ## contains variables directly under it
+        self.temps= {}            ## contains temporaries direclty under it
         self.children = [] if category in [Category.Function, Category.Block] else {}
 
     def insert(self, lexeme, ltype, category):
         ## category can either be array or a simple variable
-        ## TODO :: case of array
         if ltype in typeSizeMap.keys():
             size = typeSizeMap[ltype]
         else:
@@ -52,29 +51,25 @@ class SymbolTable(object):
         return self.vars[lexeme]
 
     def lookup(self, lexeme):
-        #TODO DO WE NEED TO CHECK THE FUNCTIONS ALSO HERE ???
         if lexeme in self.vars:
             return self.vars[lexeme]
         if self.category in [Category.Class, Category.Interface]:
+            ## check for function name
             if lexeme in self.children:
                 return self.children[lexeme]
         return None
 
     def printMe(self):
-        ## printing attributes
+        ## print attributes
         if len(self.attr) > 0:
             print("## Attributes ##")
             for k,v in self.attr.items():
                 print(k + " -> " + str(v))
-        ## printing vars
+        ## print vars
         if len(self.vars) > 0:
             print("## Variables ##")
             for k,v in self.vars.items():
                 print(k + " -> " + repr(v))
-
-    def setAttr_Cat(self, category, attr):
-        self.category = category
-        self.attr = deepcopy(attr)
 
 
 
@@ -83,10 +78,6 @@ class TableManager(object):
         self.currentTable = {}
         self.mainTable = self.currentTable
         self.labelCount = 0
-
-    #NOTE DISCUSS THIS
-    def setAttr_Cat(self, category, attr):
-        self.currentTable.setAttr_cat(category,attr)
 
     def newLabel(self):
         self.labelCount += 1
