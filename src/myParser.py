@@ -17,17 +17,56 @@ from includes import SymTab
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 
-
-class TypeSystem(object):
+class ErrorSystem(object):
     def __init__(self):
-        pass
+        self.errorMap = {
+            "TypeError": "TypeError at line: {}"
+            ,"VariableNotDeclared": "Illegal use of variable '{}' before declaration in line: {}"
+            ,"FunctionNotDeclared": "Illegal use of function '{}' before declaration in line: {}"
+            ,"ReDeclare": "Re-Declaration of '{}' at line: {}"
+            ,"ReturnError": "End return statement not specified for the function '{}'"
+            ,"DimsNotMatch": "Array Dimension Mismatch at line: {}"
+            ,"ConsNameError":"Constructor Name Error in Class: {}"
+        }
+
+    def printLine(self, lineno):
+        if len(argv) == 2:
+            filename = argv[1]
+        elif len(argv) == 3:
+            filename = argv[2]
+        with open(filename,'r') as fp:
+            print("in file: {}".format(filename,))
+            for i, line in enumerate(fp):
+                if i+1 == lineno:
+                    print("\t\t-->>\t{}. {}".format(i+1, line.strip(),))
+                elif i >= lineno-3 and i < lineno+2:
+                    print("\t\t\t{}. {}".format(i+1, line.strip(),))
+                elif i >= lineno+2:
+                    break
+
+    def printError(self, *argv):
+        try:
+            errorType = argv[0]
+            msg = argv[1:]
+            l = len(msg)
+            print("ERROR: " + self.errorMap[errorType].format(*msg))
+            if msg[l-1]:
+                self.printLine(msg[l-1])
+        except:
+            print("ERROR: Unknown argument list to printError!")
+        exit(EXIT_FAILURE)
+
+
+class TypeSystem(ErrorSystem):
+    def __init__(self):
+        ErrorSystem.__init__(self)
 
     def isTypeConvertible(self, t1, t2):
         if (t1 == 'int' and t2 == 'real') or (t1 == 'real' and t2 == 'int'):
             return 'real'
         return None
 
-    def typeHandler(self, p1, p2, token):
+    def typeHandler(self, p1, p2, token, lineno):
         mapX = expTypeMap[token]
         t1, v1 = p1['type'], p1['place']
 
@@ -49,18 +88,15 @@ class TypeSystem(object):
                             ,'value1': v1
                             ,'value2': v2
                             }
-                    # TODO :: make error more informative
-                    raise TypeError("Types Cannot be converted.")
+                    self.printError("TypeError", lineno)
             else:
-                # TODO :: make error more informative
-                raise TypeError("Type Mismatch")
+                self.printError("TypeError", lineno)
 
         else:
             ## case of unaryop
             if t1 in mapX[:len(mapX)-1]:
                 return p1
-            # TODO :: make error more informative
-            raise TypeError("Invalid Type")
+            self.printError("TypeError", lineno)
 
     def returnTypeCheck(self, pType, table):
         ## get to the table corresponding to the enclosing function
@@ -263,7 +299,7 @@ class MyParser(TypeSystem):
         '''
         ## check if the constructor name matches the class name
         if p[-1] != self.stManager.currentTable.attr['name']:
-            raise NameError("Constructor name should be same as that of class")
+            self.printError('ConsNameError', self.stManager.currentTable.attr['name'], None)
         mAttr = {
               'name': p[-1]
             , 'args_types': []
@@ -331,8 +367,7 @@ class MyParser(TypeSystem):
         else:
             #TODO TYPE CHECK
             if p[1].type != p[3]['type']:
-                ## TODO :: more expressive message
-                raise TypeError("Assignments Type Mismatch")
+                self.printError("TypeError", p.lexer.lineno)
             if p[3]['place']==None or isinstance(p[3]['place'],SymTab.VarType):
                 p[0] = {
                       'place':p[1]
@@ -351,7 +386,6 @@ class MyParser(TypeSystem):
         '''
         #NOTE :: p[0] contains symbol table entry of newly inserted IDENTIFIER,
         #        without type and size which will be added later
-        #        print("168"+str(p.slice))
         self.printParseTree(p)
         if str(p.slice[1]) == 'variable_declarator_id':
             #TODO
@@ -364,7 +398,7 @@ class MyParser(TypeSystem):
             idVal = p.slice[1].value
             checkReInitial = self.stManager.currentTable.lookup(idVal)
             if checkReInitial != None:
-                raise NameError("Re-declaration of variable.at line %d"%(p.lexer.lineno))
+                self.printError("ReDeclare", idVal, p.lexer.lineno)
             p[0] = self.stManager.insert(idVal, self.recentType, 'SIMPLE')
 
     def p_variable_initializer(self, p):
@@ -435,9 +469,9 @@ class MyParser(TypeSystem):
                 pass
             else:
                 #  user is missing specifying the return type
-                raise TypeError("End return statement for the function missing")
+                self.printError("ReturnError", curFunction, None)
         else:
-            raise TypeError("End return statement for the function missing")
+            self.printError("ReturnError", curFunction, None)
 
         p[0] = {
             'code' : self.gen("function", curFunction) +
@@ -477,7 +511,7 @@ class MyParser(TypeSystem):
         '''
         symEntry = self.stManager.currentTable.lookup(p[-1])
         if symEntry != None:
-            raise NameError("Duplicate Function name")
+            self.printError("ReDeclare", symEntry.attr['name'], p.lexer.lineno)
 
         mAttr = {
             'type':p[-2]
@@ -514,7 +548,7 @@ class MyParser(TypeSystem):
         '''
         symEntry = self.stManager.currentTable.lookup(p[-1])
         if symEntry != None:
-            raise NameError("Duplicate Interface name")
+            self.printError("ReDeclare", symEntry.attr['name'], p.lexer.lineno)
         iAttr = {
               'name': p[-1]
         }
@@ -695,7 +729,8 @@ class MyParser(TypeSystem):
         }
         tstr=''
         if p[4]['type'] != 'boolean':
-            raise TypeError("Error at line No. %d :: Expression inside if must be of type boolean !!! \n"%(p.lexer.lineno,))
+            self.printError("TypeError", p.lexer.lineno)
+
         if len(p) == 11:
             false_block=self.stManager.newLabel()
             after_block=self.stManager.newLabel()
@@ -726,7 +761,7 @@ class MyParser(TypeSystem):
         loop_block = update_block
         after_block = self.stManager.lookup('`after_block').type
         if p[4]['type']!='boolean':
-            raise TypeError("Error at line No. %d :: while expression must be of type boolean !!! \n"%(p.lexer.lineno,))
+            self.printError("TypeError", p.lexer.lineno)
         tstr = self.gen(loop_block+":")
         tstr += p[4]['code']
         tstr += self.gen('ifgoto','==',p[4]['place'],'false',after_block)
@@ -751,7 +786,7 @@ class MyParser(TypeSystem):
         if len(p)==11:
             #TODO, BELOW CHECK IS TEMPORARY COMMENTED, COMPLETE THE TYPE CHECKING EXPRESSION RULE, THEN UNCOMMENT THIS
             #if p[5]['type']!='boolean':
-            #    raise TypeError("Error at line No. %d :: for expression must be of type boolean !!! \n"%(p.lexer.lineno,))
+            #    self.printError("TypeError", p.lexer.lineno)
             tstr += p[4]['code']
             tstr += self.gen(loop_block+":")
             tstr += p[6]['code']
@@ -886,7 +921,7 @@ class MyParser(TypeSystem):
                 assert(False)
 
         elif len(p) == 4:
-            res = self.typeHandler(p[1], p[3], p.slice[2].type)
+            res = self.typeHandler(p[1], p[3], p.slice[2].type, p.lexer.lineno)
             if p[-1] != '=':
                 temp = SymTab.newTemp(res['type'])
                 p[0] = {
@@ -930,7 +965,7 @@ class MyParser(TypeSystem):
 
         elif len(p) == 3:
             ## case of unaryop
-            res = self.typeHandler(p[2], None, p.slice[1].type)
+            res = self.typeHandler(p[2], None, p.slice[1].type, p.lexer.lineno)
             temp = SymTab.newTemp(res['type'])
             if p[-1]!='=':
                 temp = SymTab.newTemp(res['type'])
@@ -971,7 +1006,7 @@ class MyParser(TypeSystem):
             symEntry = self.stManager.lookup(p.slice[1].value)
             if symEntry == None:
                 ## TODO, make the error more expressive
-                raise NameError('Undefined variable %s at line %d\n' %(p.slice[1].value, p.lexer.lineno))
+                self.printError("VariableNotDeclared", p.slice[1].value, p.lexer.lineno)
             p[0] = {
                  'place': symEntry
                 ,'code' : ''
@@ -992,9 +1027,9 @@ class MyParser(TypeSystem):
         '''
         ## TODO DO TYPE CHECK HERE
         self.printParseTree(p)
-        if isinstance(p[1],SymTab.VarType):
+        if isinstance(p[1], SymTab.VarType):
             if p[1].type != p[3]['type']:
-                raise TypeError("Type Mismatch on Assignments")
+                self.printError("TypeError", p.lexer.lineno)
             p[0] = {
                   'place': p[1]
                 , 'type': p[1].type
@@ -1032,9 +1067,10 @@ class MyParser(TypeSystem):
             pass
         elif x == 'array_access':
             p[0]=p[1]
-            pass
         else:
             symEntry = self.stManager.lookup(p.slice[1].value)
+            if symEntry == None:
+                self.printError('VariableNotDeclared', p[1], p.lexer.lineno)
             p[0] = symEntry
 
     def p_method_invocation(self, p):
@@ -1057,7 +1093,7 @@ class MyParser(TypeSystem):
             funcID = p.slice[1].value
             symEntry = self.stManager.lookup(funcID)
             if symEntry == None:
-                raise NameError("Function %s not defined"%(funcID))
+                self.printError("FunctionNotDeclared", funcID, p.lexer.lineno)
             temp = SymTab.newTemp(symEntry.attr['type'])
             param_code=''
             if len(p)==5:
@@ -1165,12 +1201,13 @@ class MyParser(TypeSystem):
                 ndims-=1
 
             if p[3]['count'] + p[4] != ndims:
-                raise ValueError("Array Dimension Mismatch at array initilization at line %d"%(p.lexer.lineno))
+                self.printError('DimsNotMatch', p.lexer.lineno)
 
             ## TODO, GENERATE IR MEM ALLOCATION FOR ARRAYS' like "malloc, a, <size in bytes>"
             if str(p.slice[2]) == "primitive_type":
                 if (a.type)[:pos] != p.slice[2].value:
-                    raise TypeError("Type Mismatch at at array initilization line %d"%(p.lexer.lineno))
+                    self.printError('TypeError', p.lexer.lineno)
+
                 else:
                     ## NOTE, ARRAY IS IMPLEMENTED AS LINKED LIST
                     ## EX. int a[][][]=new int [2][3][];
@@ -1378,17 +1415,8 @@ class MyParser(TypeSystem):
 
     def p_error(self, p):
         print('\n-------------------------------------------------------')
-        print('Error: \'{}\' at line no: {}'.format(p.value, p.lineno))
-
-        if len(argv) == 2:
-            filename = argv[1]
-        elif len(argv) == 3:
-            filename = argv[2]
-
-        with open(filename,'r') as fp:
-            for i, line in enumerate(fp):
-                if i+1 == p.lineno:
-                    print("\t\t\tin {}".format(line.strip(),))
+        print('ERROR: \'{}\' at line no: {}'.format(p.value, p.lineno))
+        self.printLine(p.lineno)
         print('-------------------------------------------------------\n')
         exit(EXIT_FAILURE)
 
@@ -1472,8 +1500,8 @@ if __name__=="__main__":
         , 'LE': ('int', 'boolean')
         , 'GT': ('int', 'boolean')
         , 'GE': ('int', 'boolean')
-        , 'EQEQ': ('int', 'real', 'boolean')
-        , 'NTEQ': ('int', 'real', 'boolean')
+        , 'EQEQ': ('int', 'real', 'String', 'boolean')
+        , 'NTEQ': ('int', 'real', 'String', 'boolean')
         , 'AND': ('boolean', 'boolean')
         , 'OR': ('boolean', 'boolean')
         , 'BIT_OR': ('int', 'int')
