@@ -109,7 +109,7 @@ class MyParser(TypeSystem):
         return strx[:-2] + '\n'
 
     def printParseTree(self, p):
-        flag = False
+        flag = True
         if flag:
             print(p.slice)
 
@@ -364,7 +364,7 @@ class MyParser(TypeSystem):
             idVal = p.slice[1].value
             checkReInitial = self.stManager.currentTable.lookup(idVal)
             if checkReInitial != None:
-                raise NameError("Re-declaration of variable.")
+                raise NameError("Re-declaration of variable.at line %d"%(p.lexer.lineno))
             p[0] = self.stManager.insert(idVal, self.recentType, 'SIMPLE')
 
     def p_variable_initializer(self, p):
@@ -722,17 +722,18 @@ class MyParser(TypeSystem):
         '''
         #TODO, IMPLEMENTATION OF BREAK OR CONTINUE:???? WE NEED TO STORE after_block and loop_block labels in SymTabl entry for for loop
         self.printParseTree(p)
-        update_block = self.stManager.lookup('`lookup_block').type
+        update_block = self.stManager.lookup('`update_block').type
         loop_block = update_block
         after_block = self.stManager.lookup('`after_block').type
         if p[4]['type']!='boolean':
             raise TypeError("Error at line No. %d :: while expression must be of type boolean !!! \n"%(p.lexer.lineno,))
+        tstr = self.gen(loop_block+":")
         tstr += p[4]['code']
-        tstr += self.gen(loop_block+":")
         tstr += self.gen('ifgoto','==',p[4]['place'],'false',after_block)
         tstr += p[6]['code']
         tstr += self.gen('goto',loop_block)
         tstr += self.gen(after_block+":")
+        p[0]={'code':tstr};
         self.stManager.endScope()
 
     def p_for_statement(self, p):
@@ -886,14 +887,13 @@ class MyParser(TypeSystem):
 
         elif len(p) == 4:
             res = self.typeHandler(p[1], p[3], p.slice[2].type)
-            ## TODO :: SHORT CIRCUIT BOOLEAN 'AND' AND 'OR'
             if p[-1] != '=':
                 temp = SymTab.newTemp(res['type'])
                 p[0] = {
                      'place': temp
                     ,'type': res['type']
                     ,'code': p[1]['code'] + p[3]['code'] +
-                             self.gen(p.slice[2].value, temp, res['value1'], res['value2'])
+                            self.gen(p.slice[2].value, temp, res['value1'], res['value2'])
                 }
             else:
                 p[0] = {
@@ -902,6 +902,31 @@ class MyParser(TypeSystem):
                     ,'code': p[1]['code'] + p[3]['code'] +
                              self.gen(p.slice[2].value, p[-2], res['value1'], res['value2'])
                 }
+            #TODO for the else statement above, for the form 'x = expression or expression' we need to check type of reultant value with type of x. i.e. p[-2]
+            #RESULTING TYPE MUST BE BOOLEAN
+            #TODO, problem of readarray writearray type mismatch is still there
+
+            if p.slice[2] =='OR':
+                before_next_exp = SymTab.newLabel()
+                after_next_exp = SymTab.newLabel()
+                p[0]['code']= p[1]['code']+self.gen('ifgoto','==',res['value1'],'false',before_next_exp)
+                p[0]['code']+= self.gen('=',p[0]['place'],'true')
+                p[0]['code']+= self.gen('goto',after_next_exp)
+                p[0]['code']+= self.gen(before_next_exp+":")
+                p[0]['code']+= p[2]['code']
+                p[0]['code']+= self.gen('=',p[0]['place'],res['value2'])
+                p[0]['code']+= self.gen(after_next_exp+":")
+            elif p.slice[2]=='AND':
+                before_next_exp = SymTab.newLabel()
+                after_next_exp = SymTab.newLabel()
+                #p[0]['code']=p[1]['code']+self.gen('ifgoto','==',p[1]['place'],'true',before_next_exp)+self.gen('=',p[0]['place'],'true')+self.gen('goto',after_next_exp)+self.gen(before_next_exp+":")+p[2]['code']+self.gen(after_next_exp+":")
+                p[0]['code']= p[1]['code']+self.gen('ifgoto','==',res['value1'],'true',before_next_exp)
+                p[0]['code']+= self.gen('=',p[0]['place'],'false')
+                p[0]['code']+= self.gen('goto',after_next_exp)
+                p[0]['code']+= self.gen(before_next_exp+":")
+                p[0]['code']+= p[2]['code']
+                p[0]['code']+= self.gen('=',p[0]['place'],res['value2'])
+                p[0]['code']+= self.gen(after_next_exp+":")
 
         elif len(p) == 3:
             ## case of unaryop
@@ -943,8 +968,6 @@ class MyParser(TypeSystem):
 
         else:
             ## case of IDENTIFIER
-            #TODO for below do I need to separate expression and IDENTIFIER?   yesss
-            #TODO Remove below dummy values
             symEntry = self.stManager.lookup(p.slice[1].value)
             if symEntry == None:
                 ## TODO, make the error more expressive
@@ -954,8 +977,6 @@ class MyParser(TypeSystem):
                 ,'code' : ''
                 ,'type' : symEntry.type
             }
-        #NOTE THIS IS IMPORTANT DO NOT REMOVE This
-        # print("--------00000000000000000000")
 
     def p_unaryop(self, p):
         '''
@@ -984,8 +1005,8 @@ class MyParser(TypeSystem):
             p[0] = {
                   'place': p[1]['place']
                 , 'type': p[1]['place'].type
-                , 'code': p[1]['specialForArrayWrite']['code'] + 
-                          p[3]['code'] + 
+                , 'code': p[1]['specialForArrayWrite']['code'] +
+                          p[3]['code'] +
                           self.gen('writearray'
                                    ,p[1]['specialForArrayWrite']['place']
                                    ,p[1]['specialForArrayWrite']['index']
@@ -1036,7 +1057,7 @@ class MyParser(TypeSystem):
             funcID = p.slice[1].value
             symEntry = self.stManager.lookup(funcID)
             if symEntry == None:
-                raise NameError("Function not defined")
+                raise NameError("Function %s not defined"%(funcID))
             temp = SymTab.newTemp(symEntry.attr['type'])
             param_code=''
             if len(p)==5:
@@ -1084,6 +1105,8 @@ class MyParser(TypeSystem):
         else:
             ## TODO ::COMES INSDIDE DOMAINS OF OOP
             pass
+        if p[0]==None:
+            assert(False)
 
     def p_class_instance_creation_expression(self, p):
         '''
@@ -1150,7 +1173,7 @@ class MyParser(TypeSystem):
                     raise TypeError("Type Mismatch at at array initilization line %d"%(p.lexer.lineno))
                 else:
                     ## NOTE, ARRAY IS IMPLEMENTED AS LINKED LIST
-                    ## EX. int a[][][]=new int [2][3][]; 
+                    ## EX. int a[][][]=new int [2][3][];
                     ## then Malloc has reserved 2*3=6 space for elements of type int[],
                     ## TODO CHANGE OTHER THINGS TO BE CONSISTENT WITH THIS DEFINITION OF SIZE FOR ARRAYS
                     a.size = {
@@ -1243,7 +1266,7 @@ class MyParser(TypeSystem):
             p[0]={
                 'type':str(arr.type)[:len(str(arr.type))-2]
                 ,'place':tmp
-                ,'code':p[1]['code']+p[3]['code'] + 
+                ,'code':p[1]['code']+p[3]['code'] +
                         self.gen("readarray",arr,p[3]['place'],tmp)
                 ,'specialForArrayWrite':{
                     'code': p[1]['code']+p[3]['code']
@@ -1442,6 +1465,8 @@ if __name__=="__main__":
         , 'PLUS': ('int', 'real', None)
         , 'MINUS': ('int', 'real', None)
         , 'DIVIDE': ('int', 'real', None)
+        #TODO, Manish forgot to insert MODULUS here, is this write syntax Or I need to add None as 3rd field
+        , 'MODULUS': ('int', 'int')
         , 'LSHIFT': ('int', 'int')
         , 'RSHIFT': ('int', 'int')
         , 'LT': ('int', 'boolean')
