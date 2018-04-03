@@ -18,7 +18,7 @@ begin
     function::int ff()
     begin
        int a,b;
-       if (a < b or a == b)
+       if (a < b and a == b or a < b)
          then
             print("Hello");
             return 1;

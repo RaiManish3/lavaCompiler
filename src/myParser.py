@@ -906,25 +906,25 @@ class MyParser(TypeSystem):
             #RESULTING TYPE MUST BE BOOLEAN
             #TODO, problem of readarray writearray type mismatch is still there
 
-            if p.slice[2] =='OR':
-                before_next_exp = SymTab.newLabel()
-                after_next_exp = SymTab.newLabel()
+            if p.slice[2].type =='OR':
+                before_next_exp = self.stManager.newLabel()
+                after_next_exp = self.stManager.newLabel()
                 p[0]['code']= p[1]['code']+self.gen('ifgoto','==',res['value1'],'false',before_next_exp)
                 p[0]['code']+= self.gen('=',p[0]['place'],'true')
                 p[0]['code']+= self.gen('goto',after_next_exp)
                 p[0]['code']+= self.gen(before_next_exp+":")
-                p[0]['code']+= p[2]['code']
+                p[0]['code']+= p[3]['code']
                 p[0]['code']+= self.gen('=',p[0]['place'],res['value2'])
                 p[0]['code']+= self.gen(after_next_exp+":")
-            elif p.slice[2]=='AND':
-                before_next_exp = SymTab.newLabel()
-                after_next_exp = SymTab.newLabel()
-                #p[0]['code']=p[1]['code']+self.gen('ifgoto','==',p[1]['place'],'true',before_next_exp)+self.gen('=',p[0]['place'],'true')+self.gen('goto',after_next_exp)+self.gen(before_next_exp+":")+p[2]['code']+self.gen(after_next_exp+":")
+
+            elif p.slice[2].type =='AND':
+                before_next_exp = self.stManager.newLabel()
+                after_next_exp = self.stManager.newLabel()
                 p[0]['code']= p[1]['code']+self.gen('ifgoto','==',res['value1'],'true',before_next_exp)
                 p[0]['code']+= self.gen('=',p[0]['place'],'false')
                 p[0]['code']+= self.gen('goto',after_next_exp)
                 p[0]['code']+= self.gen(before_next_exp+":")
-                p[0]['code']+= p[2]['code']
+                p[0]['code']+= p[3]['code']
                 p[0]['code']+= self.gen('=',p[0]['place'],res['value2'])
                 p[0]['code']+= self.gen(after_next_exp+":")
 
@@ -1465,7 +1465,6 @@ if __name__=="__main__":
         , 'PLUS': ('int', 'real', None)
         , 'MINUS': ('int', 'real', None)
         , 'DIVIDE': ('int', 'real', None)
-        #TODO, Manish forgot to insert MODULUS here, is this write syntax Or I need to add None as 3rd field
         , 'MODULUS': ('int', 'int')
         , 'LSHIFT': ('int', 'int')
         , 'RSHIFT': ('int', 'int')
