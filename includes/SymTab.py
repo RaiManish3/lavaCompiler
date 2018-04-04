@@ -5,7 +5,7 @@ import sys
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 
-typeSizeMap = {'int': 4, 'real': 8, 'boolean': 1, 'String': None} ## FIXME :: String size ??
+typeSizeMap = {'int': 4, 'real': 8, 'boolean': 1, 'String': 4} ## FIXME :: String size ??
 
 class Category(Enum):
     Class=1
