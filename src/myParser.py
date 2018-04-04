@@ -188,7 +188,7 @@ class MyParser(TypeSystem):
         if len(p)==3:
             p[0]={'code':p[1]['code']}
             if str(p.slice[2])=='class_declaration' or str(p.slice[2])=='interface_declaration':
-                p[0]['code']=p[0]['code']+p[2]['code']
+                p[0]['code'] += p[2]['code']
                 print(p[2]['code'])
         else:
             p[0]={'code':''}
@@ -309,7 +309,7 @@ class MyParser(TypeSystem):
 
     def p_constructor_body(self, p):
         '''
-            constructor_body : BEGIN block_statement END
+            constructor_body : BEGIN block_statements END
                              | BEGIN END
         '''
         self.printParseTree(p)
@@ -373,7 +373,7 @@ class MyParser(TypeSystem):
                       'place':p[1]
                     , 'code':p[3]['code']
                 }
-            else:
+            elif p[3]['place']!=p[1]:
                 p[0] = {
                       'place':p[1]
                     , 'code':p[3]['code']+self.gen('=',p[1],p[3]['place'])
@@ -415,7 +415,20 @@ class MyParser(TypeSystem):
             if(p[1]==None):
                 assert(False)
         elif xRule == 'array_initializer_with_curly':
-            pass
+            size=len(p[1])
+            #TODO HANDLE STRING separately
+            if '[]' in p[1]['type']:
+                alloc_size=size*4
+            else:
+                alloc_size=size*SymTab.typeSizeMap[p[1]['type']]
+            tmp=SymTab.newTemp(p[1]['type']+'[]')
+            code=self.gen('malloc',tmp,alloc_size)
+            count=0
+            for l in p[1]:
+                code+=l['code']+self.gen('writearray',tmp,count,l['place'])
+                count+=1
+            p[0]={'code':code,'type':tmp.type,'place':tmp}
+
         elif xRule == 'input':
             xType = p[1][4:].lower()
             temp = SymTab.newTemp(xType)
@@ -440,6 +453,10 @@ class MyParser(TypeSystem):
                                          | LCURLY RCURLY
 
         '''
+        if len(p)==4:
+            p[0]=p[2]
+        else:
+            p[0]=[]
         self.printParseTree(p)
 
     def p_array_initializer_without_curly(self, p):
@@ -447,41 +464,54 @@ class MyParser(TypeSystem):
             array_initializer_without_curly : array_initializer_without_curly COMMA variable_initializer
                                             | variable_initializer
         '''
+        if len(p)==4:
+            if p[1][0]['type']!=p[3]['type']:
+                raise TypeError("All values in \{\} must have same type at line no %d"%(p.lexer.lineno))
+            p[1].append(p[3])
+            p[0]=p[1]
+        else:
+            p[0]=[p[1]]
         self.printParseTree(p)
 
     ## methods=========================================================
     def p_method_declaration(self, p):
         '''
             method_declaration : method_header method_body
+                               | DECLARE DCOLON result_type method_declarator STMT_TERMINATOR
         '''
         self.printParseTree(p)
-        curFunction = self.stManager.currentTable.attr['name']
-        xCode = p[2]['code']
+        if len(p)==3:
+            curFunction = self.stManager.currentTable.attr['name']
+            xCode = p[2]['code']
 
-        ## return statement check
-        hasReturnEnd = xCode.rfind('\n')
-        if hasReturnEnd != -1:
-            hasReturnStart = xCode.rfind('\n',0,hasReturnEnd)
-            hasReturnStart += 1
-            parts = xCode[hasReturnStart:hasReturnEnd].split(',')
-            if parts[0] == 'return':
-                ## we are fine
-                pass
+            ## return statement check
+            hasReturnEnd = xCode.rfind('\n')
+            if hasReturnEnd != -1:
+                hasReturnStart = xCode.rfind('\n',0,hasReturnEnd)
+                hasReturnStart += 1
+                parts = xCode[hasReturnStart:hasReturnEnd].split(',')
+                if parts[0] == 'return':
+                    ## we are fine
+                    pass
+
+                else:
+                    #  user is missing specifying the return type
+                    self.printError("ReturnError", curFunction, None)
             else:
-                #  user is missing specifying the return type
                 self.printError("ReturnError", curFunction, None)
-        else:
-            self.printError("ReturnError", curFunction, None)
 
-        p[0] = {
-            'code' : self.gen("function", curFunction) +
-                     xCode + "\n"
-        }
+            p[0] = {
+                'code' : self.gen("function", curFunction) +
+                         xCode + "\n"
+            }
+        else:
+            p[0]={'code':''}
         self.stManager.endScope()
 
     def p_method_header(self, p):
         '''
             method_header : FUNCTION DCOLON result_type method_declarator
+
         '''
         self.printParseTree(p)
 
@@ -513,11 +543,18 @@ class MyParser(TypeSystem):
         if symEntry != None:
             self.printError("ReDeclare", symEntry.attr['name'], p.lexer.lineno)
 
-        mAttr = {
-            'type':p[-2]
-            ,'name':p[-1]
-            ,'args_types':[]
-        }
+        if p[-4]=='declare':
+            mAttr = {
+                'type':p[-2]
+                ,'name':'`'+p[-1]
+                ,'args_types':[]
+            }
+        else:
+            mAttr = {
+                'type':p[-2]
+                ,'name':p[-1]
+                ,'args_types':[]
+            }
         self.stManager.beginScope(SymTab.Category.Function, mAttr)
 
 
@@ -546,7 +583,7 @@ class MyParser(TypeSystem):
         '''
             seen_interface_name :
         '''
-        symEntry = self.stManager.currentTable.lookup(p[-1])
+        symEntry = self.stManager.lookup(p[-1])
         if symEntry != None:
             self.printError("ReDeclare", symEntry.attr['name'], p.lexer.lineno)
         iAttr = {
@@ -583,8 +620,9 @@ class MyParser(TypeSystem):
         self.printParseTree(p)
         self.recentType = p[1]
         if str(p.slice[1])=='primitive_type':
-           p[0]=p[1]
+            p[0]=p[1]
         elif str(p.slice[1])=='reference_type':
+            p[0]=p[1]
             #TODO
             pass
 
@@ -624,6 +662,7 @@ class MyParser(TypeSystem):
         '''
             array_type : type LSQUARE RSQUARE
         '''
+        p[0]=p[1]
         self.printParseTree(p)
 
     ## block statements=========================================================
@@ -916,7 +955,15 @@ class MyParser(TypeSystem):
         p1 = str(p.slice[1])
 
         if p1 == 'primary':
-            p[0] = p[1]
+            if p[-1]=='=' and p[1]['place']!=p[-2]:
+                p[0] = {
+                     'place': p[-2]
+                    ,'type': p[-2].type
+                    ,'code': p[1]['code'] + self.gen('=', p[-2], p[1]['place'])
+                    ,'doInitialization':False
+                }
+            else:
+                p[0] = p[1]
             if p[1]==None:
                 assert(False)
 
@@ -1030,11 +1077,18 @@ class MyParser(TypeSystem):
         if isinstance(p[1], SymTab.VarType):
             if p[1].type != p[3]['type']:
                 self.printError("TypeError", p.lexer.lineno)
-            p[0] = {
-                  'place': p[1]
-                , 'type': p[1].type
-                , 'code': p[3]['code']+self.gen("=",p[1],p[3]['place'])
-            }
+            if p[1]!=p[3]['place']:
+                p[0] = {
+                      'place': p[1]
+                    , 'type': p[1].type
+                    , 'code': p[3]['code']+self.gen("=",p[1],p[3]['place'])
+                }
+            else:
+                p[0] = {
+                      'place': p[1]
+                    , 'type': p[1].type
+                    , 'code': p[3]['code']
+                }
         else:
             ## TODO, THIS MUST ONLY BE FOR ARRAYS
             p[0] = {
@@ -1092,8 +1146,11 @@ class MyParser(TypeSystem):
         else:
             funcID = p.slice[1].value
             symEntry = self.stManager.lookup(funcID)
-            if symEntry == None:
-                self.printError("FunctionNotDeclared", funcID, p.lexer.lineno)
+
+            if symEntry==None:
+                symEntry = self.stManager.lookup('`'+funcID)
+                if symEntry == None:
+                    self.printError("FunctionNotDeclared", funcID, p.lexer.lineno)
             temp = SymTab.newTemp(symEntry.attr['type'])
             param_code=''
             if len(p)==5:
@@ -1388,10 +1445,16 @@ class MyParser(TypeSystem):
             }
 
         elif tp == 'STRING_LITERAL':
+            code=''
+            tmp=SymTab.newTemp('String')
+            strk=p.slice[1].value[1:-1]
+            code+=self.gen('malloc',tmp,len(strk)+1)
+            #TODO in CODEGEN
+            code+=self.gen('swrite',tmp,strk,len(strk))
             p[0]={
                   'type': 'String'
-                , 'place': p.slice[1].value
-                , 'code': ''
+                , 'place': tmp
+                , 'code': code
             }
 
         elif tp == 'NIL':
