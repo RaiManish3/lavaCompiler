@@ -466,7 +466,7 @@ class MyParser(TypeSystem):
         '''
         if len(p)==4:
             if p[1][0]['type']!=p[3]['type']:
-                raise TypeError("All values in \{\} must have same type at line no %d"%(p.lexer.lineno))
+                self.printError('TypeError', p.lexer.lineno)
             p[1].append(p[3])
             p[0]=p[1]
         else:

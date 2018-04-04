@@ -24,7 +24,7 @@ def makeVarList(irlist, symTableDict, varlist, symlist,arraylist):
     tmp_varlist = set()
 
     for ir in irlist:
-        if ir[1] in ['call', 'return', 'label', 'function']:
+        if ir[1] in ['call', 'return', 'label', 'function', 'goto']:
             pass
         elif ir[1] == "ifgoto":
             for i in range(3,5):
@@ -53,7 +53,7 @@ def makeVarList(irlist, symTableDict, varlist, symlist,arraylist):
     ## irlist contains statements of the form :: lineno, operator, { var | literal ,}
     ## make "var" a pointer to symTableDict entry
     for ir in irlist:
-        if ir[1] in ['call', 'ret', 'label', 'function']:
+        if ir[1] in ['call', 'return', 'label', 'function', 'goto']:
             pass
         elif ir[1] == "ifgoto":
             for i in range(3,5):

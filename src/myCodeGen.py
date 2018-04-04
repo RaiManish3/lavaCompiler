@@ -393,7 +393,7 @@ def translate(ir):
         else:
             assemblyCode += "  cmp " + name(X) + ", " + name(Y) + "\n"
 
-        label = "L" + Label
+        label = Label
 
         dumpAllRegToMem()
 
@@ -446,7 +446,7 @@ def translate(ir):
 
     if op == "goto":
         label = ir[2]
-        assemblyCode += "  jmp L" + label + "\n"
+        assemblyCode += "  jmp " + label + "\n"
 
     if op == "call":
         dumpAllRegToMem()
@@ -697,28 +697,40 @@ def genBlocks():
 
 def findLeaders():
     global leaders
+    labelToLineMap = {}
 
     for ir in irlist:
         if ir[1] in ['ifgoto', 'goto']:
             leaders.append(ir[0]+1)
             if ir[1] == 'ifgoto':
-                leaders.append(int(ir[5]))
+                leaders.append(ir[5])
             elif ir[1] == 'goto':
-                leaders.append(int(ir[2]))
+                leaders.append(ir[2])
 
-        elif ir[1] in ['label', 'function']:
+        elif ir[1] == 'label':
+            leaders.append(ir[0]) ## doubt here
+            labelToLineMap[ir[2]] = ir[0]
+
+        elif ir[1] == 'function':
             leaders.append(ir[0]) ## doubt here
 
     leaders = list(set(leaders))
+    ## remove custom label form the leaders by line no
+    for i in range(len(leaders)):
+        if not type(leaders[i]) is int:
+            try:
+                leaders[i] = labelToLineMap[leaders[i]]
+            except KeyError:
+                print("IR has inconsistent labels")
+                exit(1)
     leaders.sort()
 
 def populateIR(filename):
     try:
         with open(filename, 'r') as infile:
-            for line in infile:
+            for i, line in enumerate(infile):
                 splitLine =line.strip().split(', ')
-                splitLine[0] = int(splitLine[0])
-                irlist.append(splitLine)
+                irlist.append([i+1] + splitLine)
     except FileNotFoundError:
         print("Cannot find the file. Make sure the path is right!")
         exit(1)
@@ -760,13 +772,17 @@ def main():
 
     for lead,block in blocks.items():
         if block[0][1] == 'function':
+            text_section += '\n'
             translatingMainFlag = False
             if block[0][2] == "main":
                 translatingMainFlag = True
         else:
-            text_section += "L" + str(lead) + ":\n"
+            # case of label
+            pass
+
         for s in symlist:
             dirtybit[s]=False
+
         for v in block:
             translate(v)
 
@@ -775,7 +791,7 @@ def main():
                 print(s.name,dirtybit[s])
                 assert(dirtybit[s]==False)
 
-        text_section += assemblyCode+"\n"
+        text_section += assemblyCode
         assemblyCode=""
 
     x86c = top_section + data_section + bss_section + text_section
