@@ -4,11 +4,47 @@ import sys
 import os
 sys.path.extend(['..','.'])
 
-from includes import utility, symClasses
+from includes import utility
 import copy
 from enum import Enum
 import argparse
 from decimal import Decimal
+
+## GLOBALS=============================================================
+"""
+    Structures
+"""
+reglist = ['eax', 'ebx','ecx','edx']
+registerDesc = { i:None for i in reglist}
+# registerDesc :: Register Descriptor maps from regname to
+#                 symbol table entry of that variable
+
+arithOp = ['+','-','%','/','*']
+bitOp = ['&','|','^']
+shiftOp = ['>>', '<<']
+relOp = ['==', '~=', '>', '<', '>=', '<=']
+
+addressDescriptor = {}
+nextUseTable = {}
+
+flag_isMoveYtoX = True
+flag_isMoveZfromMem = True
+irlist =[]
+
+dirtybit ={}
+
+symlist = []
+varlist = []
+arraylist=[]
+leaders = [1,]
+## blocks == {leader : instr block}
+blocks = {}
+
+assemblyCode = ""
+translatingMainFlag = False
+
+DEBUG_FLAG = False
+## GLOBALS=============================================================
 
 
 def OptimizeForYandZ(lineno,regk,X,Y,Z):
@@ -80,14 +116,13 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
 
     # NOTE CHECK WHETHER IN THIS IF, THERE SHOULD BE USE OF flag_isMoveYtoX OR NOT
     if opInstr in relOp:
-
         if Y not in symlist:
             regy = getRegWithContraints(0,reg,None,lineno)
             assemblyCode+="  mov "+regy+", "+Y+"\n"
         elif addressDescriptor[Y] == "mem" and addressDescriptor[Z] == "mem":
             regy = getRegWithContraints(0,reg,None,lineno)
             assemblyCode+="  mov "+regy+", dword ["+Y.name+"]\n"
-            associate(Y,regy)
+            associate(Y, regy)
 
         assemblyCode += "  xor " + reg + ", " + reg + "\n"
         assemblyCode += "  cmp " + regy +", " + name(Z) + "\n"
@@ -733,22 +768,27 @@ def populateIR(filename):
         print("Cannot find the file. Make sure the path is right!")
         exit(1)
 
+def populateIR2(data):
+    i = 1
+    for d in data:
+        irlist.append([1]+d)
+
 def getFilename():
     argParser = argparse.ArgumentParser(description='Provide the IR code filename')
     argParser.add_argument('filename', type=str, help="./codegen filename.ir")
     args = argParser.parse_args()
     return args.filename
 
-def main():
-    global varlist, symTable, symlist, assemblyCode, translatingMainFlag, dirtybit
+def main(irCode=None):
+    global varlist, symlist, assemblyCode, translatingMainFlag, dirtybit
 
-    filename = getFilename()
-    populateIR(filename)
+    if irCode:
+        populateIR2(irCode)
+    else:
+        filename = getFilename()
+        populateIR(filename)
 
-    symClasses.makeSymStructure(program)
-    utility.makeVarList(irlist, program['Main'].globalSymTable, varlist, symlist,arraylist)
-
-    symTable = program['Main'].globalSymTable
+    utility.makeVarList(irlist, varlist, symlist, arraylist)
 
     for s in symlist:
         addressDescriptor[s]='mem'  ## initially no variable is loaded in any register
@@ -761,9 +801,9 @@ def main():
     data_section = "segment .data\n\n" + "debug dd `Output :: %i\\n`\n" + "readInt dd `%d`\n"
     for var in varlist:
         if var not in arraylist:
-            data_section += var + "  dd  " + "0\n"
+            data_section += str(var) + "  dd  " + "0\n"
         else:
-            data_section += var + " times 100 dd  0\n"
+            data_section += str(var) + " times 100 dd  0\n"
 
     bss_section = "\n"
     text_section = "segment .text\n\n"
@@ -796,6 +836,7 @@ def main():
     print(x86c)
 
     ## saving to file
+    """
     try:
         directory="asm/"
         if not os.path.exists(directory):
@@ -805,46 +846,9 @@ def main():
     except:
         print("Cannot write to file!")
         exit(1)
+    """
 
 
 if __name__ == "__main__":
-
-    """
-        Structures
-    """
-
-    program = {}
-
-    reglist = ['eax', 'ebx','ecx','edx']
-    registerDesc = { i:None for i in reglist}
-    # registerDesc :: Register Descriptor maps from regname to
-    #                 symbol table entry of that variable
-
-    arithOp = ['+','-','%','/','*']
-    bitOp = ['&','|','^']
-    shiftOp = ['>>', '<<']
-    relOp = ['==', '~=', '>', '<', '>=', '<=']
-
-    addressDescriptor = {}
-    nextUseTable = {}
-
-    flag_isMoveYtoX = True
-    flag_isMoveZfromMem = True
-    irlist =[]
-
-    dirtybit ={}
-
-    symlist = []
-    varlist = []
-    arraylist=[]
-    leaders = [1,]
-    ## blocks == {leader : instr block}
-    blocks = {}
-    symTable = {}
-
-    assemblyCode = ""
-    translatingMainFlag = False
-
-    DEBUG_FLAG = False
-
     main()
+

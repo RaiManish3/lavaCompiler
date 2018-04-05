@@ -15,7 +15,7 @@ class Category(Enum):
 
 class VarType(object):
     def __init__(self, lexeme, category, vtype, size=None):
-        self.lexeme = lexeme
+        self.name = lexeme
         self.category = category
         self.type = vtype
         self.size = size
@@ -30,7 +30,7 @@ class VarType(object):
         return "category: {}, type: {}".format(self.category, self.type)
 
     def __str__(self):
-        return self.lexeme
+        return self.name
 
 class SymbolTable(object):
     def __init__(self, category, attr, parent=None):

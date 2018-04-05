@@ -16,6 +16,31 @@ from includes import SymTab
 ## GLOBALS
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
+## NOTE :: expTypeMap entry has value
+##         (possible types input, ..., expected return type)
+##         if return type is None, return the most closet input type
+expTypeMap = {
+      'MULTIPLY': ('int', 'real', None)
+    , 'PLUS': ('int', 'real', None)
+    , 'MINUS': ('int', 'real', None)
+    , 'DIVIDE': ('int', 'real', None)
+    , 'MODULUS': ('int', 'int')
+    , 'LSHIFT': ('int', 'int')
+    , 'RSHIFT': ('int', 'int')
+    , 'LT': ('int', 'boolean')
+    , 'LE': ('int', 'boolean')
+    , 'GT': ('int', 'boolean')
+    , 'GE': ('int', 'boolean')
+    , 'EQEQ': ('int', 'real', 'String', 'boolean')
+    , 'NTEQ': ('int', 'real', 'String', 'boolean')
+    , 'AND': ('boolean', 'boolean')
+    , 'OR': ('boolean', 'boolean')
+    , 'BIT_OR': ('int', 'int')
+    , 'BIT_AND': ('int', 'int')
+    , 'BIT_XOR': ('int', 'int')
+    , 'NOT' : ('boolean', 'boolean')
+}
+
 
 class ErrorSystem(object):
     def __init__(self):
@@ -136,18 +161,19 @@ class MyParser(TypeSystem):
 
     ## Helper functions =========================================================
     def gen(self, *argv):
-        #strx = ''
         strx=[]
         for arg in argv:
             strx.append(arg)
-            #strx += str(arg) + ', '
-        #return strx[:-2] + '\n'
         return [strx]
 
     def printParseTree(self, p):
         flag = False
         if flag:
             print(p.slice)
+
+    def printIR(self, irCode):
+        for i in irCode:
+            print(', '.join(map(str, i)))
 
     def mallocInLoop(self, arr, plist, alloc_size):
         malloc_code=[]
@@ -189,7 +215,7 @@ class MyParser(TypeSystem):
             p[0]={'code':p[1]['code']}
             if str(p.slice[2])=='class_declaration' or str(p.slice[2])=='interface_declaration':
                 p[0]['code'] += p[2]['code']
-                print(p[2]['code'])
+                #  self.printIR(p[2]['code'])
         else:
             p[0]={'code':[]}
 
@@ -389,7 +415,7 @@ class MyParser(TypeSystem):
         self.printParseTree(p)
         if str(p.slice[1]) == 'variable_declarator_id':
             #TODO
-            symEntry = self.stManager.currentTable.lookup(p[1].lexeme) ## would return a varType
+            symEntry = self.stManager.currentTable.lookup(p[1].name) ## would return a varType
             symEntry.updateCategory('ARRAY')
             symEntry.updateType(symEntry.type + "[]")
             p[0] = symEntry
@@ -485,24 +511,17 @@ class MyParser(TypeSystem):
             xCode = p[2]['code']
 
             ## return statement check
-            hasReturnEnd = xCode.rfind('\n')
-            if hasReturnEnd != -1:
-                hasReturnStart = xCode.rfind('\n',0,hasReturnEnd)
-                hasReturnStart += 1
-                parts = xCode[hasReturnStart:hasReturnEnd].split(',')
-                if parts[0] == 'return':
-                    ## we are fine
-                    pass
+            if xCode[-1][0] == 'return':
+                ## we are fine
+                pass
 
-                else:
-                    #  user is missing specifying the return type
-                    self.printError("ReturnError", curFunction, None)
             else:
+                #  user is missing specifying the return type
                 self.printError("ReturnError", curFunction, None)
 
             p[0] = {
                 'code' : self.gen("function", curFunction) +
-                         xCode + "\n"
+                         xCode
             }
         else:
             p[0]={'code':[]}
@@ -920,7 +939,7 @@ class MyParser(TypeSystem):
             ## TODO :: Print more expressiv error msg
             assert (retX),"Invalid return type"
             p[0] = {
-                'code' : p[2]['code'] + self.gen("return", str(p[2]['place']))
+                'code' : p[2]['code'] + self.gen("return", p[2]['place'])
             }
 
     def p_expression(self, p):
@@ -1544,34 +1563,10 @@ def handle_errors(argv):
         exit(EXIT_FAILURE)
 
 
-if __name__=="__main__":
+def main():
     # initialize Parser
     parser = Parser()
     handle_errors(argv)
-    ## NOTE :: expTypeMap entry has value
-    ##         (possible types input, ..., expected return type)
-    ##         if return type is None, return the most closet input type
-    expTypeMap = {
-          'MULTIPLY': ('int', 'real', None)
-        , 'PLUS': ('int', 'real', None)
-        , 'MINUS': ('int', 'real', None)
-        , 'DIVIDE': ('int', 'real', None)
-        , 'MODULUS': ('int', 'int')
-        , 'LSHIFT': ('int', 'int')
-        , 'RSHIFT': ('int', 'int')
-        , 'LT': ('int', 'boolean')
-        , 'LE': ('int', 'boolean')
-        , 'GT': ('int', 'boolean')
-        , 'GE': ('int', 'boolean')
-        , 'EQEQ': ('int', 'real', 'String', 'boolean')
-        , 'NTEQ': ('int', 'real', 'String', 'boolean')
-        , 'AND': ('boolean', 'boolean')
-        , 'OR': ('boolean', 'boolean')
-        , 'BIT_OR': ('int', 'int')
-        , 'BIT_AND': ('int', 'int')
-        , 'BIT_XOR': ('int', 'int')
-        , 'NOT' : ('boolean', 'boolean')
-    }
 
     # for Tokenizing a file
     if argv[1] == '-l':
@@ -1583,5 +1578,10 @@ if __name__=="__main__":
             filename = argv[2]
         else:
             filename = argv[1]
-
         result = parser.parse_file(filename, debug = False)
+        return result
+
+
+if __name__=="__main__":
+    main()
+
