@@ -136,10 +136,13 @@ class MyParser(TypeSystem):
 
     ## Helper functions =========================================================
     def gen(self, *argv):
-        strx = ''
+        #strx = ''
+        strx=[]
         for arg in argv:
-            strx += str(arg) + ', '
-        return strx[:-2] + '\n'
+            strx.append(arg)
+            #strx += str(arg) + ', '
+        #return strx[:-2] + '\n'
+        return [strx]
 
     def printParseTree(self, p):
         flag = False
@@ -147,7 +150,7 @@ class MyParser(TypeSystem):
             print(p.slice)
 
     def mallocInLoop(self, arr, plist, alloc_size):
-        malloc_code=""
+        malloc_code=[]
         tmp=SymTab.newTemp(str(arr.type)[:len(str(arr.type))-2])
         i=SymTab.newTemp('int')
         loop_block=self.stManager.newLabel()
@@ -188,7 +191,7 @@ class MyParser(TypeSystem):
                 p[0]['code'] += p[2]['code']
                 print(p[2]['code'])
         else:
-            p[0]={'code':''}
+            p[0]={'code':[]}
 
 
     def p_class_declaration(self, p):
@@ -247,7 +250,7 @@ class MyParser(TypeSystem):
                                     | empty
         '''
         self.printParseTree(p)
-        p[0] = {'code': ''}
+        p[0] = {'code': []}
         if len(p) == 2:
             ## TODO :: should I assign place attr
             pass
@@ -310,7 +313,7 @@ class MyParser(TypeSystem):
                              | BEGIN END
         '''
         self.printParseTree(p)
-        p[0] = {'code': ''}
+        p[0] = {'code': []}
         if len(p) == 4:
             p[0]['code'] = p[2]['code']
 
@@ -332,7 +335,7 @@ class MyParser(TypeSystem):
             field_declaration : type variable_declarators STMT_TERMINATOR
         '''
         self.printParseTree(p)
-        p[0]={'code':''}
+        p[0]={'code':[]}
         for var in p[2]:
             p[0]['code'] += var['code']
 
@@ -359,7 +362,7 @@ class MyParser(TypeSystem):
         if len(p) == 2:
             p[0] = {
                   'place':p[1]
-                , 'code':''
+                , 'code':[]
             }
         else:
             #TODO TYPE CHECK
@@ -502,7 +505,7 @@ class MyParser(TypeSystem):
                          xCode + "\n"
             }
         else:
-            p[0]={'code':''}
+            p[0]={'code':[]}
         self.stManager.endScope()
 
     def p_method_header(self, p):
@@ -566,7 +569,7 @@ class MyParser(TypeSystem):
                 'code': p[1]['code']
             }
         else:
-            p[0] = { 'code': ''}
+            p[0] = { 'code': []}
 
     ## interfaces=========================================================
     def p_interface_declaration(self, p):
@@ -672,7 +675,7 @@ class MyParser(TypeSystem):
         if len(p)==4:
             p[0]={'code':p[2]['code']}
         else:
-            p[0]={'code':''}
+            p[0]={'code':[]}
 
     def p_block_statements(self, p):
         '''
@@ -703,7 +706,7 @@ class MyParser(TypeSystem):
             local_variable_declaration : type variable_declarators
         '''
         self.printParseTree(p)
-        p[0] = {'code': ''}
+        p[0] = {'code': []}
         for i in p[2]:
            p[0]['code'] += i['code']
 
@@ -761,9 +764,9 @@ class MyParser(TypeSystem):
         '''
         self.printParseTree(p)
         p[0] = {
-            'code':''
+            'code':[]
         }
-        tstr=''
+        tstr=[]
         if p[4]['type'] != 'boolean':
             self.printError("TypeError", p.lexer.lineno)
 
@@ -816,8 +819,8 @@ class MyParser(TypeSystem):
         update_block = self.stManager.lookup('`update_block').type
         after_block = self.stManager.lookup('`after_block').type
         loop_block = self.stManager.newLabel()
-        p[0]={'code':''}
-        tstr=''
+        p[0]={'code':[]}
+        tstr=[]
         #TODO, IMPLEMENTATION OF BREAK OR CONTINUE:???? WE NEED TO STORE after_block and loop_block labels in SymTabl entry for for loop
         if len(p)==11:
             #TODO, BELOW CHECK IS TEMPORARY COMMENTED, COMPLETE THE TYPE CHECKING EXPRESSION RULE, THEN UNCOMMENT THIS
@@ -852,7 +855,7 @@ class MyParser(TypeSystem):
         '''
         #NOTE p[1]['code'] or p[3]['code'] MUST NOT HAVE A MEANINGFUL SEMICOLON
         self.printParseTree(p)
-        p[0]={'code':''}
+        p[0]={'code':[]}
         if len(p)==4:
             p[0]['code']=p[1]['code']+p[3]['code']
         else:
@@ -865,7 +868,7 @@ class MyParser(TypeSystem):
                      | empty
         '''
         self.printParseTree(p)
-        p[0] = {'code':''}
+        p[0] = {'code':[]}
         p[0]['code'] = p[1]['code']
 
     def p_for_update(self, p):
@@ -874,7 +877,7 @@ class MyParser(TypeSystem):
                        | empty
         '''
         self.printParseTree(p)
-        p[0] = {'code':''}
+        p[0] = {'code':[]}
         p[0]['code'] = p[1]['code']
 
     def p_break_statement(self, p):
@@ -1053,7 +1056,7 @@ class MyParser(TypeSystem):
                 self.printError("VariableNotDeclared", p.slice[1].value, p.lexer.lineno)
             p[0] = {
                  'place': symEntry
-                ,'code' : ''
+                ,'code' : []
                 ,'type' : symEntry.type
             }
 
@@ -1149,7 +1152,7 @@ class MyParser(TypeSystem):
                 if symEntry == None:
                     self.printError("FunctionNotDeclared", funcID, p.lexer.lineno)
             temp = SymTab.newTemp(symEntry.attr['type'])
-            param_code=''
+            param_code=[]
             if len(p)==5:
                 param_code=p[3]['code']
                 for k in p[3]['place']:
@@ -1230,12 +1233,12 @@ class MyParser(TypeSystem):
                                       | NEW class_type dim_exprs dims
         '''
         self.printParseTree(p)
-        p[0] = {'type':''}
+        p[0] = {'type':[]}
 
         if str(p[-1]) == '=':
             ## TODO type match checking and dimension match checking
             if isinstance(p[-2], SymTab.VarType):
-                access_code = ''
+                access_code = []
                 a = p[-2] # for type int a[]=new int[];
             elif isinstance(p[-2], dict):
                 ## lhs is an array access
@@ -1251,7 +1254,7 @@ class MyParser(TypeSystem):
             else:
                 ndims=(len(a.type)-pos)/2
 
-            if access_code != '':
+            if access_code != []:
                 ndims-=1
 
             if p[3]['count'] + p[4] != ndims:
@@ -1271,12 +1274,12 @@ class MyParser(TypeSystem):
                         'valuedDimensions':p[3]['place']
                         ,'numUnvaluedDimensions':p[4]
                     }
-                    malloc_code = ''
+                    malloc_code = []
                     tmp = None
                     if (a.type)[:pos] != "String":
                             size = SymTab.newTemp('int')
                             malloc_code += self.gen("*", size, p[3]['place'][0], SymTab.typeSizeMap[str(a.type[:pos])])
-                            if access_code=='':
+                            if access_code==[]:
                                 malloc_code += self.gen("malloc",a,size)
                             else:
                                 tmp = SymTab.newTemp(str(a.type)[:len(str(a.type))-2])
@@ -1311,7 +1314,7 @@ class MyParser(TypeSystem):
             p[0] = {
                 'count':0
                 ,'place':[]
-                ,'code':''
+                ,'code':[]
             }
 
     def p_dim_expr(self, p):
@@ -1424,25 +1427,25 @@ class MyParser(TypeSystem):
             p[0]={
                   'type': 'int'
                 , 'place': p.slice[1].value
-                , 'code': ''
+                , 'code': []
             }
 
         elif tp == 'FLOAT_LITERAL':
             p[0]={
                   'type': 'real'
                 , 'place': p.slice[1].value
-                , 'code': ''
+                , 'code': []
             }
 
         elif tp == 'BOOLEAN_LITERAL':
             p[0]={
                   'type': 'boolean'
                 , 'place': p.slice[1].value
-                , 'code': ''
+                , 'code': []
             }
 
         elif tp == 'STRING_LITERAL':
-            code=''
+            code=[]
             tmp=SymTab.newTemp('String')
             strk=p.slice[1].value[1:-1]
             code+=self.gen('malloc',tmp,len(strk)+1)
@@ -1463,7 +1466,7 @@ class MyParser(TypeSystem):
             p[0]={
                   'type': 'nil'
                 , 'place': p.slice[1].value
-                , 'code': ''
+                , 'code': []
             }
 
     ## empty
@@ -1471,7 +1474,7 @@ class MyParser(TypeSystem):
         '''
             empty :
         '''
-        p[0]={'code':''}
+        p[0]={'code':[]}
 
     def p_error(self, p):
         print('\n-------------------------------------------------------')
