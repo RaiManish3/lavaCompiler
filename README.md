@@ -29,6 +29,12 @@ While in the main directory, execute the following commands:<br>
         $: bin/parser test/[filename].lua
   ```
 
+4. For the IR gen:
+  ```bash
+        $: make
+        $: bin/parser test/[filename].lua
+  ```
+
 ### Timeline
 
 1. <b>Task One</b>, <i> 28 Jan 2018 </i><br>
@@ -37,8 +43,11 @@ While in the main directory, execute the following commands:<br>
 2. <b>Task Two</b>, <i> 12 Feb 2018 </i><br>
   Build a Code Generator.
 
-3. <b>Task Three</b>, <i> 12 March 2018 </i><br>
+3. <b>Task Three</b>, <i> 20 March 2018 </i><br>
   Build a LALR Parser with Rightmost Derivation displayed as an HTML file.
+
+3. <b>Task Four</b>, <i> 8 April 2018 </i><br>
+  Build a IR generator for Imperative features of the source language.
 
 ### Authors
 * Dhruv Kumar

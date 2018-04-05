@@ -99,9 +99,6 @@ class TypeSystem(ErrorSystem):
             self.printError("TypeError", lineno)
 
     def returnTypeCheck(self, pType, table):
-        ## get to the table corresponding to the enclosing function
-        ## search based on Category :: used the fact that function cannot
-        ## contain function inside them
         if table.category == SymTab.Category.Function:
             if table.attr['type'] != pType:
                 return False
@@ -145,7 +142,7 @@ class MyParser(TypeSystem):
         return strx[:-2] + '\n'
 
     def printParseTree(self, p):
-        flag = True
+        flag = False
         if flag:
             print(p.slice)
 
@@ -160,7 +157,7 @@ class MyParser(TypeSystem):
         malloc_code += self.gen("*",size,plist[0],alloc_size)
 
         malloc_code += self.gen("=",i,'0')
-        malloc_code += self.gen(loop_block+":")
+        malloc_code += self.gen("label", loop_block)
         malloc_code += self.gen("ifgoto",">=",i,plist[0],after_block)
         malloc_code += self.gen("malloc",tmp,size)
         malloc_code += self.gen("writearray",arr,i,tmp)
@@ -170,7 +167,7 @@ class MyParser(TypeSystem):
 
         malloc_code += self.gen("+",i,i,"1")
         malloc_code += self.gen("goto",loop_block)
-        malloc_code += self.gen(after_block+":")
+        malloc_code += self.gen("label", after_block)
 
         return malloc_code
 
@@ -777,15 +774,15 @@ class MyParser(TypeSystem):
             tstr += self.gen('ifgoto','==',p[4]['place'],'false',false_block)
             tstr += p[7]['code']
             tstr += self.gen('goto',after_block)
-            tstr += self.gen(false_block+":")
+            tstr += self.gen("label", false_block)
             tstr += p[9]['code']
-            tstr += self.gen(after_block+":")
+            tstr += self.gen("label", after_block)
         else:
             after_block=self.stManager.newLabel()
             tstr += p[4]['code']
             tstr += self.gen('ifgoto','==',p[4]['place'],'false',after_block)
             tstr += p[7]['code']
-            tstr += self.gen(after_block+":")
+            tstr += self.gen("label", after_block)
 
         p[0]['code']=p[0]['code']+tstr
         self.stManager.endScope()
@@ -801,12 +798,12 @@ class MyParser(TypeSystem):
         after_block = self.stManager.lookup('`after_block').type
         if p[4]['type']!='boolean':
             self.printError("TypeError", p.lexer.lineno)
-        tstr = self.gen(loop_block+":")
+        tstr = self.gen("label", loop_block)
         tstr += p[4]['code']
         tstr += self.gen('ifgoto','==',p[4]['place'],'false',after_block)
         tstr += p[6]['code']
         tstr += self.gen('goto',loop_block)
-        tstr += self.gen(after_block+":")
+        tstr += self.gen("label", after_block)
         p[0]={'code':tstr};
         self.stManager.endScope()
 
@@ -827,24 +824,24 @@ class MyParser(TypeSystem):
             #if p[5]['type']!='boolean':
             #    self.printError("TypeError", p.lexer.lineno)
             tstr += p[4]['code']
-            tstr += self.gen(loop_block+":")
+            tstr += self.gen("label", loop_block)
             tstr += p[6]['code']
             tstr += self.gen('ifgoto','==',p[6]['place'],'false',after_block)
             tstr += p[10]['code']
-            tstr += self.gen(update_block+":")
+            tstr += self.gen("label", update_block)
             tstr += p[8]['code']
             tstr += self.gen('goto',loop_block)
-            tstr += self.gen(after_block+":")
+            tstr += self.gen("label", after_block)
         else:
             after_block=self.stManager.newLabel()
             loop_block=self.stManager.newLabel()
             tstr += p[4]['code']
-            tstr += self.gen(loop_block+":")
+            tstr += self.gen("label", loop_block)
             tstr += p[9]['code']
-            tstr += self.gen(update_block+":")
+            tstr += self.gen("label", update_block)
             tstr += p[7]['code']
             tstr += self.gen('goto',loop_block)
-            tstr += self.gen(after_block+":")
+            tstr += self.gen("label", after_block)
         p[0]['code']=tstr
         self.stManager.endScope()
 
@@ -994,10 +991,10 @@ class MyParser(TypeSystem):
                 p[0]['code']= p[1]['code']+self.gen('ifgoto','==',res['value1'],'false',before_next_exp)
                 p[0]['code']+= self.gen('=',p[0]['place'],'true')
                 p[0]['code']+= self.gen('goto',after_next_exp)
-                p[0]['code']+= self.gen(before_next_exp+":")
+                p[0]['code']+= self.gen("label", before_next_exp)
                 p[0]['code']+= p[3]['code']
                 p[0]['code']+= self.gen('=',p[0]['place'],res['value2'])
-                p[0]['code']+= self.gen(after_next_exp+":")
+                p[0]['code']+= self.gen("label", after_next_exp)
 
             elif p.slice[2].type =='AND':
                 before_next_exp = self.stManager.newLabel()
@@ -1005,10 +1002,10 @@ class MyParser(TypeSystem):
                 p[0]['code']= p[1]['code']+self.gen('ifgoto','==',res['value1'],'true',before_next_exp)
                 p[0]['code']+= self.gen('=',p[0]['place'],'false')
                 p[0]['code']+= self.gen('goto',after_next_exp)
-                p[0]['code']+= self.gen(before_next_exp+":")
+                p[0]['code']+= self.gen("label", before_next_exp)
                 p[0]['code']+= p[3]['code']
                 p[0]['code']+= self.gen('=',p[0]['place'],res['value2'])
-                p[0]['code']+= self.gen(after_next_exp+":")
+                p[0]['code']+= self.gen("label", after_next_exp)
 
         elif len(p) == 3:
             ## case of unaryop

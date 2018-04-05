@@ -383,7 +383,7 @@ def translate(ir):
 
 
     if op == "ifgoto":
-        relop, X, Y, Label = ir[2:6]
+        relop, X, Y, label = ir[2:6]
         #OptimizeForYandZ(lineno,None,None,X,Y)
 
         if X in symlist and Y in symlist and addressDescriptor[X]=="mem" and addressDescriptor[Y]=="mem":
@@ -392,8 +392,6 @@ def translate(ir):
             assemblyCode += "  cmp " + reg + ", " + name(Y) + "\n"
         else:
             assemblyCode += "  cmp " + name(X) + ", " + name(Y) + "\n"
-
-        label = Label
 
         dumpAllRegToMem()
 
