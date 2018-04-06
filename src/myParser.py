@@ -51,7 +51,10 @@ class ErrorSystem(object):
             ,"ReDeclare": "Re-Declaration of '{}' at line: {}"
             ,"ReturnError": "End return statement not specified for the function '{}'"
             ,"DimsNotMatch": "Array Dimension Mismatch at line: {}"
-            ,"ConsNameError":"Constructor Name Error in Class: {}"
+            ,"ConsNameError": "Constructor Name Error in Class: {}"
+            ,"ParseError": "Cannot parse {} at line: {}"
+            ,"BadDeclare": "Function '{}' definition does not match its declaration at line: {}"
+            ,"ParamError": "Illegal arguments in call to function '{}' at line: {}"
         }
 
     def printLine(self, lineno):
@@ -74,9 +77,11 @@ class ErrorSystem(object):
             errorType = argv[0]
             msg = argv[1:]
             l = len(msg)
+            print('\n-------------------------------------------------------')
             print("ERROR: " + self.errorMap[errorType].format(*msg))
-            if msg[l-1]:
+            if msg[l-1] != None:
                 self.printLine(msg[l-1])
+            print('-------------------------------------------------------\n')
         except:
             print("ERROR: Unknown argument list to printError!")
         exit(EXIT_FAILURE)
@@ -170,10 +175,6 @@ class MyParser(TypeSystem):
         flag = False
         if flag:
             print(p.slice)
-
-    def printIR(self, irCode):
-        for i in irCode:
-            print(', '.join(map(str, i)))
 
     def mallocInLoop(self, arr, plist, alloc_size):
         malloc_code=[]
@@ -308,7 +309,9 @@ class MyParser(TypeSystem):
         self.printParseTree(p)
         self.stManager.endScope()
         ## TODO: THIS IS AN OOP CONCEPT HANDLER IT, WHILE MAKING OBJECT
-        p[0]={'code':p[3]['code']}
+        p[0] = {
+            'code':p[3]['code']
+        }
 
     def p_constructor_declarator(self, p):
         '''
@@ -438,25 +441,31 @@ class MyParser(TypeSystem):
         xRule = str(p.slice[1])
         if xRule == 'expression':
             p[0] = p[1]
-            if(p[1]==None):
-                assert(False)
+            assert (p[1] != None), "Code not implemented for expression"
+
         elif xRule == 'array_initializer_with_curly':
             size=len(p[1])
             #TODO HANDLE STRING separately
-            if '[]' in p[1]['type']:
+            if '[]' in p[1][0]['type']:
                 alloc_size=size*4
             else:
-                alloc_size=size*SymTab.typeSizeMap[p[1]['type']]
-            tmp=SymTab.newTemp(p[1]['type']+'[]')
+                alloc_size=size*SymTab.typeSizeMap[p[1][0]['type']]
+            tmp=SymTab.newTemp(p[1][0]['type']+'[]')
             code=self.gen('malloc',tmp,alloc_size)
             count=0
             for l in p[1]:
                 code+=l['code']+self.gen('writearray',tmp,count,l['place'])
                 count+=1
-            p[0]={'code':code,'type':tmp.type,'place':tmp}
+            p[0] = {
+                'code':code
+                ,'type':tmp.type
+                ,'place':tmp
+            }
 
         elif xRule == 'input':
             xType = p[1][4:].lower()
+            if xType == 'string':
+                xType = 'String'
             temp = SymTab.newTemp(xType)
             p[0] = {
                   'place': temp
@@ -514,7 +523,6 @@ class MyParser(TypeSystem):
             if xCode[-1][0] == 'return':
                 ## we are fine
                 pass
-
             else:
                 #  user is missing specifying the return type
                 self.printError("ReturnError", curFunction, None)
@@ -524,7 +532,7 @@ class MyParser(TypeSystem):
                          xCode
             }
         else:
-            p[0]={'code':[]}
+            p[0] = {'code':[]}
         self.stManager.endScope()
 
     def p_method_header(self, p):
@@ -553,22 +561,41 @@ class MyParser(TypeSystem):
         self.printParseTree(p)
         if len(p) == 6:
             self.stManager.currentTable.attr['args_types'] = p[4]
+        if p[2] != None:
+            symEntryDecl = p[2][0]
+            ## case of declaration defined before definition of function
+            if symEntryDecl['type'] == self.stManager.currentTable.attr['type'] and symEntryDecl['args_types'] == self.stManager.currentTable.attr['args_types']:
+                pass
+            else:
+                self.printError("BadDeclare", symEntryDecl.attr['name'][1:], p[2][1])
 
     def p_seen_method_name(self, p):
         '''
             seen_method_name :
         '''
         symEntry = self.stManager.currentTable.lookup(p[-1])
-        if symEntry != None:
-            self.printError("ReDeclare", symEntry.attr['name'], p.lexer.lineno)
+        symEntryDecl = self.stManager.currentTable.lookup("`"+p[-1])
 
-        if p[-4]=='declare':
+        if p[-4] == 'declare':
+            ## check if it not a re-declaration
+            if symEntry != None:
+                self.printError("ReDeclare", symEntry.attr['name'], p.lexer.lineno)
+            elif symEntryDecl != None:
+                self.printError("ReDeclare", symEntryDecl.attr['name'][1:], p.lexer.lineno)
+
             mAttr = {
                 'type':p[-2]
                 ,'name':'`'+p[-1]
                 ,'args_types':[]
             }
         else:
+            if symEntry != None:
+                self.printError("ReDeclare", symEntry.attr['name'], p.lexer.lineno)
+            elif symEntryDecl != None:
+                ## In case it has a declaration => check it matches the declaration format
+                ## defer the check as we do not have any info about the args_types
+                p[0] = (symEntryDecl, p.lexer.lineno)
+
             mAttr = {
                 'type':p[-2]
                 ,'name':p[-1]
@@ -1150,10 +1177,7 @@ class MyParser(TypeSystem):
         '''
             method_invocation : identifier_name_with_dot LPAREN argument_list RPAREN
                               | IDENTIFIER LPAREN argument_list RPAREN
-                              | identifier_name_with_dot LPAREN RPAREN
-                              | IDENTIFIER LPAREN RPAREN
                               | field_access LPAREN argument_list RPAREN
-                              | field_access LPAREN RPAREN
 
         '''
         self.printParseTree(p)
@@ -1170,12 +1194,23 @@ class MyParser(TypeSystem):
                 symEntry = self.stManager.lookup('`'+funcID)
                 if symEntry == None:
                     self.printError("FunctionNotDeclared", funcID, p.lexer.lineno)
+                else:
+                    ## case of definition being declared before
+                    ## check for args types
+                    argsTypes = p[3]['type']
+                    if argsTypes != symEntry.attr['args_types']:
+                        self.printError('ParamError',p.slice[1].value, p.lexer.lineno)
+            else:
+                ## case of function called after being defined
+                ## check for args types
+                argsTypes = p[3]['type']
+                if argsTypes != symEntry.attr['args_types']:
+                    self.printError('ParamError',p.slice[1].value, p.lexer.lineno)
+
             temp = SymTab.newTemp(symEntry.attr['type'])
-            param_code=[]
-            if len(p)==5:
-                param_code=p[3]['code']
-                for k in p[3]['place']:
-                    param_code+=self.gen("param",k)
+            param_code=p[3]['code']
+            for k in p[3]['place']:
+                param_code+=self.gen("param", k)
             p[0] = {
                   'place': temp
                 , 'type': temp.type
@@ -1196,8 +1231,7 @@ class MyParser(TypeSystem):
         '''
         self.printParseTree(p)
         p[0] = p[1]
-        if p[1]==None:
-            assert(False)
+        assert (p[1] != None), "Case for '{}' not handled!".format(p.slice[1])
 
     def p_primary_no_new_array(self, p):
         '''
@@ -1217,13 +1251,11 @@ class MyParser(TypeSystem):
         else:
             ## TODO ::COMES INSDIDE DOMAINS OF OOP
             pass
-        if p[0]==None:
-            assert(False)
+        assert (p[0] != None), "Case for '{}' not handled!".format(p.slice[0])
 
     def p_class_instance_creation_expression(self, p):
         '''
             class_instance_creation_expression : NEW class_type LPAREN argument_list RPAREN
-                                               | NEW class_type LPAREN RPAREN
         '''
         self.printParseTree(p)
 
@@ -1231,19 +1263,27 @@ class MyParser(TypeSystem):
         '''
             argument_list : argument_list COMMA expression
                           | expression
+                          | empty
         '''
         self.printParseTree(p)
         if len(p)==4:
             p[1]['place'].append(p[3]['place'])
             p[0] = {
-                'code':p[1]['code']+p[3]['code']
-                ,'place':p[1]['place']
+                 'code': p[1]['code'] + p[3]['code']
+                ,'place': p[1]['place']
+                ,'type': p[1]['type'] + [p[3]['type']]
+            }
+        elif str(p.slice[1]) == 'expression':
+            p[0] = {
+                 'code': p[1]['code']
+                ,'place': [p[1]['place']]
+                ,'type': [p[1]['type']]
             }
         else:
-            p[0] = {
-                'code':p[1]['code']
-                ,'place':[p[1]['place']]
-            }
+            p[0] = {}
+            p[0]['code'] = []
+            p[0]['place'] = []
+            p[0]['type'] = []
 
 
     def p_array_creation_expression(self, p):
@@ -1496,10 +1536,7 @@ class MyParser(TypeSystem):
         p[0]={'code':[]}
 
     def p_error(self, p):
-        print('\n-------------------------------------------------------')
-        print('ERROR: \'{}\' at line no: {}'.format(p.value, p.lineno))
-        self.printLine(p.lineno)
-        print('-------------------------------------------------------\n')
+        self.printError('ParseError', p.value, p.lineno)
         exit(EXIT_FAILURE)
 
 

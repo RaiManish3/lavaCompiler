@@ -38,7 +38,6 @@ class SymbolTable(object):
         self.parent = parent
         self.attr = attr          ## holds all relevant information for this block
         self.vars = {}            ## contains variables directly under it
-        self.temps= {}            ## contains temporaries direclty under it
         self.children = [] if category in [Category.Function, Category.Block] else {}
 
     def insert(self, lexeme, ltype, category):
