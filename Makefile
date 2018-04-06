@@ -6,6 +6,12 @@ TEST=test
 
 .DEFAULT_GOAL := ass4
 
+pro: $(SRC)/myParser.py $(SRC)/myLexer.py $(INC)/SymTab.py $(SRC)/myCodeGen.py $(SRC)/lava.py \
+  compile.sh
+	@mkdir -p $(BIN)
+	@cp compile.sh $(BIN)/compile
+	@chmod +x $(BIN)/compile
+
 ass4: $(SRC)/myParser.py $(SRC)/myLexer.py $(INC)/SymTab.py
 	@mkdir -p $(BIN)
 	@cp $(SRC)/myParser.py $(BIN)/parser

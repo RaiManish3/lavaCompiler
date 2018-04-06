@@ -3,8 +3,13 @@ begin
     declare:: int f(String x, int m);
     function:: void main()
       begin
-        real a;
-        int x = f("hello", 5);
+        int a = 3, b =7, t = 1;
+        while(a <= 10)
+        begin
+          t = t * b;
+          a = a - 1;
+          print(t);
+        end
         return;
       end
 

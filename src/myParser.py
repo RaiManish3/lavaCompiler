@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from sys import path
-import os
 path.extend(['.','..'])
 
 import ply.lex as lex
@@ -10,7 +9,6 @@ from src import myLexer
 
 MyLexer = myLexer.MyLexer
 
-from sys import argv
 from includes import SymTab
 
 ## GLOBALS
@@ -50,6 +48,7 @@ class ErrorSystem(object):
             ,"FunctionNotDeclared": "Illegal use of function '{}' before declaration in line: {}"
             ,"ReDeclare": "Re-Declaration of '{}' at line: {}"
             ,"ReturnError": "End return statement not specified for the function '{}'"
+            ,"ReturnType": "Return statement as different type than the enclosing function at line: {}"
             ,"DimsNotMatch": "Array Dimension Mismatch at line: {}"
             ,"ConsNameError": "Constructor Name Error in Class: {}"
             ,"ParseError": "Cannot parse {} at line: {}"
@@ -58,10 +57,6 @@ class ErrorSystem(object):
         }
 
     def printLine(self, lineno):
-        if len(argv) == 2:
-            filename = argv[1]
-        elif len(argv) == 3:
-            filename = argv[2]
         with open(filename,'r') as fp:
             print("in file: {}".format(filename,))
             for i, line in enumerate(fp):
@@ -216,7 +211,6 @@ class MyParser(TypeSystem):
             p[0]={'code':p[1]['code']}
             if str(p.slice[2])=='class_declaration' or str(p.slice[2])=='interface_declaration':
                 p[0]['code'] += p[2]['code']
-                #  self.printIR(p[2]['code'])
         else:
             p[0]={'code':[]}
 
@@ -515,16 +509,15 @@ class MyParser(TypeSystem):
                                | DECLARE DCOLON result_type method_declarator STMT_TERMINATOR
         '''
         self.printParseTree(p)
-        if len(p)==3:
+        if len(p) == 3:
             curFunction = self.stManager.currentTable.attr['name']
             xCode = p[2]['code']
 
             ## return statement check
             if xCode[-1][0] == 'return':
-                ## we are fine
-                pass
+                pass ## we are fine
             else:
-                #  user is missing specifying the return type
+                ## user has missed specifying the end return statement
                 self.printError("ReturnError", curFunction, None)
 
             p[0] = {
@@ -797,7 +790,7 @@ class MyParser(TypeSystem):
             seenif_for_while :
         '''
         self.stManager.beginScope(SymTab.Category.Block, {'name':p[-1]})
-        if str(p[-1])!='if':
+        if str(p[-1]) != 'if':
             update_block=self.stManager.newLabel()
             after_block=self.stManager.newLabel()
             self.stManager.insert('`update_block',update_block,None)
@@ -840,13 +833,14 @@ class MyParser(TypeSystem):
         '''
             while_statement : WHILE seenif_for_while LPAREN expression RPAREN block
         '''
-        #TODO, IMPLEMENTATION OF BREAK OR CONTINUE:???? WE NEED TO STORE after_block and loop_block labels in SymTabl entry for for loop
         self.printParseTree(p)
         update_block = self.stManager.lookup('`update_block').type
         loop_block = update_block
         after_block = self.stManager.lookup('`after_block').type
+
         if p[4]['type']!='boolean':
             self.printError("TypeError", p.lexer.lineno)
+
         tstr = self.gen("label", loop_block)
         tstr += p[4]['code']
         tstr += self.gen('ifgoto','==',p[4]['place'],'false',after_block)
@@ -867,11 +861,11 @@ class MyParser(TypeSystem):
         loop_block = self.stManager.newLabel()
         p[0]={'code':[]}
         tstr=[]
-        #TODO, IMPLEMENTATION OF BREAK OR CONTINUE:???? WE NEED TO STORE after_block and loop_block labels in SymTabl entry for for loop
         if len(p)==11:
-            #TODO, BELOW CHECK IS TEMPORARY COMMENTED, COMPLETE THE TYPE CHECKING EXPRESSION RULE, THEN UNCOMMENT THIS
-            #if p[5]['type']!='boolean':
-            #    self.printError("TypeError", p.lexer.lineno)
+            assert (p[1]!=None), "Code not implemented for {}".format(p.slice[6])
+            if p[6]['type'] != 'boolean':
+              self.printError("TypeError", p.lexer.lineno)
+
             tstr += p[4]['code']
             tstr += self.gen("label", loop_block)
             tstr += p[6]['code']
@@ -956,15 +950,15 @@ class MyParser(TypeSystem):
         ## the method return type
         if len(p) == 3:
             retX = self.returnTypeCheck('void', self.stManager.currentTable)
-            ## TODO :: Print more expressiv error msg
-            assert (retX),"Invalid return type"
+            if not retX:
+                self.printError("ReturnType", p.lexer.lineno)
             p[0] = {
                 'code' : self.gen("return")
             }
         else:
             retX = self.returnTypeCheck(p[2]['type'], self.stManager.currentTable)
-            ## TODO :: Print more expressiv error msg
-            assert (retX),"Invalid return type"
+            if not retX:
+                self.printError("ReturnType", p.lexer.lineno)
             p[0] = {
                 'code' : p[2]['code'] + self.gen("return", p[2]['place'])
             }
@@ -1010,8 +1004,7 @@ class MyParser(TypeSystem):
                 }
             else:
                 p[0] = p[1]
-            if p[1]==None:
-                assert(False)
+            assert (p[1]!=None), "Code not implemented for {}".format(p.slice[1])
 
         elif len(p) == 4:
             res = self.typeHandler(p[1], p[3], p.slice[2].type, p.lexer.lineno)
@@ -1048,7 +1041,8 @@ class MyParser(TypeSystem):
             elif p.slice[2].type =='AND':
                 before_next_exp = self.stManager.newLabel()
                 after_next_exp = self.stManager.newLabel()
-                p[0]['code']= p[1]['code']+self.gen('ifgoto','==',res['value1'],'true',before_next_exp)
+                p[0]['code'] = p[1]['code'] + \
+                    self.gen('ifgoto','==',res['value1'],'true', before_next_exp)
                 p[0]['code']+= self.gen('=',p[0]['place'],'false')
                 p[0]['code']+= self.gen('goto',after_next_exp)
                 p[0]['code']+= self.gen("label", before_next_exp)
@@ -1075,7 +1069,7 @@ class MyParser(TypeSystem):
                 }
 
         elif p1 == 'assignment':
-            if str(type(p[1]))=="<class 'dict'>":
+            if type(p[1]) == dict:
                 if 'specialForArrayWrite' in p[1].keys():
                     p[0] = p[1]
                     xKey = p[1]['specialForArrayWrite']
@@ -1085,6 +1079,7 @@ class MyParser(TypeSystem):
                                             ,p[1]['specialForArrayWrite']['index']
                                             ,tmpk)
                     p[0]['place'] = tmpk
+                    ## FIXME FIXME :: TYPE INFO NOT PASSED HERE
                 else:
                     p[0] = p[1]
             else:
@@ -1098,7 +1093,6 @@ class MyParser(TypeSystem):
             ## case of IDENTIFIER
             symEntry = self.stManager.lookup(p.slice[1].value)
             if symEntry == None:
-                ## TODO, make the error more expressive
                 self.printError("VariableNotDeclared", p.slice[1].value, p.lexer.lineno)
             p[0] = {
                  'place': symEntry
@@ -1166,7 +1160,7 @@ class MyParser(TypeSystem):
         elif x == 'field_access':
             pass
         elif x == 'array_access':
-            p[0]=p[1]
+            p[0] = p[1]
         else:
             symEntry = self.stManager.lookup(p.slice[1].value)
             if symEntry == None:
@@ -1431,10 +1425,10 @@ class MyParser(TypeSystem):
         else:
             ## IDENTIFIER [exp] case
             ## TODO WORKOUT IN CODEGEN AS NOW INDEX CAN ALSO BE SYMBOL TALBE ENTRIES
-            arr=self.stManager.lookup(p[1])
+            arr = self.stManager.lookup(p[1])
             typ = str(arr.type)[:len(str(arr.type))-2]
-            tmp=SymTab.newTemp(typ)
-            p[0]={
+            tmp = SymTab.newTemp(typ)
+            p[0]= {
                 'type':typ
                 ,'place':tmp
                 ,'code':p[3]['code'] +
@@ -1572,53 +1566,14 @@ class Parser(object):
         return parse_ret
 
 
-def handle_errors(argv):
-    fileIndex = -1
-
-    if len(argv) == 2:
-        fileIndex = 1
-    elif len(argv) == 3:
-        fileIndex = 2
-
-    if fileIndex > -1:
-
-        if fileIndex == 2:
-            if argv[1] not in ['-l', '-p']:
-                print('No such option \'{}\''.format(argv[1]))
-                exit(EXIT_FAILURE)
-
-        if argv[fileIndex].find('.lua') == -1:
-            print('\'{}\' is not a .lua file'.format(argv[fileIndex]))
-            exit(EXIT_FAILURE)
-
-        elif not os.path.isfile(argv[fileIndex]):
-            print('file \'{}\' does not exists'.format(argv[fileIndex]))
-            exit(EXIT_FAILURE)
-
-    else:
-        print('To run script: src/parser.py [mode] <path_to_file> ')
-        exit(EXIT_FAILURE)
-
-
-def main():
+def main(fName):
     # initialize Parser
+    global filename
+    filename = fName
     parser = Parser()
-    handle_errors(argv)
-
-    # for Tokenizing a file
-    if argv[1] == '-l':
-        parser.tokenize_file(argv[2])
-        exit()
-
-    else:
-        if argv[1] == '-p':
-            filename = argv[2]
-        else:
-            filename = argv[1]
-        result = parser.parse_file(filename, debug = False)
-        return result
+    result = parser.parse_file(filename, debug = False)
+    return result
 
 
 if __name__=="__main__":
     main()
-

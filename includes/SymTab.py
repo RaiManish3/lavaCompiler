@@ -157,4 +157,4 @@ tmpCount = 0
 def newTemp(ltype):
     global tmpCount
     tmpCount += 1
-    return VarType('`t' + str(tmpCount-1), None, ltype)
+    return VarType('$t' + str(tmpCount-1), None, ltype)

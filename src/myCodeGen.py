@@ -117,12 +117,14 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
     # NOTE CHECK WHETHER IN THIS IF, THERE SHOULD BE USE OF flag_isMoveYtoX OR NOT
     if opInstr in relOp:
         if Y not in symlist:
-            regy = getRegWithContraints(0,reg,None,lineno)
+            regy = getRegWithContraints(0, reg, None, lineno)
             assemblyCode+="  mov "+regy+", "+Y+"\n"
         elif addressDescriptor[Y] == "mem" and addressDescriptor[Z] == "mem":
             regy = getRegWithContraints(0,reg,None,lineno)
             assemblyCode+="  mov "+regy+", dword ["+Y.name+"]\n"
             associate(Y, regy)
+        else:
+            regy=addressDescriptor[Y]
 
         assemblyCode += "  xor " + reg + ", " + reg + "\n"
         assemblyCode += "  cmp " + regy +", " + name(Z) + "\n"
@@ -779,7 +781,7 @@ def getFilename():
     args = argParser.parse_args()
     return args.filename
 
-def main(irCode=None):
+def main(filename, irCode=None):
     global varlist, symlist, assemblyCode, translatingMainFlag, dirtybit
 
     if irCode:
@@ -833,20 +835,19 @@ def main(irCode=None):
         assemblyCode=""
 
     x86c = top_section + data_section + bss_section + text_section
-    print(x86c)
 
     ## saving to file
-    """
     try:
         directory="asm/"
         if not os.path.exists(directory):
             os.makedirs(directory)
-        with open(directory + filename[5:-3]+".s",'w') as f:
+        with open(directory + filename[5:-4]+".s",'w') as f:
             f.write(x86c)
     except:
         print("Cannot write to file!")
         exit(1)
-    """
+
+    return x86c
 
 
 if __name__ == "__main__":
