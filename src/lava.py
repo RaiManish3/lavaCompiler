@@ -8,6 +8,7 @@ from src import myParser, myCodeGen
 
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
+stManager = SymTab.TableManager()
 
 def handle_errors(argv):
     if len(argv) == 2:
@@ -29,10 +30,15 @@ def printIR(irList):
 def main():
     handle_errors(argv)
     filename = argv[1]
-    irList = myParser.main(filename)['code']
-    asmCode = myCodeGen.main(filename, irList)
-    #  printIR(irList)
-    #  print(asmCode)
+    irList = myParser.main(filename,stManager)['code']
+    asmCode = myCodeGen.main(filename, irList,stManager)
+    print("## IR code #===============================")
+    printIR(irList)
+    print("## IR code #===============================")
+    print()
+    print("## ASM code #===============================")
+    print(asmCode)
+    print("## ASM code #===============================")
 
 if __name__ == '__main__':
     main()

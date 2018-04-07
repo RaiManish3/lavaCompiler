@@ -29,8 +29,8 @@ expTypeMap = {
     , 'LE': ('int', 'boolean')
     , 'GT': ('int', 'boolean')
     , 'GE': ('int', 'boolean')
-    , 'EQEQ': ('int', 'real', 'String', 'boolean')
-    , 'NTEQ': ('int', 'real', 'String', 'boolean')
+    , 'EQEQ': ('int', 'real', 'String', 'boolean','boolean')
+    , 'NTEQ': ('int', 'real', 'String', 'boolean','boolean')
     , 'AND': ('boolean', 'boolean')
     , 'OR': ('boolean', 'boolean')
     , 'BIT_OR': ('int', 'int')
@@ -156,7 +156,6 @@ class MyParser(TypeSystem):
     def __init__(self, lexer):
         TypeSystem.__init__(self)
         self.lexer = lex.lex(module=MyLexer())
-        self.stManager = SymTab.TableManager()
         self.recentType = None ## for handling the case int a, b = a;
 
     ## Helper functions =========================================================
@@ -173,12 +172,12 @@ class MyParser(TypeSystem):
 
     def mallocInLoop(self, arr, plist, alloc_size):
         malloc_code=[]
-        tmp=SymTab.newTemp(str(arr.type)[:len(str(arr.type))-2])
-        i=SymTab.newTemp('int')
-        loop_block=self.stManager.newLabel()
-        after_block=self.stManager.newLabel()
+        tmp=stManager.newTemp(str(arr.type)[:len(str(arr.type))-2])
+        i=stManager.newTemp('int')
+        loop_block=stManager.newLabel()
+        after_block=stManager.newLabel()
 
-        size = SymTab.newTemp('int')
+        size = stManager.newTemp('int')
         malloc_code += self.gen("*",size,plist[0],alloc_size)
 
         malloc_code += self.gen("=",i,'0')
@@ -221,7 +220,7 @@ class MyParser(TypeSystem):
                               | CLASS IDENTIFIER seen_class_decl2 BEGIN class_body_declarations END
         '''
         self.printParseTree(p)
-        self.stManager.endScope()
+        stManager.endScope()
         ## TODO: OOP CONCEPT TO BE IMPLEMENTED:
         if len(p)==9:
             p[0]=p[7]
@@ -237,7 +236,7 @@ class MyParser(TypeSystem):
               'name':p[-3]
             , 'interfaces':p[-1]
         }
-        self.stManager.beginScope(SymTab.Category.Class, cattr)
+        stManager.beginScope(SymTab.Category.Class, cattr)
 
     def p_seen_class_decl2(self,p):
         '''
@@ -248,7 +247,7 @@ class MyParser(TypeSystem):
               'name':p[-1]
             , 'interfaces':[]
         }
-        self.stManager.beginScope(SymTab.Category.Class, cattr)
+        stManager.beginScope(SymTab.Category.Class, cattr)
 
 
     def p_interface_type_list(self, p):
@@ -301,7 +300,7 @@ class MyParser(TypeSystem):
             constructor_declaration : FUNCTION constructor_declarator constructor_body
         '''
         self.printParseTree(p)
-        self.stManager.endScope()
+        stManager.endScope()
         ## TODO: THIS IS AN OOP CONCEPT HANDLER IT, WHILE MAKING OBJECT
         p[0] = {
             'code':p[3]['code']
@@ -314,20 +313,20 @@ class MyParser(TypeSystem):
         '''
         self.printParseTree(p)
         if len(p) == 6:
-            self.stManager.currentTable.attr['args_types'] = p[4]
+            stManager.currentTable.attr['args_types'] = p[4]
 
     def p_seen_cons_name(self, p):
         '''
             seen_cons_name :
         '''
         ## check if the constructor name matches the class name
-        if p[-1] != self.stManager.currentTable.attr['name']:
-            self.printError('ConsNameError', self.stManager.currentTable.attr['name'], None)
+        if p[-1] != stManager.currentTable.attr['name']:
+            self.printError('ConsNameError', stManager.currentTable.attr['name'], None)
         mAttr = {
               'name': p[-1]
             , 'args_types': []
         }
-        self.stManager.beginScope(SymTab.Category.Function, mAttr)
+        stManager.beginScope(SymTab.Category.Function, mAttr)
 
 
     def p_constructor_body(self, p):
@@ -412,17 +411,17 @@ class MyParser(TypeSystem):
         self.printParseTree(p)
         if str(p.slice[1]) == 'variable_declarator_id':
             #TODO
-            symEntry = self.stManager.currentTable.lookup(p[1].name) ## would return a varType
+            symEntry = stManager.currentTable.lookup(p[1].xname) ## would return a varType
             symEntry.updateCategory('ARRAY')
             symEntry.updateType(symEntry.type + "[]")
             p[0] = symEntry
         else:
             ## check for re-declaration of a variable
             idVal = p.slice[1].value
-            checkReInitial = self.stManager.currentTable.lookup(idVal)
+            checkReInitial = stManager.currentTable.lookup(idVal)
             if checkReInitial != None:
                 self.printError("ReDeclare", idVal, p.lexer.lineno)
-            p[0] = self.stManager.insert(idVal, self.recentType, 'SIMPLE')
+            p[0] = stManager.insert(idVal, self.recentType, 'SIMPLE')
 
     def p_variable_initializer(self, p):
         '''
@@ -444,7 +443,7 @@ class MyParser(TypeSystem):
                 alloc_size=size*4
             else:
                 alloc_size=size*SymTab.typeSizeMap[p[1][0]['type']]
-            tmp=SymTab.newTemp(p[1][0]['type']+'[]')
+            tmp=stManager.newTemp(p[1][0]['type']+'[]')
             code=self.gen('malloc',tmp,alloc_size)
             count=0
             for l in p[1]:
@@ -460,7 +459,7 @@ class MyParser(TypeSystem):
             xType = p[1][4:].lower()
             if xType == 'string':
                 xType = 'String'
-            temp = SymTab.newTemp(xType)
+            temp = stManager.newTemp(xType)
             p[0] = {
                   'place': temp
                 , 'type': xType
@@ -510,7 +509,7 @@ class MyParser(TypeSystem):
         '''
         self.printParseTree(p)
         if len(p) == 3:
-            curFunction = self.stManager.currentTable.attr['name']
+            curFunction = stManager.currentTable.attr['name']
             xCode = p[2]['code']
 
             ## return statement check
@@ -521,12 +520,14 @@ class MyParser(TypeSystem):
                 self.printError("ReturnError", curFunction, None)
 
             p[0] = {
-                'code' : self.gen("function", curFunction) +
+                'code' : self.gen("function", curFunction) + self.gen('subesp',stManager.currentTable.offset)+
                          xCode
             }
         else:
             p[0] = {'code':[]}
-        self.stManager.endScope()
+        #NOTE BETA PHASE
+        #p[0]=self.gen('addebp',stManager.currentTable.offset)+p[0]['code']
+        stManager.endScope()
 
     def p_method_header(self, p):
         '''
@@ -553,11 +554,11 @@ class MyParser(TypeSystem):
         '''
         self.printParseTree(p)
         if len(p) == 6:
-            self.stManager.currentTable.attr['args_types'] = p[4]
+            stManager.currentTable.attr['args_types'] = p[4]
         if p[2] != None:
             symEntryDecl = p[2][0]
             ## case of declaration defined before definition of function
-            if symEntryDecl['type'] == self.stManager.currentTable.attr['type'] and symEntryDecl['args_types'] == self.stManager.currentTable.attr['args_types']:
+            if symEntryDecl.attr['type'] == stManager.currentTable.attr['type'] and symEntryDecl.attr['args_types'] == stManager.currentTable.attr['args_types']:
                 pass
             else:
                 self.printError("BadDeclare", symEntryDecl.attr['name'][1:], p[2][1])
@@ -566,8 +567,8 @@ class MyParser(TypeSystem):
         '''
             seen_method_name :
         '''
-        symEntry = self.stManager.currentTable.lookup(p[-1])
-        symEntryDecl = self.stManager.currentTable.lookup("`"+p[-1])
+        symEntry = stManager.currentTable.lookup(p[-1])
+        symEntryDecl = stManager.currentTable.lookup("`"+p[-1])
 
         if p[-4] == 'declare':
             ## check if it not a re-declaration
@@ -594,7 +595,7 @@ class MyParser(TypeSystem):
                 ,'name':p[-1]
                 ,'args_types':[]
             }
-        self.stManager.beginScope(SymTab.Category.Function, mAttr)
+        stManager.beginScope(SymTab.Category.Function, mAttr)
 
 
     def p_method_body(self, p):
@@ -615,20 +616,20 @@ class MyParser(TypeSystem):
         '''
             interface_declaration : INTERFACE IDENTIFIER seen_interface_name interface_body
         '''
-        self.stManager.endScope()
+        stManager.endScope()
         self.printParseTree(p)
 
     def p_seen_interface_name(self, p):
         '''
             seen_interface_name :
         '''
-        symEntry = self.stManager.lookup(p[-1])
+        symEntry = stManager.lookup(p[-1])
         if symEntry != None:
             self.printError("ReDeclare", symEntry.attr['name'], p.lexer.lineno)
         iAttr = {
               'name': p[-1]
         }
-        self.stManager.beginScope(SymTab.Category.Interface, iAttr)
+        stManager.beginScope(SymTab.Category.Interface, iAttr)
 
     def p_interface_body(self, p):
         '''
@@ -789,12 +790,12 @@ class MyParser(TypeSystem):
         '''
             seenif_for_while :
         '''
-        self.stManager.beginScope(SymTab.Category.Block, {'name':p[-1]})
+        stManager.beginScope(SymTab.Category.Block, {'name':p[-1]})
         if str(p[-1]) != 'if':
-            update_block=self.stManager.newLabel()
-            after_block=self.stManager.newLabel()
-            self.stManager.insert('`update_block',update_block,None)
-            self.stManager.insert('`after_block',after_block,None)
+            update_block=stManager.newLabel()
+            after_block=stManager.newLabel()
+            stManager.insert('`update_block',update_block,None)
+            stManager.insert('`after_block',after_block,None)
 
     def p_if_then_else_statement(self, p):
         '''
@@ -810,45 +811,45 @@ class MyParser(TypeSystem):
             self.printError("TypeError", p.lexer.lineno)
 
         if len(p) == 11:
-            false_block=self.stManager.newLabel()
-            after_block=self.stManager.newLabel()
+            false_block=stManager.newLabel()
+            after_block=stManager.newLabel()
             tstr += p[4]['code']
-            tstr += self.gen('ifgoto','==',p[4]['place'],'false',false_block)
+            tstr += self.gen('ifgoto','==',p[4]['place'],'0',false_block)
             tstr += p[7]['code']
             tstr += self.gen('goto',after_block)
             tstr += self.gen("label", false_block)
             tstr += p[9]['code']
             tstr += self.gen("label", after_block)
         else:
-            after_block=self.stManager.newLabel()
+            after_block=stManager.newLabel()
             tstr += p[4]['code']
-            tstr += self.gen('ifgoto','==',p[4]['place'],'false',after_block)
+            tstr += self.gen('ifgoto','==',p[4]['place'],'0',after_block)
             tstr += p[7]['code']
             tstr += self.gen("label", after_block)
 
         p[0]['code']=p[0]['code']+tstr
-        self.stManager.endScope()
+        stManager.endScope()
 
     def p_while_statement(self, p):
         '''
             while_statement : WHILE seenif_for_while LPAREN expression RPAREN block
         '''
         self.printParseTree(p)
-        update_block = self.stManager.lookup('`update_block').type
+        update_block = stManager.lookup('`update_block').type
         loop_block = update_block
-        after_block = self.stManager.lookup('`after_block').type
+        after_block = stManager.lookup('`after_block').type
 
         if p[4]['type']!='boolean':
             self.printError("TypeError", p.lexer.lineno)
 
         tstr = self.gen("label", loop_block)
         tstr += p[4]['code']
-        tstr += self.gen('ifgoto','==',p[4]['place'],'false',after_block)
+        tstr += self.gen('ifgoto','==',p[4]['place'],'0',after_block)
         tstr += p[6]['code']
         tstr += self.gen('goto',loop_block)
         tstr += self.gen("label", after_block)
         p[0]={'code':tstr};
-        self.stManager.endScope()
+        stManager.endScope()
 
     def p_for_statement(self, p):
         '''
@@ -856,9 +857,9 @@ class MyParser(TypeSystem):
                           | FOR seenif_for_while LPAREN for_init STMT_TERMINATOR STMT_TERMINATOR for_update RPAREN block
         '''
         self.printParseTree(p)
-        update_block = self.stManager.lookup('`update_block').type
-        after_block = self.stManager.lookup('`after_block').type
-        loop_block = self.stManager.newLabel()
+        update_block = stManager.lookup('`update_block').type
+        after_block = stManager.lookup('`after_block').type
+        loop_block = stManager.newLabel()
         p[0]={'code':[]}
         tstr=[]
         if len(p)==11:
@@ -869,15 +870,15 @@ class MyParser(TypeSystem):
             tstr += p[4]['code']
             tstr += self.gen("label", loop_block)
             tstr += p[6]['code']
-            tstr += self.gen('ifgoto','==',p[6]['place'],'false',after_block)
+            tstr += self.gen('ifgoto','==',p[6]['place'],'0',after_block)
             tstr += p[10]['code']
             tstr += self.gen("label", update_block)
             tstr += p[8]['code']
             tstr += self.gen('goto',loop_block)
             tstr += self.gen("label", after_block)
         else:
-            after_block=self.stManager.newLabel()
-            loop_block=self.stManager.newLabel()
+            after_block=stManager.newLabel()
+            loop_block=stManager.newLabel()
             tstr += p[4]['code']
             tstr += self.gen("label", loop_block)
             tstr += p[9]['code']
@@ -886,7 +887,7 @@ class MyParser(TypeSystem):
             tstr += self.gen('goto',loop_block)
             tstr += self.gen("label", after_block)
         p[0]['code']=tstr
-        self.stManager.endScope()
+        stManager.endScope()
 
     def p_statement_expressions(self, p):
         '''
@@ -927,7 +928,7 @@ class MyParser(TypeSystem):
         self.printParseTree(p)
         #TODO LOOK AT #TODO OF FOR LOOP
         p[0]={
-            'code':self.gen('goto',self.stManager.lookup('`after_block').type)
+            'code':self.gen('goto',stManager.lookup('`after_block').type)
         }
 
     def p_continue_statement(self, p):
@@ -936,7 +937,7 @@ class MyParser(TypeSystem):
         '''
         self.printParseTree(p)
         p[0] = {
-            'code':self.gen('goto',self.stManager.lookup('`update_block').type)
+            'code':self.gen('goto',stManager.lookup('`update_block').type)
         }
         #TODO LOOK AT #TODO OF FOR LOOP
 
@@ -949,14 +950,14 @@ class MyParser(TypeSystem):
         ## check for return type of the statement to be same as the
         ## the method return type
         if len(p) == 3:
-            retX = self.returnTypeCheck('void', self.stManager.currentTable)
+            retX = self.returnTypeCheck('void', stManager.currentTable)
             if not retX:
                 self.printError("ReturnType", p.lexer.lineno)
             p[0] = {
                 'code' : self.gen("return")
             }
         else:
-            retX = self.returnTypeCheck(p[2]['type'], self.stManager.currentTable)
+            retX = self.returnTypeCheck(p[2]['type'], stManager.currentTable)
             if not retX:
                 self.printError("ReturnType", p.lexer.lineno)
             p[0] = {
@@ -1009,7 +1010,7 @@ class MyParser(TypeSystem):
         elif len(p) == 4:
             res = self.typeHandler(p[1], p[3], p.slice[2].type, p.lexer.lineno)
             if p[-1] != '=':
-                temp = SymTab.newTemp(res['type'])
+                temp = stManager.newTemp(res['type'])
                 p[0] = {
                      'place': temp
                     ,'type': res['type']
@@ -1028,10 +1029,10 @@ class MyParser(TypeSystem):
             #TODO, problem of readarray writearray type mismatch is still there
 
             if p.slice[2].type =='OR':
-                before_next_exp = self.stManager.newLabel()
-                after_next_exp = self.stManager.newLabel()
-                p[0]['code']= p[1]['code']+self.gen('ifgoto','==',res['value1'],'false',before_next_exp)
-                p[0]['code']+= self.gen('=',p[0]['place'],'true')
+                before_next_exp = stManager.newLabel()
+                after_next_exp = stManager.newLabel()
+                p[0]['code']= p[1]['code']+self.gen('ifgoto','==',res['value1'],'0',before_next_exp)
+                p[0]['code']+= self.gen('=',p[0]['place'],'1')
                 p[0]['code']+= self.gen('goto',after_next_exp)
                 p[0]['code']+= self.gen("label", before_next_exp)
                 p[0]['code']+= p[3]['code']
@@ -1039,11 +1040,11 @@ class MyParser(TypeSystem):
                 p[0]['code']+= self.gen("label", after_next_exp)
 
             elif p.slice[2].type =='AND':
-                before_next_exp = self.stManager.newLabel()
-                after_next_exp = self.stManager.newLabel()
+                before_next_exp = stManager.newLabel()
+                after_next_exp = stManager.newLabel()
                 p[0]['code'] = p[1]['code'] + \
-                    self.gen('ifgoto','==',res['value1'],'true', before_next_exp)
-                p[0]['code']+= self.gen('=',p[0]['place'],'false')
+                    self.gen('ifgoto','==',res['value1'],'1', before_next_exp)
+                p[0]['code']+= self.gen('=',p[0]['place'],'0')
                 p[0]['code']+= self.gen('goto',after_next_exp)
                 p[0]['code']+= self.gen("label", before_next_exp)
                 p[0]['code']+= p[3]['code']
@@ -1053,9 +1054,9 @@ class MyParser(TypeSystem):
         elif len(p) == 3:
             ## case of unaryop
             res = self.typeHandler(p[2], None, p.slice[1].type, p.lexer.lineno)
-            temp = SymTab.newTemp(res['type'])
+            temp = stManager.newTemp(res['type'])
             if p[-1]!='=':
-                temp = SymTab.newTemp(res['type'])
+                temp = stManager.newTemp(res['type'])
                 p[0] = {
                      'place': temp
                     ,'type': res['type']
@@ -1073,7 +1074,7 @@ class MyParser(TypeSystem):
                 if 'specialForArrayWrite' in p[1].keys():
                     p[0] = p[1]
                     xKey = p[1]['specialForArrayWrite']
-                    tmpk = SymTab.newTemp(str(xKey['place'].type)[:len(str(xKey['place'].type))-2])
+                    tmpk = stManager.newTemp(str(xKey['place'].type)[:len(str(xKey['place'].type))-2])
                     p[0]['code'] = p[0]['code'] + self.gen("readarray"
                                             ,p[1]['specialForArrayWrite']['place']
                                             ,p[1]['specialForArrayWrite']['index']
@@ -1091,7 +1092,7 @@ class MyParser(TypeSystem):
 
         else:
             ## case of IDENTIFIER
-            symEntry = self.stManager.lookup(p.slice[1].value)
+            symEntry = stManager.lookup(p.slice[1].value)
             if symEntry == None:
                 self.printError("VariableNotDeclared", p.slice[1].value, p.lexer.lineno)
             p[0] = {
@@ -1162,7 +1163,7 @@ class MyParser(TypeSystem):
         elif x == 'array_access':
             p[0] = p[1]
         else:
-            symEntry = self.stManager.lookup(p.slice[1].value)
+            symEntry = stManager.lookup(p.slice[1].value)
             if symEntry == None:
                 self.printError('VariableNotDeclared', p[1], p.lexer.lineno)
             p[0] = symEntry
@@ -1182,10 +1183,10 @@ class MyParser(TypeSystem):
             pass
         else:
             funcID = p.slice[1].value
-            symEntry = self.stManager.lookup(funcID)
+            symEntry = stManager.lookup(funcID)
 
             if symEntry==None:
-                symEntry = self.stManager.lookup('`'+funcID)
+                symEntry = stManager.lookup('`'+funcID)
                 if symEntry == None:
                     self.printError("FunctionNotDeclared", funcID, p.lexer.lineno)
                 else:
@@ -1201,7 +1202,7 @@ class MyParser(TypeSystem):
                 if argsTypes != symEntry.attr['args_types']:
                     self.printError('ParamError',p.slice[1].value, p.lexer.lineno)
 
-            temp = SymTab.newTemp(symEntry.attr['type'])
+            temp = stManager.newTemp(symEntry.attr['type'])
             param_code=p[3]['code']
             for k in p[3]['place']:
                 param_code+=self.gen("param", k)
@@ -1330,12 +1331,12 @@ class MyParser(TypeSystem):
                     malloc_code = []
                     tmp = None
                     if (a.type)[:pos] != "String":
-                            size = SymTab.newTemp('int')
+                            size = stManager.newTemp('int')
                             malloc_code += self.gen("*", size, p[3]['place'][0], SymTab.typeSizeMap[str(a.type[:pos])])
                             if access_code==[]:
                                 malloc_code += self.gen("malloc",a,size)
                             else:
-                                tmp = SymTab.newTemp(str(a.type)[:len(str(a.type))-2])
+                                tmp = stManager.newTemp(str(a.type)[:len(str(a.type))-2])
                                 malloc_code += self.gen("malloc", tmp, size)
                             if len(p[3]['place'])>1:
                                 malloc_code += self.mallocInLoop(a, p[3]['place'][1:], SymTab.typeSizeMap[str(a.type[:pos])])
@@ -1409,7 +1410,7 @@ class MyParser(TypeSystem):
 
         elif xRule == 'primary_no_new_array':
             arr=p[1]['place']
-            tmp=SymTab.newTemp(str(arr.type)[:len(str(arr.type))-2])
+            tmp=stManager.newTemp(str(arr.type)[:len(str(arr.type))-2])
             p[0]={
                 'type':str(arr.type)[:len(str(arr.type))-2]
                 ,'place':tmp
@@ -1425,9 +1426,9 @@ class MyParser(TypeSystem):
         else:
             ## IDENTIFIER [exp] case
             ## TODO WORKOUT IN CODEGEN AS NOW INDEX CAN ALSO BE SYMBOL TALBE ENTRIES
-            arr = self.stManager.lookup(p[1])
+            arr = stManager.lookup(p[1])
             typ = str(arr.type)[:len(str(arr.type))-2]
-            tmp = SymTab.newTemp(typ)
+            tmp = stManager.newTemp(typ)
             p[0]= {
                 'type':typ
                 ,'place':tmp
@@ -1491,15 +1492,23 @@ class MyParser(TypeSystem):
             }
 
         elif tp == 'BOOLEAN_LITERAL':
-            p[0]={
-                  'type': 'boolean'
-                , 'place': p.slice[1].value
-                , 'code': []
-            }
+            if p.slice[1].value=='true':
+                p[0]={
+                      'type': 'boolean'
+                    , 'place': '1'
+                    , 'code': []
+                }
+            else:
+                p[0]={
+                      'type': 'boolean'
+                    , 'place': '0'
+                    , 'code': []
+                }
+
 
         elif tp == 'STRING_LITERAL':
             code=[]
-            tmp=SymTab.newTemp('String')
+            tmp=stManager.newTemp('String')
             strk=p.slice[1].value[1:-1]
             code+=self.gen('malloc',tmp,len(strk)+1)
             #TODO in CODEGEN
@@ -1566,9 +1575,10 @@ class Parser(object):
         return parse_ret
 
 
-def main(fName):
+def main(fName, stM):
     # initialize Parser
-    global filename
+    global filename, stManager
+    stManager=stM
     filename = fName
     parser = Parser()
     result = parser.parse_file(filename, debug = False)

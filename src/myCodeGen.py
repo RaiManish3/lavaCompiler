@@ -119,6 +119,13 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
         if Y not in symlist:
             regy = getRegWithContraints(0, reg, None, lineno)
             assemblyCode+="  mov "+regy+", "+Y+"\n"
+        elif addressDescriptor[Y] == "mem" and Z not in symlist:
+            regy=getRegWithContraints(nextUseTable[lineno][Y][1]+1,reg,None,lineno)
+            if regy==None:
+                regy= "dword ["+Y.name+"]"
+            else:
+                assemblyCode +="  mov "+regy+", "+name(Y)+"\n"
+                associate(Y, regy)
         elif addressDescriptor[Y] == "mem" and addressDescriptor[Z] == "mem":
             regy = getRegWithContraints(0,reg,None,lineno)
             assemblyCode+="  mov "+regy+", dword ["+Y.name+"]\n"
@@ -353,6 +360,9 @@ def translate(ir):
     if op == "label":
         assemblyCode += ir[2] + ":\n";
 
+    if op == "subesp":
+        assemblyCode+= "  sub esp, "+str(ir[2])+"\n"
+
     if op == "param":
         #THIS CAN BE OPTIMIZE
         assemblyCode += "  push " + name(ir[2]) + "\n"
@@ -512,7 +522,9 @@ def translate(ir):
     if op == "return":
         dumpAllRegToMem()
         if len(ir) > 2:
-            if addressDescriptor[ir[2]]=="mem":
+            if ir[2] not in symlist:
+                assemblyCode+="  mov eax, "+str(ir[2])+"\n"
+            elif addressDescriptor[ir[2]]=="mem":
                 assemblyCode += "  mov eax, " + name(ir[2]) + "\n"
             else:
                 if addressDescriptor[ir[2]]!="eax":
@@ -771,9 +783,10 @@ def populateIR(filename):
         exit(1)
 
 def populateIR2(data):
-    i = 1
+    i=1
     for d in data:
-        irlist.append([1]+d)
+        irlist.append([i]+d)
+        i+=1
 
 def getFilename():
     argParser = argparse.ArgumentParser(description='Provide the IR code filename')
@@ -781,8 +794,10 @@ def getFilename():
     args = argParser.parse_args()
     return args.filename
 
-def main(filename, irCode=None):
-    global varlist, symlist, assemblyCode, translatingMainFlag, dirtybit
+def main(filename, irCode=None,stM=None):
+    global varlist, symlist, assemblyCode, translatingMainFlag, dirtybit, stManager
+
+    stManager=stM
 
     if irCode:
         populateIR2(irCode)
@@ -796,21 +811,26 @@ def main(filename, irCode=None):
         addressDescriptor[s]='mem'  ## initially no variable is loaded in any register
 
     findLeaders()
+    print(leaders)
     genBlocks()
     populateNextUseTable()
 
     top_section = "global main\nextern printf\nextern scanf\n\n"
     data_section = "segment .data\n\n" + "debug dd `Output :: %i\\n`\n" + "readInt dd `%d`\n"
+
+    """
     for var in varlist:
         if var not in arraylist:
             data_section += str(var) + "  dd  " + "0\n"
         else:
             data_section += str(var) + " times 100 dd  0\n"
 
+    """
     bss_section = "\n"
     text_section = "segment .text\n\n"
 
     for lead,block in blocks.items():
+        print("--->"+str(block));
         if block[0][1] == 'function':
             text_section += '\n'
             translatingMainFlag = False
@@ -852,4 +872,3 @@ def main(filename, irCode=None):
 
 if __name__ == "__main__":
     main()
-
