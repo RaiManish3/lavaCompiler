@@ -181,7 +181,7 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
 
     if Z in symlist and addressDescriptor[Z]!="mem":
         if nextUseTable[lineno][Z][0]==utility.stat.LIVE and nextUseTable[lineno][Z][1]==Decimal('inf'):
-            if Z.scope == 'Global':
+            if True:#Z.scope == 'Global':
                 if dirtybit[Z]:
                     dirtybit[Z]=False
                     assemblyCode += "  mov dword [" + Z.name + "], " + addressDescriptor[Z] + "\n"
@@ -216,7 +216,7 @@ def remReg(X):
 
 def name(X):
     if X not in symlist:
-        return X
+        return str(X)
     if addressDescriptor[X]!="mem":
         return addressDescriptor[X]
     return "dword ["+X.name+"]"
@@ -317,6 +317,8 @@ def translateMulDiv(op,X,Y,Z,lineno):
         if Z not in symlist or addressDescriptor[Z]=="mem":
             regz=getRegWithContraints(0,'eax','edx',lineno)
             if regz!=None:
+                print(regz)
+                print(name(Z))
                 assemblyCode+="  mov "+regz+", "+name(Z)+"\n"
                 if Z in symlist:
                     associate(Z,regz)
@@ -362,6 +364,10 @@ def translate(ir):
 
     if op == "subesp":
         assemblyCode+= "  sub esp, "+str(ir[2])+"\n"
+
+    if op =="malloc":
+        assemblyCode+="  sub esp, "+name(ir[3])+"\n"
+        assemblyCode+="  mov "+ name(ir[2])+", esp\n"
 
     if op == "param":
         #THIS CAN BE OPTIMIZE
@@ -474,7 +480,7 @@ def translate(ir):
                 regtemp=getRegWithContraints(0,addressDescriptor[ir[3]],None,lineno)
             assemblyCode+="  mov "+regtemp+", "+name(ir[3])+"\n"
             assemblyCode+="  shl "+regtemp +", 2\n"
-        assemblyCode+="  add "+regtemp+", "+arr.name+"\n"
+        assemblyCode+="  add "+regtemp+", "+name(arr)+"\n"
 
         if op =="readarray":
             assemblyCode+="  mov "+regtemp+", dword [" +regtemp +"]\n"
@@ -484,7 +490,12 @@ def translate(ir):
             dirtybit[ir[4]]=True
         elif op =="writearray":
             OptimizeForYandZ(lineno,None,None,ir[4],None)
-            assemblyCode+="  mov dword ["+regtemp+"], " +name(ir[4]) +"\n"
+            if ir[4] not in symlist or addressDescriptor[ir[4]]!="mem":
+                assemblyCode+="  mov dword ["+regtemp+"], " +name(ir[4]) +"\n"
+            else:
+                regtemp2=getRegWithContraints(0,regtemp,None,lineno)
+                assemblyCode+="  mov dword "+regtemp2+", "+name(ir[4])+"\n"
+                assemblyCode+="  mov dword ["+regtemp+"], "+ regtemp2+"\n"
 
     if lineno+1 in leaders or lineno== len(irlist):
         dumpAllRegToMem()

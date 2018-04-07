@@ -166,7 +166,7 @@ class MyParser(TypeSystem):
         return [strx]
 
     def printParseTree(self, p):
-        flag = False
+        flag = True
         if flag:
             print(p.slice)
 
@@ -989,20 +989,31 @@ class MyParser(TypeSystem):
                        | primary
                        | identifier_name_with_dot
                        | IDENTIFIER
-
         '''
+
         #NOTE, FOR EVERY CASE check if p[-1] is NOT NOne, if so, then choose p[-2] as E['place']
         self.printParseTree(p)
         p1 = str(p.slice[1])
 
         if p1 == 'primary':
-            if p[-1]=='=' and p[1]['place']!=p[-2]:
-                p[0] = {
-                     'place': p[-2]
-                    ,'type': p[-2].type
-                    ,'code': p[1]['code'] + self.gen('=', p[-2], p[1]['place'])
-                    ,'doInitialization':False
-                }
+            if p[-1]=='=' and p[1]['place']!=None and p[1]['place']!=p[-2]:
+                print(p[-2])
+                if type(p[-2])==dict:
+                    p[0]=p[1]
+                    # assert(False)
+                    # p[0] = {
+                    #      'place': P
+                    #     ,'type': p[-2]['specialForArrayWrite']['place'].type[:-2]
+                    #     ,'code': p[-2]['specialForArrayWrite']['code']+p[1]['code']+self.gen("writearray",p[-2]['specialForArrayWrite']['place'],p[-2]['specialForArrayWrite']['index'],p[1]['place'])
+                    #     ,'doInitialization':False
+                    # }
+                else:
+                    p[0] = {
+                         'place': p[-2]
+                        ,'type': p[-2].type
+                        ,'code': p[1]['code']+self.gen('=', p[-2], p[1]['place'])
+                    #    ,'doInitialization':False
+                    }
             else:
                 p[0] = p[1]
             assert (p[1]!=None), "Code not implemented for {}".format(p.slice[1])
@@ -1132,17 +1143,27 @@ class MyParser(TypeSystem):
                 }
         else:
             ## TODO, THIS MUST ONLY BE FOR ARRAYS
-            p[0] = {
-                  'place': p[1]['place']
-                , 'type': p[1]['place'].type
-                , 'code': p[1]['specialForArrayWrite']['code'] +
-                          p[3]['code'] +
-                          self.gen('writearray'
-                                   ,p[1]['specialForArrayWrite']['place']
-                                   ,p[1]['specialForArrayWrite']['index']
-                                   ,p[3]['place'])
-                , 'specialForArrayWrite': p[1]['specialForArrayWrite']
-            }
+            if p[3]['place']!=None:
+                p[0] = {
+                      'place': p[1]['place']
+                    , 'type': p[1]['place'].type
+                    , 'code': p[1]['specialForArrayWrite']['code'] +
+                              p[3]['code'] +
+                              self.gen('writearray'
+                                       ,p[1]['specialForArrayWrite']['place']
+                                       ,p[1]['specialForArrayWrite']['index']
+                                       ,p[3]['place'])
+                    , 'specialForArrayWrite': p[1]['specialForArrayWrite']
+                }
+            else:
+                p[0] = {
+                      'place': p[1]['place']
+                    , 'type': p[1]['place'].type
+                    , 'code': p[1]['specialForArrayWrite']['code'] +
+                              p[3]['code']
+                    , 'specialForArrayWrite': p[1]['specialForArrayWrite']
+                }
+
 
     def p_left_hand_side(self, p):
         '''
@@ -1173,7 +1194,6 @@ class MyParser(TypeSystem):
             method_invocation : identifier_name_with_dot LPAREN argument_list RPAREN
                               | IDENTIFIER LPAREN argument_list RPAREN
                               | field_access LPAREN argument_list RPAREN
-
         '''
         self.printParseTree(p)
         xRule = str(p.slice[1])
@@ -1290,6 +1310,7 @@ class MyParser(TypeSystem):
         p[0] = {'type':[]}
 
         if str(p[-1]) == '=':
+            writearray=False
             ## TODO type match checking and dimension match checking
             if isinstance(p[-2], SymTab.VarType):
                 access_code = []
@@ -1299,6 +1320,7 @@ class MyParser(TypeSystem):
                 a = p[-2]['specialForArrayWrite']['place']
                 access_code = p[-2]['specialForArrayWrite']['code']
                 index = p[-2]['specialForArrayWrite']['index']
+                writearray=True
             else:
                 assert(False)
 
@@ -1311,15 +1333,20 @@ class MyParser(TypeSystem):
             if access_code != []:
                 ndims-=1
 
-            if p[3]['count'] + p[4] != ndims:
-                self.printError('DimsNotMatch', p.lexer.lineno)
+            if writearray==False:
+                if p[3]['count'] + p[4] != ndims:
+                    self.printError('DimsNotMatch', p.lexer.lineno)
+            else:
+                if p[3]['count'] + p[4] != ndims-1:
+                    self.printError('DimsNotMatch', p.lexer.lineno)
+
 
             ## TODO, GENERATE IR MEM ALLOCATION FOR ARRAYS' like "malloc, a, <size in bytes>"
             if str(p.slice[2]) == "primitive_type":
                 if (a.type)[:pos] != p.slice[2].value:
                     self.printError('TypeError', p.lexer.lineno)
 
-                else:
+                if True:
                     ## NOTE, ARRAY IS IMPLEMENTED AS LINKED LIST
                     ## EX. int a[][][]=new int [2][3][];
                     ## then Malloc has reserved 2*3=6 space for elements of type int[],

@@ -169,9 +169,13 @@ class TableManager(object):
             print("="*50)
 
 
-    def newTemp(self,   ltype):
+    def newTemp(self,ltype):
         self.tmpCount += 1
-        size = typeSizeMap[ltype]
+        size=None
+        if "[]" in ltype:
+            size=typeSizeMap[ltype[:str(ltype).find("[]")]]
+        else:
+            size = typeSizeMap[ltype]
         tmp=self.currentTable
         #CHECK WHETHER THIS IS CORRECT
         while(tmp.category==Category.Block):
