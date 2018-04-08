@@ -4,7 +4,7 @@ ASMCODE="${INPUTFILENAME%.*}"
 
 python src/lava.py $1 &&
 mkdir -p $asm &&
-nasm -f elf32 -g "${asm}$ASMCODE.s" &&
+nasm -f elf32 -F dwarf -l "${asm}/t.lst" -g "${asm}$ASMCODE.s" &&
 gcc -m32 "${asm}$ASMCODE.o" -o "${asm}a.out" &&
 ${asm}a.out &&
 rm "${asm}a.out" "${asm}$ASMCODE.o"

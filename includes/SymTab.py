@@ -5,7 +5,7 @@ import sys
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 
-typeSizeMap = {'int': 4, 'real': 4, 'boolean': 4, 'String': 4}
+typeSizeMap = {'int': 4, 'real': 8, 'boolean': 4, 'String': 4}
 
 class Category(Enum):
     Class=1
@@ -41,7 +41,7 @@ class SymbolTable(object):
         self.attr = attr          ## holds all relevant information for this block
         self.vars = {}            ## contains variables directly under it
         self.children = [] if category in [Category.Function, Category.Block] else {}
-        self.offset=4
+        self.offset=0
 
     def insert(self, lexeme, ltype, category):
         ## category can either be array or a simple variable
@@ -53,7 +53,7 @@ class SymbolTable(object):
             #CHECK WHETHER THIS IS CORRECT
             while(tmp.category==Category.Block):
                 tmp=tmp.parent
-            offset=tmp.offset
+            offset=tmp.offset+size
             tmp.offset+=size
         elif lexeme not in ["`update_block","`after_block"]:
             size = None
@@ -180,6 +180,6 @@ class TableManager(object):
         #CHECK WHETHER THIS IS CORRECT
         while(tmp.category==Category.Block):
             tmp=tmp.parent
-        offset=tmp.offset
+        offset=tmp.offset+size
         tmp.offset+=size
         return VarType('$t' + str(self.tmpCount-1), None, ltype,offset)

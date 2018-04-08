@@ -25,10 +25,10 @@ expTypeMap = {
     , 'MODULUS': ('int', 'int')
     , 'LSHIFT': ('int', 'int')
     , 'RSHIFT': ('int', 'int')
-    , 'LT': ('int', 'boolean')
-    , 'LE': ('int', 'boolean')
-    , 'GT': ('int', 'boolean')
-    , 'GE': ('int', 'boolean')
+    , 'LT': ('int', 'real', 'boolean')
+    , 'LE': ('int', 'real', 'boolean')
+    , 'GT': ('int', 'real', 'boolean')
+    , 'GE': ('int', 'real', 'boolean')
     , 'EQEQ': ('int', 'real', 'String', 'boolean', 'boolean')
     , 'NTEQ': ('int', 'real', 'String', 'boolean', 'boolean')
     , 'AND': ('boolean', 'boolean')
@@ -388,7 +388,7 @@ class MyParser(TypeSystem):
             }
         else:
             #TODO TYPE CHECK
-            if p[1].type != p[3]['type']:
+            if p[1].type != p[3]['type'] and not self.isTypeConvertible(p[1].type, p[3]['type']):
                 self.printError("TypeError", p.lexer.lineno)
             if p[3]['place']==None or isinstance(p[3]['place'],SymTab.VarType):
                 p[0] = {
@@ -1000,6 +1000,9 @@ class MyParser(TypeSystem):
                 if type(p[-2])==dict:
                     p[0]=p[1]
                 else:
+                    #print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>.")
+                    #print(p[-2])
+                    #assert(False)
                     p[0] = {
                          'place': p[-2]
                         ,'type': p[-2].type
@@ -1046,12 +1049,13 @@ class MyParser(TypeSystem):
                 before_next_exp = stManager.newLabel()
                 after_next_exp = stManager.newLabel()
                 p[0]['code'] = p[1]['code'] + \
-                    self.gen('ifgoto','==',res['value1'],'1', before_next_exp)
-                p[0]['code']+= self.gen('=',p[0]['place'],'0')
-                p[0]['code']+= self.gen('goto',after_next_exp)
-                p[0]['code']+= self.gen("label", before_next_exp)
+                    self.gen('ifgoto','==',res['value1'],'0', before_next_exp)
                 p[0]['code']+= p[3]['code']
                 p[0]['code']+= self.gen('=',p[0]['place'],res['value2'])
+                p[0]['code']+= self.gen('goto',after_next_exp)
+                p[0]['code']+= self.gen("label", before_next_exp)
+                p[0]['code']+= self.gen('=',p[0]['place'],'0')
+
                 p[0]['code']+= self.gen("label", after_next_exp)
 
         elif len(p) == 3:
@@ -1098,11 +1102,18 @@ class MyParser(TypeSystem):
             symEntry = stManager.lookup(p.slice[1].value)
             if symEntry == None:
                 self.printError("VariableNotDeclared", p.slice[1].value, p.lexer.lineno)
-            p[0] = {
-                 'place': symEntry
-                ,'code' : []
-                ,'type' : symEntry.type
-            }
+            if p[-1]=="=":
+                p[0] = {
+                     'place': p[-2]
+                    ,'code' : self.gen("=",p[-2],symEntry)
+                    ,'type' : symEntry.type
+                }
+            else:
+                p[0] = {
+                     'place': symEntry
+                    ,'code' : []
+                    ,'type' : symEntry.type
+                }
 
     def p_unaryop(self, p):
         '''
