@@ -39,9 +39,11 @@ arraylist=[]
 leaders = [1,]
 ## blocks == {leader : instr block}
 blocks = {}
+strdeclnum=0
 
 assemblyCode = ""
 translatingMainFlag = False
+strassemblyCode=""
 
 DEBUG_FLAG = False
 ## GLOBALS=============================================================
@@ -332,7 +334,7 @@ def translateMulDiv(op,X,Y,Z,lineno):
     dirtybit[X]=True
 
 def translate(ir):
-    global assemblyCode,flag_isMoveYtoX, translatingMainFlag
+    global assemblyCode,flag_isMoveYtoX, translatingMainFlag, strassemblyCode, strdeclnum
     lineno = ir[0]
     op = ir[1]
 
@@ -432,6 +434,16 @@ def translate(ir):
         elif op == '<<':
             translate3OpStmt('  shl ', X, Y, Z, lineno)
 
+
+    if op == "swrite":
+        strin=ir[3]
+        strle=ir[4]
+        #strassemblyCode=strassemblyCode+"$str_"+str(strdeclnum)+":  .asciz "+"\""+str(strin)+"\"\n"+"$strlen_"+str(strdeclnum)+" equ "+"$-$str_"+str(strdeclnum)+"\n"
+        strassemblyCode=strassemblyCode+"$str_"+str(strdeclnum)+" dw `"+strin+"`\n"
+        assemblyCode+="  mov "+name(ir[2])+", $str_"+str(strdeclnum)+"\n"
+        strdeclnum+=1
+        print(strassemblyCode)
+        #assert(False
 
 
 
@@ -865,6 +877,7 @@ def main(filename, irCode=None,stM=None):
         text_section += assemblyCode
         assemblyCode=""
 
+    data_section+=strassemblyCode
     x86c = top_section + data_section + bss_section + text_section
 
     ## saving to file

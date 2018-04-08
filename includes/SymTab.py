@@ -21,6 +21,8 @@ class VarType(object):
         self.type = vtype
         self.size = size
         self.offset=offset
+        self.stringlen=0
+        #self.strname=getNewStrNam()
 
     def updateCategory(self, newCategory):
         self.category = newCategory

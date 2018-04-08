@@ -1222,15 +1222,23 @@ class MyParser(TypeSystem):
                 if argsTypes != symEntry.attr['args_types']:
                     self.printError('ParamError',p.slice[1].value, p.lexer.lineno)
 
-            temp = stManager.newTemp(symEntry.attr['type'])
+
             param_code=p[3]['code']
             for k in p[3]['place']:
                 param_code+=self.gen("param", k)
-            p[0] = {
-                  'place': temp
-                , 'type': temp.type
-                , 'code': param_code+self.gen('call', funcID, temp)
-            }
+            if symEntry.attr['type']=='void':
+                    p[0] = {
+                          'place': None
+                        , 'type': None
+                        , 'code': param_code+self.gen('call', funcID)
+                    }
+            else:
+                temp = stManager.newTemp(symEntry.attr['type'])
+                p[0] = {
+                      'place': temp
+                    , 'type': temp.type
+                    , 'code': param_code+self.gen('call', funcID, temp)
+                }
 
     def p_field_access(self, p):
         '''
@@ -1540,6 +1548,7 @@ class MyParser(TypeSystem):
             code+=self.gen('malloc',tmp,len(strk)+1)
             #TODO in CODEGEN
             code+=self.gen('swrite',tmp,strk,len(strk))
+            tmp.stringlen=len(strk)
             p[0]={
                   'type': 'String'
                 , 'place': tmp
