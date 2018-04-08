@@ -12,10 +12,10 @@ pro: $(SRC)/myParser.py $(SRC)/myLexer.py $(INC)/SymTab.py $(SRC)/myCodeGen.py $
 	@cp compile.sh $(BIN)/compile
 	@chmod +x $(BIN)/compile
 
-ass4: $(SRC)/myParser.py $(SRC)/myLexer.py $(INC)/SymTab.py
+ass4: $(SRC)/myParser.py $(SRC)/myLexer.py $(INC)/SymTab.py $(SRC)/lava.py compile.sh
 	@mkdir -p $(BIN)
-	@cp $(SRC)/myParser.py $(BIN)/parser
-	@chmod +x $(BIN)/parser
+	@cp compile.sh $(BIN)/irgen
+	@chmod +x $(BIN)/irgen
 
 ass3: $(SRC)/myParser.py $(SRC)/myLexer.py $(SRC)/htmlWriter.py $(SRC)/parserHtmlScipt.sh
 	@mkdir -p $(BIN)
@@ -34,3 +34,4 @@ ass1: $(SRC)/assignment1.py $(SRC)/myLexer.py
 
 clean:
 	@rm -rf bin/* src/{*.pyc,__pycache__,lextab.py,parsetab.py,parser.out} includes/{*.pyc,__pycache__}
+	@rm asm/*

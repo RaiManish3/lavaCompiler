@@ -29,8 +29,8 @@ expTypeMap = {
     , 'LE': ('int', 'boolean')
     , 'GT': ('int', 'boolean')
     , 'GE': ('int', 'boolean')
-    , 'EQEQ': ('int', 'real', 'String', 'boolean','boolean')
-    , 'NTEQ': ('int', 'real', 'String', 'boolean','boolean')
+    , 'EQEQ': ('int', 'real', 'String', 'boolean', 'boolean')
+    , 'NTEQ': ('int', 'real', 'String', 'boolean', 'boolean')
     , 'AND': ('boolean', 'boolean')
     , 'OR': ('boolean', 'boolean')
     , 'BIT_OR': ('int', 'int')
@@ -166,7 +166,7 @@ class MyParser(TypeSystem):
         return [strx]
 
     def printParseTree(self, p):
-        flag = True
+        flag = False
         if flag:
             print(p.slice)
 
@@ -997,16 +997,8 @@ class MyParser(TypeSystem):
 
         if p1 == 'primary':
             if p[-1]=='=' and p[1]['place']!=None and p[1]['place']!=p[-2]:
-                print(p[-2])
                 if type(p[-2])==dict:
                     p[0]=p[1]
-                    # assert(False)
-                    # p[0] = {
-                    #      'place': P
-                    #     ,'type': p[-2]['specialForArrayWrite']['place'].type[:-2]
-                    #     ,'code': p[-2]['specialForArrayWrite']['code']+p[1]['code']+self.gen("writearray",p[-2]['specialForArrayWrite']['place'],p[-2]['specialForArrayWrite']['index'],p[1]['place'])
-                    #     ,'doInitialization':False
-                    # }
                 else:
                     p[0] = {
                          'place': p[-2]

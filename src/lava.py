@@ -30,8 +30,8 @@ def printIR(irList):
 def main():
     handle_errors(argv)
     filename = argv[1]
-    irList = myParser.main(filename,stManager)['code']
-    asmCode = myCodeGen.main(filename, irList,stManager)
+    irList = myParser.main(filename, stManager)['code']
+    asmCode = myCodeGen.main(filename, irList, stManager)
     print("## IR code #===============================")
     printIR(irList)
     print("## IR code #===============================")
