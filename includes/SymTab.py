@@ -5,7 +5,7 @@ import sys
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 
-typeSizeMap = {'int': 4, 'real': 8, 'boolean': 1, 'String': 4} ## FIXME :: String size ??
+typeSizeMap = {'int': 4, 'real': 8, 'boolean': 4, 'String': 4} ## FIXME :: String size ??
 
 class Category(Enum):
     Class=1
@@ -14,11 +14,13 @@ class Category(Enum):
     Block=4
 
 class VarType(object):
-    def __init__(self, lexeme, category, vtype, size=None):
-        self.name = lexeme
+    def __init__(self, lexeme, category, vtype, offset, size=None):
+        self.xname = lexeme
+        self.name='ebp-'+str(offset)
         self.category = category
         self.type = vtype
         self.size = size
+        self.offset=offset
 
     def updateCategory(self, newCategory):
         self.category = newCategory
@@ -30,7 +32,7 @@ class VarType(object):
         return "category: {}, type: {}".format(self.category, self.type)
 
     def __str__(self):
-        return self.name
+        return self.xname
 
 class SymbolTable(object):
     def __init__(self, category, attr, parent=None):
@@ -39,14 +41,26 @@ class SymbolTable(object):
         self.attr = attr          ## holds all relevant information for this block
         self.vars = {}            ## contains variables directly under it
         self.children = [] if category in [Category.Function, Category.Block] else {}
+        self.offset=4
 
     def insert(self, lexeme, ltype, category):
         ## category can either be array or a simple variable
+        offset=None
+        size=None
         if ltype in typeSizeMap.keys():
             size = typeSizeMap[ltype]
-        else:
+            tmp=self
+            #CHECK WHETHER THIS IS CORRECT
+            while(tmp.category==Category.Block):
+                tmp=tmp.parent
+            offset=tmp.offset
+            tmp.offset+=size
+        elif lexeme not in ["`update_block","`after_block"]:
             size = None
-        self.vars[lexeme] = VarType(lexeme,category, ltype, size)
+
+            assert(False)
+            #TODO CHECK WHERE THIS IS VIOLATED
+        self.vars[lexeme] = VarType(lexeme,category, ltype, offset, size)
         return self.vars[lexeme]
 
     def lookup(self, lexeme):
@@ -77,6 +91,8 @@ class TableManager(object):
         self.currentTable = {}
         self.mainTable = self.currentTable
         self.labelCount = 0
+        self.tmpCount = 0
+
 
     def newLabel(self):
         self.labelCount += 1
@@ -153,8 +169,17 @@ class TableManager(object):
             print("="*50)
 
 
-tmpCount = 0
-def newTemp(ltype):
-    global tmpCount
-    tmpCount += 1
-    return VarType('$t' + str(tmpCount-1), None, ltype)
+    def newTemp(self,ltype):
+        self.tmpCount += 1
+        size=None
+        if "[]" in ltype:
+            size=typeSizeMap[ltype[:str(ltype).find("[]")]]
+        else:
+            size = typeSizeMap[ltype]
+        tmp=self.currentTable
+        #CHECK WHETHER THIS IS CORRECT
+        while(tmp.category==Category.Block):
+            tmp=tmp.parent
+        offset=tmp.offset
+        tmp.offset+=size
+        return VarType('$t' + str(self.tmpCount-1), None, ltype,offset)

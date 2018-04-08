@@ -15,7 +15,12 @@ def makeVarList(irlist, varlist, symlist, arraylist):
     tmp_varlist = set()
 
     for ir in irlist:
-        if ir[1] in ['call', 'return', 'label', 'function', 'goto']:
+        if ir[1] in [ 'return', 'label', 'function', 'goto']:
+            pass
+        elif ir[1]=='call' and len(ir)==4:
+            if isinstance(ir[3], SymTab.VarType):
+                tmp_varlist.add(ir[3])
+        elif ir[1]=='call':
             pass
         elif ir[1] == "ifgoto":
             for i in range(3,5):

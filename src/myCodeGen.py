@@ -119,6 +119,13 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
         if Y not in symlist:
             regy = getRegWithContraints(0, reg, None, lineno)
             assemblyCode+="  mov "+regy+", "+Y+"\n"
+        elif addressDescriptor[Y] == "mem" and Z not in symlist:
+            regy=getRegWithContraints(nextUseTable[lineno][Y][1]+1,reg,None,lineno)
+            if regy==None:
+                regy= "dword ["+Y.name+"]"
+            else:
+                assemblyCode +="  mov "+regy+", "+name(Y)+"\n"
+                associate(Y, regy)
         elif addressDescriptor[Y] == "mem" and addressDescriptor[Z] == "mem":
             regy = getRegWithContraints(0,reg,None,lineno)
             assemblyCode+="  mov "+regy+", dword ["+Y.name+"]\n"
@@ -174,7 +181,7 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
 
     if Z in symlist and addressDescriptor[Z]!="mem":
         if nextUseTable[lineno][Z][0]==utility.stat.LIVE and nextUseTable[lineno][Z][1]==Decimal('inf'):
-            if Z.scope == 'Global':
+            if True:#Z.scope == 'Global':
                 if dirtybit[Z]:
                     dirtybit[Z]=False
                     assemblyCode += "  mov dword [" + Z.name + "], " + addressDescriptor[Z] + "\n"
@@ -209,7 +216,7 @@ def remReg(X):
 
 def name(X):
     if X not in symlist:
-        return X
+        return str(X)
     if addressDescriptor[X]!="mem":
         return addressDescriptor[X]
     return "dword ["+X.name+"]"
@@ -310,6 +317,8 @@ def translateMulDiv(op,X,Y,Z,lineno):
         if Z not in symlist or addressDescriptor[Z]=="mem":
             regz=getRegWithContraints(0,'eax','edx',lineno)
             if regz!=None:
+                print(regz)
+                print(name(Z))
                 assemblyCode+="  mov "+regz+", "+name(Z)+"\n"
                 if Z in symlist:
                     associate(Z,regz)
@@ -352,6 +361,13 @@ def translate(ir):
 
     if op == "label":
         assemblyCode += ir[2] + ":\n";
+
+    if op == "subesp":
+        assemblyCode+= "  sub esp, "+str(ir[2])+"\n"
+
+    if op =="malloc":
+        assemblyCode+="  sub esp, "+name(ir[3])+"\n"
+        assemblyCode+="  mov "+ name(ir[2])+", esp\n"
 
     if op == "param":
         #THIS CAN BE OPTIMIZE
@@ -464,7 +480,7 @@ def translate(ir):
                 regtemp=getRegWithContraints(0,addressDescriptor[ir[3]],None,lineno)
             assemblyCode+="  mov "+regtemp+", "+name(ir[3])+"\n"
             assemblyCode+="  shl "+regtemp +", 2\n"
-        assemblyCode+="  add "+regtemp+", "+arr.name+"\n"
+        assemblyCode+="  add "+regtemp+", "+name(arr)+"\n"
 
         if op =="readarray":
             assemblyCode+="  mov "+regtemp+", dword [" +regtemp +"]\n"
@@ -474,7 +490,12 @@ def translate(ir):
             dirtybit[ir[4]]=True
         elif op =="writearray":
             OptimizeForYandZ(lineno,None,None,ir[4],None)
-            assemblyCode+="  mov dword ["+regtemp+"], " +name(ir[4]) +"\n"
+            if ir[4] not in symlist or addressDescriptor[ir[4]]!="mem":
+                assemblyCode+="  mov dword ["+regtemp+"], " +name(ir[4]) +"\n"
+            else:
+                regtemp2=getRegWithContraints(0,regtemp,None,lineno)
+                assemblyCode+="  mov dword "+regtemp2+", "+name(ir[4])+"\n"
+                assemblyCode+="  mov dword ["+regtemp+"], "+ regtemp2+"\n"
 
     if lineno+1 in leaders or lineno== len(irlist):
         dumpAllRegToMem()
@@ -512,7 +533,9 @@ def translate(ir):
     if op == "return":
         dumpAllRegToMem()
         if len(ir) > 2:
-            if addressDescriptor[ir[2]]=="mem":
+            if ir[2] not in symlist:
+                assemblyCode+="  mov eax, "+str(ir[2])+"\n"
+            elif addressDescriptor[ir[2]]=="mem":
                 assemblyCode += "  mov eax, " + name(ir[2]) + "\n"
             else:
                 if addressDescriptor[ir[2]]!="eax":
@@ -771,9 +794,10 @@ def populateIR(filename):
         exit(1)
 
 def populateIR2(data):
-    i = 1
+    i=1
     for d in data:
-        irlist.append([1]+d)
+        irlist.append([i]+d)
+        i+=1
 
 def getFilename():
     argParser = argparse.ArgumentParser(description='Provide the IR code filename')
@@ -781,8 +805,10 @@ def getFilename():
     args = argParser.parse_args()
     return args.filename
 
-def main(filename, irCode=None):
-    global varlist, symlist, assemblyCode, translatingMainFlag, dirtybit
+def main(filename, irCode=None,stM=None):
+    global varlist, symlist, assemblyCode, translatingMainFlag, dirtybit, stManager
+
+    stManager=stM
 
     if irCode:
         populateIR2(irCode)
@@ -796,21 +822,26 @@ def main(filename, irCode=None):
         addressDescriptor[s]='mem'  ## initially no variable is loaded in any register
 
     findLeaders()
+    print(leaders)
     genBlocks()
     populateNextUseTable()
 
     top_section = "global main\nextern printf\nextern scanf\n\n"
     data_section = "segment .data\n\n" + "debug dd `Output :: %i\\n`\n" + "readInt dd `%d`\n"
+
+    """
     for var in varlist:
         if var not in arraylist:
             data_section += str(var) + "  dd  " + "0\n"
         else:
             data_section += str(var) + " times 100 dd  0\n"
 
+    """
     bss_section = "\n"
     text_section = "segment .text\n\n"
 
     for lead,block in blocks.items():
+        print("--->"+str(block));
         if block[0][1] == 'function':
             text_section += '\n'
             translatingMainFlag = False
@@ -852,4 +883,3 @@ def main(filename, irCode=None):
 
 if __name__ == "__main__":
     main()
-
