@@ -35,19 +35,26 @@ dirtybit ={}
 
 symlist = []
 varlist = []
-arraylist=[]
 leaders = [1,]
 ## blocks == {leader : instr block}
 blocks = {}
 strdeclnum=0
 
 assemblyCode = ""
+floatGlobalDataCode = ""
+floatLiteralCount = 0
 translatingMainFlag = False
 strassemblyCode=""
 
 DEBUG_FLAG = False
 ## GLOBALS=============================================================
 
+def addFloatToGlobal(val):
+    global floatGlobalDataCode, floatLiteralCount
+    x = "$ft_" + str(floatLiteralCount)
+    floatGlobalDataCode += x + " dd " + val + "\n"
+    floatLiteralCount += 1
+    return "[" + x + "]"
 
 def OptimizeForYandZ(lineno,regk,X,Y,Z):
     global assemblyCode
@@ -277,9 +284,6 @@ def translateMulDiv(op,X,Y,Z,lineno):
             associate(Y,regytemp)
 
     registerDesc['eax']=None
-
-
-
     if registerDesc['edx']==None:
         pass
     elif dirtybit[registerDesc['edx']]==False:
@@ -319,8 +323,6 @@ def translateMulDiv(op,X,Y,Z,lineno):
         if Z not in symlist or addressDescriptor[Z]=="mem":
             regz=getRegWithContraints(0,'eax','edx',lineno)
             if regz!=None:
-                print(regz)
-                print(name(Z))
                 assemblyCode+="  mov "+regz+", "+name(Z)+"\n"
                 if Z in symlist:
                     associate(Z,regz)
@@ -378,27 +380,36 @@ def translate(ir):
     if op == "=" or op=="~":
         src=ir[3]
         dest=ir[2]
-        if src!=dest:
-            global flag_isMoveZfromMem
-            flag_isMoveZfromMem=False
-            OptimizeForYandZ(lineno,None,None,src,dest)
-            flag_isMoveZfromMem=True
-            if src in symlist and dest in symlist and addressDescriptor[src]=="mem" and addressDescriptor[dest]=="mem":
-                reg=getRegWithContraints(0,None,None,lineno)
-                if nextUseTable[lineno][src][1] <= nextUseTable[lineno][dest][1]:
-                    assemblyCode += "  mov " + reg + ", " + name(src) +"\n"
-                    addressDescriptor[src]=reg;
-                    registerDesc[reg]=src;
-                else:
-                    # DESTINATION WILL BE INTIIALIZED, NO NEED TO DO THIS
-                    assemblyCode += "  mov " + reg + ", " + name(dest) +"\n"
-                    addressDescriptor[dest]=reg;
-                    registerDesc[dest]=src;
-            assemblyCode += "  mov " + name(dest) + ", " + name(src) + "\n"
-            if addressDescriptor[dest]!="mem":
-                dirtybit[dest]=True
+        if src != dest:
+            if dest.type == 'int':
+                global flag_isMoveZfromMem
+                flag_isMoveZfromMem=False
+                OptimizeForYandZ(lineno,None,None,src,dest)
+                flag_isMoveZfromMem=True
+                if src in symlist and addressDescriptor[src]=="mem" and addressDescriptor[dest]=="mem":
+                    reg=getRegWithContraints(0,None,None,lineno)
+                    if nextUseTable[lineno][src][1] <= nextUseTable[lineno][dest][1]:
+                        assemblyCode += "  mov " + reg + ", " + name(src) +"\n"
+                        addressDescriptor[src]=reg;
+                        registerDesc[reg]=src;
+                    else:
+                        # DESTINATION WILL BE INTIIALIZED, NO NEED TO DO THIS
+                        assemblyCode += "  mov " + reg + ", " + name(dest) +"\n"
+                        addressDescriptor[dest]=reg;
+                        registerDesc[dest]=src;
+                assemblyCode += "  mov " + name(dest) + ", " + name(src) + "\n"
+
+                if addressDescriptor[dest]!="mem":
+                    dirtybit[dest]=True
+
+            elif dest.type == 'real':
+                assemblyCode += "  fld dword " + addFloatToGlobal(src) + "\n"
+                assemblyCode += "  add esp, 4\n"
+                assemblyCode += "  fstp " + name(dest) + "\n"
+                pass
+
         if op =="~":
-            assemblyCode+="  not "+name(dest) +"\n"
+            assemblyCode+="  not " + name(dest) + "\n"
             if addressDescriptor[dest]!="mem":
                 dirtybit[dest]=True
 
@@ -407,6 +418,7 @@ def translate(ir):
         assemblyCode += ir[2] +":\n"
         assemblyCode += "  push ebp\n"
         assemblyCode += "  mov ebp, esp\n"
+        assemblyCode += "  finit\n"
 
     if op == "arg":
         #NOT TO BE USED NOW, SINCE ALL VARIABLES ARE GLOBAL
@@ -522,9 +534,8 @@ def translate(ir):
         if len(ir)>3:
             associate(ir[3],'eax')
             dirtybit[ir[3]]=True
-            # assemblyCode+="  mov "
 
-    # Generating assemblyCodebly code if the tac is a return statement
+    # Generating assembly code if the tac is a return statement
     if op == "exit":
         assemblyCode += "  call exit\n"
 
@@ -817,8 +828,8 @@ def getFilename():
     args = argParser.parse_args()
     return args.filename
 
-def main(filename, irCode=None,stM=None):
-    global varlist, symlist, assemblyCode, translatingMainFlag, dirtybit, stManager
+def main(filename=None, irCode=None, stM=None):
+    global varlist, symlist, assemblyCode, translatingMainFlag, dirtybit, stManager, floatList
 
     stManager=stM
 
@@ -828,32 +839,26 @@ def main(filename, irCode=None,stM=None):
         filename = getFilename()
         populateIR(filename)
 
-    utility.makeVarList(irlist, varlist, symlist, arraylist)
+    utility.makeVarList(irlist, varlist, symlist, floatList)
 
     for s in symlist:
         addressDescriptor[s]='mem'  ## initially no variable is loaded in any register
 
     findLeaders()
-    print(leaders)
     genBlocks()
     populateNextUseTable()
 
     top_section = "global main\nextern printf\nextern scanf\n\n"
-    data_section = "segment .data\n\n" + "debug dd `Output :: %i\\n`\n" + "readInt dd `%d`\n"
+    data_section = "segment .data\n\n" + "debug dd `Output :: %f\\n`\n" + "readInt dd `%d`\n"
 
-    """
-    for var in varlist:
-        if var not in arraylist:
-            data_section += str(var) + "  dd  " + "0\n"
-        else:
-            data_section += str(var) + " times 100 dd  0\n"
+    #  ## global assembly data
+    #  for var in floatList:
+    #      data_section += str(var) + "  dd  " + "0\n"
 
-    """
     bss_section = "\n"
     text_section = "segment .text\n\n"
 
     for lead,block in blocks.items():
-        print("--->"+str(block));
         if block[0][1] == 'function':
             text_section += '\n'
             translatingMainFlag = False
@@ -878,7 +883,7 @@ def main(filename, irCode=None,stM=None):
         assemblyCode=""
 
     data_section+=strassemblyCode
-    x86c = top_section + data_section + bss_section + text_section
+    x86c = top_section + data_section + floatGlobalDataCode+ bss_section + text_section
 
     ## saving to file
     try:

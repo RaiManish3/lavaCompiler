@@ -5,7 +5,7 @@ import sys
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 
-typeSizeMap = {'int': 4, 'real': 8, 'boolean': 4, 'String': 4} ## FIXME :: String size ??
+typeSizeMap = {'int': 4, 'real': 4, 'boolean': 4, 'String': 4}
 
 class Category(Enum):
     Class=1
@@ -21,8 +21,6 @@ class VarType(object):
         self.type = vtype
         self.size = size
         self.offset=offset
-        self.stringlen=0
-        #self.strname=getNewStrNam()
 
     def updateCategory(self, newCategory):
         self.category = newCategory
@@ -31,7 +29,7 @@ class VarType(object):
         self.type = newType
 
     def __repr__(self):
-        return "category: {}, type: {}".format(self.category, self.type)
+        return "name: {}, category: {}, type: {}".format(self.xname, self.category, self.type)
 
     def __str__(self):
         return self.xname
@@ -171,11 +169,11 @@ class TableManager(object):
             print("="*50)
 
 
-    def newTemp(self,ltype):
+    def newTemp(self, ltype):
         self.tmpCount += 1
         size=None
         if "[]" in ltype:
-            size=typeSizeMap[ltype[:str(ltype).find("[]")]]
+            size = typeSizeMap[ltype[:str(ltype).find("[]")]]
         else:
             size = typeSizeMap[ltype]
         tmp=self.currentTable

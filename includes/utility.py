@@ -6,11 +6,9 @@ class stat(Enum):
     LIVE = 1
     DEAD = 2
 
-def isnumber(num):
-    return re.match('-?\d+', num) != None
 
 ## this function extracts variables, converts them into pointer to symbols in symTableDict and also stores them in symlist
-def makeVarList(irlist, varlist, symlist, arraylist):
+def makeVarList(irlist, varlist, symlist):
     ## symlist is a mapping from "symbols" in IRcode to the variable it is pointing to
     tmp_varlist = set()
 
@@ -34,6 +32,8 @@ def makeVarList(irlist, varlist, symlist, arraylist):
             for i in range(2,len(ir)):
                 if isinstance(ir[i], SymTab.VarType):
                     tmp_varlist.add(ir[i])
+                #  elif isFloat(ir[i]):
+                    #  ir[i] = FloatVar(ir[i])
             if ir[1]=='readarray' or ir[1]=='writearray':
                 arraylist.append(ir[2])
 
