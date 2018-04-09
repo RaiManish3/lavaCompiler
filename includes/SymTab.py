@@ -20,7 +20,8 @@ class VarType(object):
         self.category = category
         self.type = vtype
         self.size = size
-        self.offset = offset
+        self.offset=offset
+        self.stringlen=0
 
     def updateCategory(self, newCategory):
         self.category = newCategory
