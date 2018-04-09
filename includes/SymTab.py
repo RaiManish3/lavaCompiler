@@ -5,7 +5,7 @@ import sys
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 
-typeSizeMap = {'int': 4, 'real': 4, 'boolean': 4, 'String': 4}
+typeSizeMap = {'int': 4, 'real': 8, 'boolean': 4, 'String': 4}
 
 class Category(Enum):
     Class=1

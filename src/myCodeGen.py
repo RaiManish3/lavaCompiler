@@ -4,7 +4,7 @@ import sys
 import os
 sys.path.extend(['..','.'])
 
-from includes import utility
+from includes import utility, SymTab
 import copy
 from enum import Enum
 import argparse
@@ -32,11 +32,16 @@ flag_isMoveZfromMem = True
 irlist =[]
 
 dirtybit ={}
+floatOp={'+': 'add', '-':'sub', '*':'mul', '/':'div'
+         , '<': '0000000100000000B', '>': '0000000000000000B', '==':'0100000000000000B'}
+floatOp['<='] = floatOp['>']
+floatOp['>='] = floatOp['<']
+floatOp['~='] = floatOp['==']
+labelCount = 0
 
 symlist = []
 varlist = []
 leaders = [1,]
-## blocks == {leader : instr block}
 blocks = {}
 strdeclnum=0
 
@@ -52,10 +57,34 @@ DEBUG_FLAG = False
 
 def addFloatToGlobal(val):
     global floatGlobalDataCode, floatLiteralCount
-    x = "$ft_" + str(floatLiteralCount)
-    floatGlobalDataCode += x + " dd " + val + "\n"
+    x = "@ft_" + str(floatLiteralCount)
+    if "." not in val:
+        val += ".0"
+    floatGlobalDataCode += x + " dq " + val + "\n"
     floatLiteralCount += 1
-    return "[" + x + "]"
+    return "qword [" + x + "]"
+
+def resolveType(M):
+    if isinstance(M, SymTab.VarType):
+        typeM = M.type
+    else:
+        if utility.isInt(M):
+            typeM = 'int'
+        elif utility.isFloat(M):
+            typeM = 'real'
+        else:
+            typeM = 'String'
+    return typeM
+
+def handleIntToFloat(x):
+    global assemblyCode
+    if x in symlist:
+        if addressDescriptor[x] != "mem" and dirtybit[x] == True:
+            assemblyCode += "  mov dword [" + x.name  + "], " + name(x) + "\n"
+            dirtybit[x] = False
+        assemblyCode += "  fild dword [" + x.name + "]\n"
+    else:
+        assert (False), "Code not Implemented"
 
 def OptimizeForYandZ(lineno,regk,X,Y,Z):
     global assemblyCode
@@ -290,7 +319,10 @@ def name(X):
         return str(X)
     if addressDescriptor[X]!="mem":
         return addressDescriptor[X]
-    return "dword ["+X.name+"]"
+    if X.type != 'real':
+        return "dword ["+X.name+"]"
+    else:
+        return "qword ["+X.name+"]"
 
 def dumpAllRegToMem():
     global assemblyCode
@@ -397,6 +429,142 @@ def translateMulDiv(op,X,Y,Z,lineno):
         associate(X,'eax')
     dirtybit[X]=True
 
+
+def compareFloats(op, X, Y, Z, lineno):
+    ## this function is supposed to be called only by translateFloatRelOpStmt
+    global assemblyCode, labelCount
+    regx = getReg(X, Y, Z, lineno, None)
+    associate(X, regx)
+    assemblyCode += "  fcom st0, st1\n"
+    assemblyCode += "  fstsw " + regx[1:] + "\n"
+    assemblyCode += "  and " + regx + ", 0100011100000000B\n"
+    assemblyCode += "  cmp " + regx + ", " + floatOp[op] + "\n"
+    assemblyCode += "  je " + "@L" + str(labelCount) + "\n"
+    if op in ['<','>','==']:
+        assemblyCode += "  mov " + regx + ", 0\n"
+        assemblyCode += "  jmp " + "@L" + str(labelCount+1) + "\n"
+        assemblyCode += "@L" + str(labelCount) + ":\n"
+        assemblyCode += "  mov " + regx + ", 1\n"
+        assemblyCode += "@L" + str(labelCount+1) + ":\n"
+    else:
+        assemblyCode += "  mov " + regx + ", 1\n"
+        assemblyCode += "  jmp " + "@L" + str(labelCount+1) + "\n"
+        assemblyCode += "@L" + str(labelCount) + ":\n"
+        assemblyCode += "  mov " + regx + ", 0\n"
+        assemblyCode += "@L" + str(labelCount+1) + ":\n"
+    labelCount += 2
+
+def translateFloatRelOpStmt(op, X, Y, Z, lineno):
+    global assemblyCode
+    if Y in symlist:
+        if op in ['<', '>', '==']:
+            if Z in symlist:
+                if Z.type == 'real':
+                    assemblyCode += "  fld " + name(Z) + "\n"
+                elif Z.type == 'int':
+                    handleIntToFloat(Z)
+                else:
+                    assert (False), "Code not implemented"
+            else:
+                ## case of Z being the literal itself
+                assemblyCode += "  fld " + addFloatToGlobal(Z) + "\n"
+
+            if Y.type == 'real':
+                assemblyCode += "  fld " + name(Y) + "\n"
+            elif Y.type == 'int':
+                handleIntToFloat(Y)
+            else:
+                assert (False), "Code not implemented"
+        else:
+            if Y.type == 'real':
+                assemblyCode += "  fld " + name(Y) + "\n"
+            elif Y.type == 'int':
+                handleIntToFloat(Y)
+            else:
+                assert (False), "Code not implemented"
+
+            if Z in symlist:
+                if Z.type == 'real':
+                    assemblyCode += "  fld " + name(Z) + "\n"
+                elif Z.type == 'int':
+                    handleIntToFloat(Z)
+                else:
+                    assert (False), "Code not implemented"
+            else:
+                ## case of Z being the literal itself
+                assemblyCode += "  fld " + addFloatToGlobal(Z) + "\n"
+    else:
+        ## case of Y being the literal itself
+        if op in ['<', '>', '==']:
+            if Z in symlist:
+                if Z.type == 'real':
+                    assemblyCode += "  fld " + name(Z) + "\n"
+                elif Z.type == 'int':
+                    handleIntToFloat(Z)
+                else:
+                    assert (False), "Code not implemented"
+            else:
+                ## case of Z being the literal itself
+                assemblyCode += "  fld " + addFloatToGlobal(Z) + "\n"
+            assemblyCode += "  fld " + addFloatToGlobal(Y) + "\n"
+        else:
+            assemblyCode += "  fld " + addFloatToGlobal(Y) + "\n"
+            if Z in symlist:
+                if Z.type == 'real':
+                    assemblyCode += "  fld " + name(Z) + "\n"
+                elif Z.type == 'int':
+                    handleIntToFloat(Z)
+                else:
+                    assert (False), "Code not implemented"
+            else:
+                ## case of Z being the literal itself
+                assemblyCode += "  fld " + addFloatToGlobal(Z) + "\n"
+    compareFloats(op, X, Y, Z, lineno)
+
+
+
+def translateFloatArithOpStmt(op, X, Y, Z):
+    global assemblyCode
+    op = floatOp[op]
+
+    if Y in symlist:
+        if Y.type == 'real':
+            assemblyCode += "  fld " + name(Y) + "\n"
+        elif Y.type == 'int':
+            handleIntToFloat(Y)
+        else:
+            assert (False), "Code not implemented"
+
+        if Z in symlist:
+            if Z.type == 'real':
+                assemblyCode += "  fld " + name(Z) + "\n"
+            elif Z.type == 'int':
+                handleIntToFloat(Z)
+            else:
+                assert (False), "Code not implemented"
+        else:
+            ## case of Z being the literal itself
+            assemblyCode += "  fld " + addFloatToGlobal(Z) + "\n"
+        assemblyCode += "  f" + op + "\n"
+        assemblyCode += "  fstp " + name(X) + "\n"
+
+    else:
+        ## case of Y being the literal itself
+        assemblyCode += "  fld " + addFloatToGlobal(Y) + "\n"
+        if Z in symlist:
+            if Z.type == 'real':
+                assemblyCode += "  fld " + name(Z) + "\n"
+            elif Z.type == 'int':
+                handleIntToFloat(Z)
+            else:
+                assert (False), "Code not implemented"
+        else:
+            ## case of Z being the literal itself
+            assemblyCode += "  fld " + addFloatToGlobal(Z) + "\n"
+        assemblyCode += "  f" + op + "\n"
+        assemblyCode += "  fstp " + name(X) + "\n"
+
+
 def translate(ir):
     global assemblyCode,flag_isMoveYtoX, translatingMainFlag, strassemblyCode, strdeclnum
     lineno = ir[0]
@@ -412,18 +580,31 @@ def translate(ir):
 
     if op in relOp:
         X, Y, Z = ir[2:5]
-        translate3OpStmt(op,X,Y,Z,lineno)
+        typeY = resolveType(Y)
+        typeZ = resolveType(Z)
+        if typeY in ['int', 'boolean'] and typeZ in ['int', 'boolean']:
+            translate3OpStmt(op,X,Y,Z,lineno)
+        elif typeY == 'real' or typeZ == 'real':
+            translateFloatRelOpStmt(op, X, Y, Z, lineno)
+        else:
+            assert False, "Code not implemented"
 
     if op in arithOp:
         X, Y, Z = ir[2:5]
 
-        # TODO ARRRAYS
-        if op == '+':
-            translate3OpStmt('  add ', X, Y, Z, lineno)
-        elif op == '-':
-            translate3OpStmt('  sub ', X, Y, Z, lineno)
+        if X.type == 'int':
+            # TODO ARRRAYS
+            if op == '+':
+                translate3OpStmt('  add ', X, Y, Z, lineno)
+            elif op == '-':
+                translate3OpStmt('  sub ', X, Y, Z, lineno)
+            else:
+                translateMulDiv(op, X, Y, Z, lineno)
+
+        elif X.type == 'real':
+            translateFloatArithOpStmt(op, X, Y, Z)
         else:
-            translateMulDiv(op, X, Y, Z, lineno)
+            assert False, "Code not implemented"
 
     if op == "label":
         assemblyCode += ir[2] + ":\n";
@@ -443,7 +624,7 @@ def translate(ir):
         src=ir[3]
         dest=ir[2]
         if src != dest:
-            if dest.type == 'int' or dest.type=='String':
+            if dest.type in ['int', 'boolean']:
                 global flag_isMoveZfromMem
                 flag_isMoveZfromMem=False
                 OptimizeForYandZ(lineno,None,None,src,dest)
@@ -465,15 +646,24 @@ def translate(ir):
                     dirtybit[dest]=True
 
             elif dest.type == 'real':
-                assemblyCode += "  fld dword " + addFloatToGlobal(src) + "\n"
-                assemblyCode += "  add esp, 4\n"
+                if src in symlist:
+                    if src.type == "real":
+                        assemblyCode += "  fld " + name(src) + "\n"
+                    elif src.type == "int":
+                        handleIntToFloat(src)
+                    else:
+                        assert (False), "TypeError"
+                else:
+                    assemblyCode += "  fld " + addFloatToGlobal(src) + "\n"
                 assemblyCode += "  fstp " + name(dest) + "\n"
-                pass
+
+            else:
+                assert (False), "Code not Implemented"
 
         if op =="~":
             assemblyCode+="  not " + name(dest) + "\n"
             if addressDescriptor[dest]!="mem":
-                dirtybit[dest]=True
+                dirtybit[dest] = True
 
     if op == "function":
         assemblyCode += ir[2] +":\n"
@@ -602,7 +792,11 @@ def translate(ir):
 
     if op == "print":
         X = ir[2] ## assuming only int literals or int variables
-        assemblyCode += "  push " + name(X) +"\n"
+        if "qword" not in name(X):
+            assemblyCode += "  push " + name(X) +"\n"
+        else:
+            assemblyCode += "  push dword [" + X.name[:3] + str(int(X.name[3:])+4) +"]\n"
+            assemblyCode += "  push dword [" + X.name +"]\n"
         dumpAllRegToMem()
         if X.type=="String":
             assemblyCode += "  push debug_s\n"

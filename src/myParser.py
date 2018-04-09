@@ -25,10 +25,10 @@ expTypeMap = {
     , 'MODULUS': ('int', 'int')
     , 'LSHIFT': ('int', 'int')
     , 'RSHIFT': ('int', 'int')
-    , 'LT': ('int', 'boolean')
-    , 'LE': ('int', 'boolean')
-    , 'GT': ('int', 'boolean')
-    , 'GE': ('int', 'boolean')
+    , 'LT': ('int', 'real', 'boolean')
+    , 'LE': ('int', 'real', 'boolean')
+    , 'GT': ('int', 'real', 'boolean')
+    , 'GE': ('int', 'real', 'boolean')
     , 'EQEQ': ('int', 'real', 'String', 'boolean', 'boolean')
     , 'NTEQ': ('int', 'real', 'String', 'boolean', 'boolean')
     , 'AND': ('boolean', 'boolean')
@@ -388,7 +388,7 @@ class MyParser(TypeSystem):
             }
         else:
             #TODO TYPE CHECK
-            if p[1].type != p[3]['type']:
+            if p[1].type != p[3]['type'] and not self.isTypeConvertible(p[1].type, p[3]['type']):
                 self.printError("TypeError", p.lexer.lineno)
             if p[3]['place']==None:# or isinstance(p[3]['place'],SymTab.VarType):
                 p[0] = {
