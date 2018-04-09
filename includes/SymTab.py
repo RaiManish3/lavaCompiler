@@ -21,6 +21,7 @@ class VarType(object):
         self.type = vtype
         self.size = size
         self.offset=offset
+        self.stringlen=0
 
     def updateCategory(self, newCategory):
         self.category = newCategory
@@ -41,7 +42,7 @@ class SymbolTable(object):
         self.attr = attr          ## holds all relevant information for this block
         self.vars = {}            ## contains variables directly under it
         self.children = [] if category in [Category.Function, Category.Block] else {}
-        self.offset=4
+        self.offset=0
 
     def insert(self, lexeme, ltype, category):
         ## category can either be array or a simple variable
@@ -53,7 +54,7 @@ class SymbolTable(object):
             #CHECK WHETHER THIS IS CORRECT
             while(tmp.category==Category.Block):
                 tmp=tmp.parent
-            offset=tmp.offset
+            offset=tmp.offset+size
             tmp.offset+=size
         elif lexeme not in ["`update_block","`after_block"]:
             size = None
@@ -180,6 +181,6 @@ class TableManager(object):
         #CHECK WHETHER THIS IS CORRECT
         while(tmp.category==Category.Block):
             tmp=tmp.parent
-        offset=tmp.offset
+        offset=tmp.offset+size
         tmp.offset+=size
         return VarType('$t' + str(self.tmpCount-1), None, ltype,offset)

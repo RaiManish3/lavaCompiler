@@ -45,6 +45,7 @@ floatGlobalDataCode = ""
 floatLiteralCount = 0
 translatingMainFlag = False
 strassemblyCode=""
+arraylist=[]
 
 DEBUG_FLAG = False
 ## GLOBALS=============================================================
@@ -139,26 +140,54 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
             regy = getRegWithContraints(0,reg,None,lineno)
             assemblyCode+="  mov "+regy+", dword ["+Y.name+"]\n"
             associate(Y, regy)
+        elif addressDescriptor[Y]=="mem":
+            regy=name(Y)
         else:
             regy=addressDescriptor[Y]
 
-        assemblyCode += "  xor " + reg + ", " + reg + "\n"
-        assemblyCode += "  cmp " + regy +", " + name(Z) + "\n"
+        if Y in symlist and Z in symlist and Y.type=="String" and Z.type=="String":
+            if Y.stringlen!=Z.stringlen:
+                assemblyCode += "  mov "+reg+", 0\n"
+            else:
+                if registerDesc["ecx"]!=None:
+                    if dirtybit[registerDesc['ecx']]==True:
+                        assemblyCode += '  mov dword ['+registerDesc['ecx'].name+'], ecx\n'
+                    associate(registerDesc['ecx'],'mem')
+                eqlabel=stManager.newLabel()
+                afterlabel=stManager.newLabel()
+                assemblyCode += "  mov esi, "+name(Y)+"\n"
+                assemblyCode += "  mov edi, "+name(Z)+"\n"
+                assemblyCode += "  mov ecx, "+str(Y.stringlen)+"\n"
+                assemblyCode += "  cld\n"
+                assemblyCode += "  repe cmpsb\n"
+                assemblyCode += "  jecxz "+eqlabel+"\n"
+                assemblyCode += "  mov "+reg+", 0\n"
+                assemblyCode += "  jmp "+afterlabel+"\n"
+                assemblyCode += eqlabel+":\n"
+                assemblyCode += "  mov "+reg+", 1\n"
+                assemblyCode += afterlabel+":\n"
 
-        if opInstr == "==":
-            assemblyCode += "  sete "+reg[1]+'l\n'
-        elif opInstr == "<=":
-            assemblyCode += "  setle "+reg[1]+'l\n'
-        elif opInstr == ">=":
-            assemblyCode += "  setge "+reg[1]+'l\n'
-        elif opInstr == "<":
-            assemblyCode += "  setl "+reg[1]+'l\n'
-        elif opInstr == ">":
-            assemblyCode += "  setg "+reg[1]+'l\n'
-        elif opInstr == "~=":
-            assemblyCode += "  setne "+reg[1]+'l\n'
+
+
         else:
-            assert(False)
+            assemblyCode += "  xor " + reg + ", " + reg + "\n"
+            assemblyCode += "  cmp " + regy +", " + name(Z) + "\n"
+
+            if opInstr == "==":
+                assemblyCode += "  sete "+reg[1]+'l\n'
+            elif opInstr == "<=":
+                assemblyCode += "  setle "+reg[1]+'l\n'
+            elif opInstr == ">=":
+                assemblyCode += "  setge "+reg[1]+'l\n'
+            elif opInstr == "<":
+                assemblyCode += "  setl "+reg[1]+'l\n'
+            elif opInstr == ">":
+                assemblyCode += "  setg "+reg[1]+'l\n'
+            elif opInstr == "~=":
+                assemblyCode += "  setne "+reg[1]+'l\n'
+            else:
+                assert(False)
+
         dirtybit[X]=True
 
 
@@ -171,8 +200,41 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
         #if Y.scope == 'Local':
             ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
         #    pass
+        if not (Y in symlist and Z in symlist and Y.type=="String" and Z.type=="String"):
+            assemblyCode += opInstr + reg + ", " + name(Z) + "\n"
+        else:
+            assemblyCode+="\n\n"
+            assemblyCode += "  sub esp, "+str(Y.stringlen+Z.stringlen)+"\n"
+            assemblyCode += "  mov "+reg+", esp\n"
+            assemblyCode += "  mov dword ["+X.name+"],"+reg+"\n"
+            if registerDesc["ecx"]!=None:
+                if dirtybit[registerDesc['ecx']]==True:
+                    assemblyCode += '  mov dword ['+registerDesc['ecx'].name+'], ecx\n'
+                associate(registerDesc['ecx'],'mem')
+            # print(registerDesc[reg].stringlen)
+            assemblyCode += "  mov esi, dword ["+Y.name+"]\n"
+            assemblyCode += "  mov edi, "+reg+"\n"
+            assemblyCode += "  mov ecx, "+str(Y.stringlen)+"\n"
+            assemblyCode += "  cld\n"
+            assemblyCode += "  rep movsb\n"
+            # dumpAllRegToMem()
+            #if registerDesc[reg]!=None and dirtybit[registerDesc[reg]]==True:
+            #    assemblyCode += "  mov dword ["+ registerDesc[reg].name+"], "+reg+"\n"
+            #    dirtybit[registerDesc[reg]]=False
+            #    associate(registerDesc[reg],"mem")
 
-        assemblyCode += opInstr + reg + ", " + name(Z) + "\n"
+            assemblyCode += "  mov "+reg+", dword ["+X.name+"]\n"
+            assemblyCode += "  add "+reg+", "+str(Y.stringlen)+"\n"
+            assemblyCode += "  mov esi, dword ["+Z.name+"]\n"
+            assemblyCode += "  mov edi, "+reg+"\n"
+            assemblyCode += "  mov ecx, "+str(Z.stringlen+1)+"\n"
+            assemblyCode += "  cld\n"
+            assemblyCode += "  rep movsb\n"
+            assemblyCode += "  sub "+reg+", "+str(Y.stringlen)+"\n"
+            assemblyCode+="\n\n"
+
+
+
         #if Z.scope == 'Local':
             ## TODO: MAKE CHANGES FOR LOCAL VARIABLE
         #    pass
@@ -381,7 +443,7 @@ def translate(ir):
         src=ir[3]
         dest=ir[2]
         if src != dest:
-            if dest.type == 'int':
+            if dest.type == 'int' or dest.type=='String':
                 global flag_isMoveZfromMem
                 flag_isMoveZfromMem=False
                 OptimizeForYandZ(lineno,None,None,src,dest)
@@ -412,7 +474,6 @@ def translate(ir):
             assemblyCode+="  not " + name(dest) + "\n"
             if addressDescriptor[dest]!="mem":
                 dirtybit[dest]=True
-
 
     if op == "function":
         assemblyCode += ir[2] +":\n"
@@ -451,7 +512,7 @@ def translate(ir):
         strin=ir[3]
         strle=ir[4]
         #strassemblyCode=strassemblyCode+"$str_"+str(strdeclnum)+":  .asciz "+"\""+str(strin)+"\"\n"+"$strlen_"+str(strdeclnum)+" equ "+"$-$str_"+str(strdeclnum)+"\n"
-        strassemblyCode=strassemblyCode+"$str_"+str(strdeclnum)+" dw `"+strin+"`\n"
+        strassemblyCode=strassemblyCode+"$str_"+str(strdeclnum)+" dd `"+strin+"`, 0\n"
         assemblyCode+="  mov "+name(ir[2])+", $str_"+str(strdeclnum)+"\n"
         strdeclnum+=1
         print(strassemblyCode)
@@ -543,15 +604,48 @@ def translate(ir):
         X = ir[2] ## assuming only int literals or int variables
         assemblyCode += "  push " + name(X) +"\n"
         dumpAllRegToMem()
-        assemblyCode += "  push debug\n"
+        if X.type=="String":
+            assemblyCode += "  push debug_s\n"
+        elif X.type=="int":
+            assemblyCode += "  push debug_d\n"
+        elif X.type=="real":
+            assemblyCode += "  push debug_f\n"
+        elif X.type=="boolean":
+            assert(False)
+            #TODO HANDLE IT
+            assemblyCode += "  push debug_d\n"
         assemblyCode += "  call printf\n"
 
     if op == "readInt":
         X = ir[2] ## assuming only int literals or int variables
         dumpAllRegToMem()
-        assemblyCode += "  push dword " + X.name +"\n"
+        # temp=stManager.newTemp(X.type)
+        reg=getRegWithContraints(0,None,None,lineno)
+        assemblyCode += "  lea "+reg+", ["+X.name+"]\n"
+        assemblyCode += "  push " + reg +"\n"
         assemblyCode += "  push readInt\n"
         assemblyCode += "  call scanf\n"
+
+    if op == "readFloat":
+        X = ir[2] ## assuming only int literals or int variables
+        dumpAllRegToMem()
+        # temp=stManager.newTemp(X.type)
+        reg=getRegWithContraints(0,None,None,lineno)
+        assemblyCode += "  lea "+reg+", ["+X.name+"]\n"
+        assemblyCode += "  push " + reg +"\n"
+        assemblyCode += "  push readFloat\n"
+        assemblyCode += "  call scanf\n"
+
+    if op == "readString":
+        X = ir[2] ## assuming only int literals or int variables
+        dumpAllRegToMem()
+        # temp=stManager.newTemp(X.type)
+        reg=getRegWithContraints(0,None,None,lineno)
+        assemblyCode += "  lea "+reg+", ["+X.name+"]\n"
+        assemblyCode += "  push " + reg +"\n"
+        assemblyCode += "  push readString\n"
+        assemblyCode += "  call scanf\n"
+
 
     if op == "return":
         dumpAllRegToMem()
@@ -829,7 +923,7 @@ def getFilename():
     return args.filename
 
 def main(filename=None, irCode=None, stM=None):
-    global varlist, symlist, assemblyCode, translatingMainFlag, dirtybit, stManager, floatList
+    global varlist, symlist, assemblyCode, translatingMainFlag, dirtybit, stManager, arraylist
 
     stManager=stM
 
@@ -839,7 +933,7 @@ def main(filename=None, irCode=None, stM=None):
         filename = getFilename()
         populateIR(filename)
 
-    utility.makeVarList(irlist, varlist, symlist, floatList)
+    utility.makeVarList(irlist, varlist, symlist,arraylist)
 
     for s in symlist:
         addressDescriptor[s]='mem'  ## initially no variable is loaded in any register
@@ -849,8 +943,8 @@ def main(filename=None, irCode=None, stM=None):
     populateNextUseTable()
 
     top_section = "global main\nextern printf\nextern scanf\n\n"
-    data_section = "segment .data\n\n" + "debug dd `Output :: %f\\n`\n" + "readInt dd `%d`\n"
-
+    data_section = "segment .data\n\n" + "debug_d dd `Output :: %d\\n`\n" +"debug_f dd `Output :: %f\\n`\n" +"debug_s dd `Output :: %s\\n`\n" + "readInt dd `%d`\n"
+    data_section +=  "readFloat dd `%f`\n" + "readString dd `%s`\n"
     #  ## global assembly data
     #  for var in floatList:
     #      data_section += str(var) + "  dd  " + "0\n"

@@ -19,7 +19,7 @@ EXIT_FAILURE = 1
 ##         if return type is None, return the most closet input type
 expTypeMap = {
       'MULTIPLY': ('int', 'real', None)
-    , 'PLUS': ('int', 'real', None)
+    , 'PLUS': ('int', 'real', 'String', None)
     , 'MINUS': ('int', 'real', None)
     , 'DIVIDE': ('int', 'real', None)
     , 'MODULUS': ('int', 'int')
@@ -166,7 +166,7 @@ class MyParser(TypeSystem):
         return [strx]
 
     def printParseTree(self, p):
-        flag = False
+        flag = True
         if flag:
             print(p.slice)
 
@@ -390,7 +390,7 @@ class MyParser(TypeSystem):
             #TODO TYPE CHECK
             if p[1].type != p[3]['type']:
                 self.printError("TypeError", p.lexer.lineno)
-            if p[3]['place']==None or isinstance(p[3]['place'],SymTab.VarType):
+            if p[3]['place']==None:# or isinstance(p[3]['place'],SymTab.VarType):
                 p[0] = {
                       'place':p[1]
                     , 'code':p[3]['code']
@@ -400,6 +400,8 @@ class MyParser(TypeSystem):
                       'place':p[1]
                     , 'code':p[3]['code']+self.gen('=',p[1],p[3]['place'])
                 }
+                if p[1].type=='String':
+                    p[1].stringlen=p[3]['place'].stringlen
 
     def p_variable_declarator_id(self, p):
         '''
@@ -456,14 +458,16 @@ class MyParser(TypeSystem):
             }
 
         elif xRule == 'input':
-            xType = p[1][4:].lower()
+            print("RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR")
+            print(p[1])
+            xType = p[1][0][0][4:].lower()
             if xType == 'string':
                 xType = 'String'
             temp = stManager.newTemp(xType)
             p[0] = {
                   'place': temp
                 , 'type': xType
-                , 'code': self.gen(p[1], temp)
+                , 'code': self.gen(p[1][0][0], temp)
             }
 
     def p_input(self, p):
@@ -996,23 +1000,26 @@ class MyParser(TypeSystem):
         p1 = str(p.slice[1])
 
         if p1 == 'primary':
-            if p[-1]=='=' and p[1]['place']!=None and p[1]['place']!=p[-2]:
-                if type(p[-2])==dict:
-                    p[0]=p[1]
-                else:
-                    p[0] = {
-                         'place': p[-2]
-                        ,'type': p[-2].type
-                        ,'code': p[1]['code']+self.gen('=', p[-2], p[1]['place'])
-                    #    ,'doInitialization':False
-                    }
+            if False:#p[-1]=='=' and p[1]['place']!=None and p[1]['place']!=p[-2]:
+                pass
+                # if type(p[-2])==dict:
+                #     p[0]=p[1]
+                # else:
+                #     p[0] = {
+                #          'place': p[-2]
+                #         ,'type': p[-2].type
+                #         ,'code': p[1]['code']+self.gen('=', p[-2], p[1]['place'])
+                #     #    ,'doInitialization':False
+                #     }
+                #     if p[-2].type=="String":
+                #         p[-2].stringlen=p[1]['place'].stringlen
             else:
                 p[0] = p[1]
             assert (p[1]!=None), "Code not implemented for {}".format(p.slice[1])
 
         elif len(p) == 4:
             res = self.typeHandler(p[1], p[3], p.slice[2].type, p.lexer.lineno)
-            if p[-1] != '=':
+            if True:#p[-1] != '=':
                 temp = stManager.newTemp(res['type'])
                 p[0] = {
                      'place': temp
@@ -1020,13 +1027,24 @@ class MyParser(TypeSystem):
                     ,'code': p[1]['code'] + p[3]['code'] +
                             self.gen(p.slice[2].value, temp, res['value1'], res['value2'])
                 }
+                if temp.type=="String" and p.slice[2].value=="+":
+                    print("MMMMMMMMMMMMMMMMMMMMMMMM")
+                    print(temp.name)
+                    temp.stringlen=res["value1"].stringlen+res["value2"].stringlen
             else:
-                p[0] = {
-                     'place': p[-2]
-                    ,'type': p[-2].type
-                    ,'code': p[1]['code'] + p[3]['code'] +
-                             self.gen(p.slice[2].value, p[-2], res['value1'], res['value2'])
-                }
+                pass
+                # p[0] = {
+                #      'place': p[-2]
+                #     ,'type': p[-2].type
+                #     ,'code': p[1]['code'] + p[3]['code'] +
+                #              self.gen(p.slice[2].value, p[-2], res['value1'], res['value2'])
+                # }
+                # if p[-2].type=="String" and p.slice[2].value=="+":
+                #     print("MMMMMMMMMMMMMMMMMMMMMMMM")
+                #     print(p[-2].name)
+                #     print(res["value1"].name)
+                #     print(res["value2"].name)
+                #     p[-2].stringlen=res["value1"].stringlen+res["value2"].stringlen
             #TODO for the else statement above, for the form 'x = expression or expression' we need to check type of reultant value with type of x. i.e. p[-2]
             #RESULTING TYPE MUST BE BOOLEAN
             #TODO, problem of readarray writearray type mismatch is still there
@@ -1040,25 +1058,34 @@ class MyParser(TypeSystem):
                 p[0]['code']+= self.gen("label", before_next_exp)
                 p[0]['code']+= p[3]['code']
                 p[0]['code']+= self.gen('=',p[0]['place'],res['value2'])
+
+                if p[0]['place'].type =="String":
+                    p[0]['place'].stringlen=res['value2'].stringlen
+
                 p[0]['code']+= self.gen("label", after_next_exp)
 
             elif p.slice[2].type =='AND':
                 before_next_exp = stManager.newLabel()
                 after_next_exp = stManager.newLabel()
                 p[0]['code'] = p[1]['code'] + \
-                    self.gen('ifgoto','==',res['value1'],'1', before_next_exp)
-                p[0]['code']+= self.gen('=',p[0]['place'],'0')
-                p[0]['code']+= self.gen('goto',after_next_exp)
-                p[0]['code']+= self.gen("label", before_next_exp)
+                    self.gen('ifgoto','==',res['value1'],'0', before_next_exp)
                 p[0]['code']+= p[3]['code']
                 p[0]['code']+= self.gen('=',p[0]['place'],res['value2'])
+                p[0]['code']+= self.gen('goto',after_next_exp)
+                p[0]['code']+= self.gen("label", before_next_exp)
+                p[0]['code']+= self.gen('=',p[0]['place'],'0')
+
+
+                if p[0]['place'].type =="String":
+                    p[0]['place'].stringlen=res['value2'].stringlen
+
                 p[0]['code']+= self.gen("label", after_next_exp)
 
         elif len(p) == 3:
             ## case of unaryop
             res = self.typeHandler(p[2], None, p.slice[1].type, p.lexer.lineno)
             temp = stManager.newTemp(res['type'])
-            if p[-1]!='=':
+            if True:#p[-1]!='=':
                 temp = stManager.newTemp(res['type'])
                 p[0] = {
                      'place': temp
@@ -1066,11 +1093,12 @@ class MyParser(TypeSystem):
                     ,'code': p[2]['code'] + self.gen(p[1], temp, p[2]['place'])
                 }
             else:
-                p[0] = {
-                     'place': p[-2]
-                    ,'type': p[-2].type
-                    ,'code': p[2]['code'] + self.gen(p[1], p[-2], p[2]['place'])
-                }
+                pass
+                # p[0] = {
+                #      'place': p[-2]
+                #     ,'type': p[-2].type
+                #     ,'code': p[2]['code'] + self.gen(p[1], p[-2], p[2]['place'])
+                # }
 
         elif p1 == 'assignment':
             if type(p[1]) == dict:
@@ -1098,11 +1126,21 @@ class MyParser(TypeSystem):
             symEntry = stManager.lookup(p.slice[1].value)
             if symEntry == None:
                 self.printError("VariableNotDeclared", p.slice[1].value, p.lexer.lineno)
-            p[0] = {
-                 'place': symEntry
-                ,'code' : []
-                ,'type' : symEntry.type
-            }
+            if False:#p[-1]=="=":
+                pass
+                # p[0] = {
+                #      'place': p[-2]
+                #     ,'code' : self.gen("=",p[-2],symEntry)
+                #     ,'type' : symEntry.type
+                # }
+                # if p[-2].type=="String":
+                #     p[-2].stringlen=symEntry.stringlen
+            else:
+                p[0] = {
+                     'place': symEntry
+                    ,'code' : []
+                    ,'type' : symEntry.type
+                }
 
     def p_unaryop(self, p):
         '''
@@ -1127,6 +1165,7 @@ class MyParser(TypeSystem):
                     , 'type': p[1].type
                     , 'code': p[3]['code']+self.gen("=",p[1],p[3]['place'])
                 }
+                p[1].stringlen=p[3].stringlen
             else:
                 p[0] = {
                       'place': p[1]
@@ -1328,10 +1367,7 @@ class MyParser(TypeSystem):
             if pos == -1:
                 ndims=0
             else:
-                ndims=(len(a.type)-pos)/2
-
-            if access_code != []:
-                ndims-=1
+                ndims=int((len(a.type)-pos)/2)
 
             if writearray==False:
                 if p[3]['count'] + p[4] != ndims:
@@ -1357,7 +1393,7 @@ class MyParser(TypeSystem):
                     }
                     malloc_code = []
                     tmp = None
-                    if (a.type)[:pos] != "String":
+                    if True:#(a.type)[:pos] != "String":
                             size = stManager.newTemp('int')
                             malloc_code += self.gen("*", size, p[3]['place'][0], SymTab.typeSizeMap[str(a.type[:pos])])
                             if access_code==[]:
@@ -1567,7 +1603,8 @@ class MyParser(TypeSystem):
         p[0]={'code':[]}
 
     def p_error(self, p):
-        self.printError('ParseError', p.value, p.lineno)
+        if p != None:
+            self.printError('ParseError', p.value, p.lineno)
         exit(EXIT_FAILURE)
 
 

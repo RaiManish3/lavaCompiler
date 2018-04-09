@@ -8,7 +8,7 @@ class stat(Enum):
 
 
 ## this function extracts variables, converts them into pointer to symbols in symTableDict and also stores them in symlist
-def makeVarList(irlist, varlist, symlist):
+def makeVarList(irlist, varlist, symlist, arraylist):
     ## symlist is a mapping from "symbols" in IRcode to the variable it is pointing to
     tmp_varlist = set()
 
