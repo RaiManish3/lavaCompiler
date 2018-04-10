@@ -430,6 +430,7 @@ def translateMulDiv(op,X,Y,Z,lineno):
     dirtybit[X]=True
 
 
+## FLOATS ========================================================================
 def compareFloats(op, X, Y, Z, lineno):
     ## this function is supposed to be called only by translateFloatRelOpStmt
     global assemblyCode, labelCount
@@ -454,116 +455,40 @@ def compareFloats(op, X, Y, Z, lineno):
         assemblyCode += "@L" + str(labelCount+1) + ":\n"
     labelCount += 2
 
-def translateFloatRelOpStmt(op, X, Y, Z, lineno):
+
+def getFPUOrder(op, Y, Z):
+    if op in ['<', '>', '==']:
+        return (Z, Y)
+    return (Y, Z)
+
+def writeFPUinstr(X):
     global assemblyCode
-    if Y in symlist:
-        if op in ['<', '>', '==']:
-            if Z in symlist:
-                if Z.type == 'real':
-                    assemblyCode += "  fld " + name(Z) + "\n"
-                elif Z.type == 'int':
-                    handleIntToFloat(Z)
-                else:
-                    assert (False), "Code not implemented"
-            else:
-                ## case of Z being the literal itself
-                assemblyCode += "  fld " + addFloatToGlobal(Z) + "\n"
-
-            if Y.type == 'real':
-                assemblyCode += "  fld " + name(Y) + "\n"
-            elif Y.type == 'int':
-                handleIntToFloat(Y)
-            else:
-                assert (False), "Code not implemented"
+    if X in symlist:
+        if X.type == 'real':
+            assemblyCode += "  fld " + name(X) + "\n"
+        elif X.type == 'int':
+            handleIntToFloat(X)
         else:
-            if Y.type == 'real':
-                assemblyCode += "  fld " + name(Y) + "\n"
-            elif Y.type == 'int':
-                handleIntToFloat(Y)
-            else:
-                assert (False), "Code not implemented"
-
-            if Z in symlist:
-                if Z.type == 'real':
-                    assemblyCode += "  fld " + name(Z) + "\n"
-                elif Z.type == 'int':
-                    handleIntToFloat(Z)
-                else:
-                    assert (False), "Code not implemented"
-            else:
-                ## case of Z being the literal itself
-                assemblyCode += "  fld " + addFloatToGlobal(Z) + "\n"
+            assert (False), "Code not implemented"
     else:
-        ## case of Y being the literal itself
-        if op in ['<', '>', '==']:
-            if Z in symlist:
-                if Z.type == 'real':
-                    assemblyCode += "  fld " + name(Z) + "\n"
-                elif Z.type == 'int':
-                    handleIntToFloat(Z)
-                else:
-                    assert (False), "Code not implemented"
-            else:
-                ## case of Z being the literal itself
-                assemblyCode += "  fld " + addFloatToGlobal(Z) + "\n"
-            assemblyCode += "  fld " + addFloatToGlobal(Y) + "\n"
-        else:
-            assemblyCode += "  fld " + addFloatToGlobal(Y) + "\n"
-            if Z in symlist:
-                if Z.type == 'real':
-                    assemblyCode += "  fld " + name(Z) + "\n"
-                elif Z.type == 'int':
-                    handleIntToFloat(Z)
-                else:
-                    assert (False), "Code not implemented"
-            else:
-                ## case of Z being the literal itself
-                assemblyCode += "  fld " + addFloatToGlobal(Z) + "\n"
+        assemblyCode += "  fld " + addFloatToGlobal(X) + "\n"
+
+
+def translateFloatRelOpStmt(op, X, Y, Z, lineno):
+    Y, Z = getFPUOrder(op, Y, Z)
+    writeFPUinstr(Y)
+    writeFPUinstr(Z)
     compareFloats(op, X, Y, Z, lineno)
-
-
 
 def translateFloatArithOpStmt(op, X, Y, Z):
     global assemblyCode
     op = floatOp[op]
+    writeFPUinstr(Y)
+    writeFPUinstr(Z)
+    assemblyCode += "  f" + op + "\n"
+    assemblyCode += "  fstp " + name(X) + "\n"
 
-    if Y in symlist:
-        if Y.type == 'real':
-            assemblyCode += "  fld " + name(Y) + "\n"
-        elif Y.type == 'int':
-            handleIntToFloat(Y)
-        else:
-            assert (False), "Code not implemented"
-
-        if Z in symlist:
-            if Z.type == 'real':
-                assemblyCode += "  fld " + name(Z) + "\n"
-            elif Z.type == 'int':
-                handleIntToFloat(Z)
-            else:
-                assert (False), "Code not implemented"
-        else:
-            ## case of Z being the literal itself
-            assemblyCode += "  fld " + addFloatToGlobal(Z) + "\n"
-        assemblyCode += "  f" + op + "\n"
-        assemblyCode += "  fstp " + name(X) + "\n"
-
-    else:
-        ## case of Y being the literal itself
-        assemblyCode += "  fld " + addFloatToGlobal(Y) + "\n"
-        if Z in symlist:
-            if Z.type == 'real':
-                assemblyCode += "  fld " + name(Z) + "\n"
-            elif Z.type == 'int':
-                handleIntToFloat(Z)
-            else:
-                assert (False), "Code not implemented"
-        else:
-            ## case of Z being the literal itself
-            assemblyCode += "  fld " + addFloatToGlobal(Z) + "\n"
-        assemblyCode += "  f" + op + "\n"
-        assemblyCode += "  fstp " + name(X) + "\n"
-
+## FLOATS ========================================================================
 
 def translate(ir):
     global assemblyCode,flag_isMoveYtoX, translatingMainFlag, strassemblyCode, strdeclnum

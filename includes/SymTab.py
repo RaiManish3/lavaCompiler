@@ -58,9 +58,8 @@ class SymbolTable(object):
             tmp.offset+=size
         elif lexeme not in ["`update_block","`after_block"]:
             size = None
-
             assert(False)
-            #TODO CHECK WHERE THIS IS VIOLATED
+
         self.vars[lexeme] = VarType(lexeme,category, ltype, offset, size)
         return self.vars[lexeme]
 

@@ -166,7 +166,7 @@ class MyParser(TypeSystem):
         return [strx]
 
     def printParseTree(self, p):
-        flag = True
+        flag = False
         if flag:
             print(p.slice)
 
@@ -1159,13 +1159,14 @@ class MyParser(TypeSystem):
         if isinstance(p[1], SymTab.VarType):
             if p[1].type != p[3]['type']:
                 self.printError("TypeError", p.lexer.lineno)
-            if p[1]!=p[3]['place']:
+            if p[1] != p[3]['place']:
                 p[0] = {
                       'place': p[1]
                     , 'type': p[1].type
                     , 'code': p[3]['code']+self.gen("=",p[1],p[3]['place'])
                 }
-                p[1].stringlen=p[3].stringlen
+                if isinstance(p[3], SymTab.VarType):
+                    p[1].stringlen = p[3].stringlen
             else:
                 p[0] = {
                       'place': p[1]
