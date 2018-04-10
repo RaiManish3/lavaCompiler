@@ -1080,7 +1080,8 @@ class MyParser(TypeSystem):
 
         elif len(p) == 3:
             ## case of unaryop
-            res = self.typeHandler(p[2], None, p.slice[1].type, p.lexer.lineno)
+            pxType = 'MINUS' if p.slice[1].type == '-' else 'NOT'
+            res = self.typeHandler(p[2], None, pxType, p.lexer.lineno)
             temp = stManager.newTemp(res['type'])
             if True:#p[-1]!='=':
                 temp = stManager.newTemp(res['type'])
@@ -1571,7 +1572,6 @@ class MyParser(TypeSystem):
             code=[]
             tmp=stManager.newTemp('String')
             strk=p.slice[1].value[1:-1]
-            #  code+=self.gen('malloc',tmp,len(strk)+1)
             #TODO in CODEGEN
             code+=self.gen('swrite',tmp,strk,len(strk))
             tmp.stringlen=len(strk)
