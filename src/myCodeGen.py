@@ -38,7 +38,7 @@ floatOp['<='] = floatOp['>']
 floatOp['>='] = floatOp['<']
 floatOp['~='] = floatOp['==']
 labelCount = 0
-paramOffset = 8 ## 4 bytes for ret_address and 4 bytes for pushing the ebp in the callee
+paramOffset = 16 ## 4 bytes for ret_address and 4 bytes for pushing the ebp in the callee
 
 symlist = []
 varlist = []
@@ -562,19 +562,19 @@ def translate(ir):
         elif utility.isInt(X):
             xSize = 4
         else:
-            ## TODO :: Case of String
-            assert False,"Code not implemented"
+            xSize = 4
         paramOffset += xSize
         if xSize == 4:
-            assemblyCode += "  mov " + "dword [esp-" + str(paramOffset) + "], " + name(X) + "\n"
+            if name(X).startswith('dword'):
+                regX = getRegWithContraints(0,None,None,lineno)
+                assemblyCode += "  mov " + regX + ", " + name(X) + "\n"
+                associate(X, regX)
+                assemblyCode += "  mov " + "dword [esp-" + str(paramOffset) + "], " + regX + "\n"
+            else:
+                assemblyCode += "  mov " + "dword [esp-" + str(paramOffset) + "], " + name(X) + "\n"
         elif xSize == 8:
             assemblyCode += "  fld " + addFloatToGlobal(X) + "\n"
             assemblyCode += "  fstp " + "qword [esp-" + str(paramOffset) + "]\n"
-        else:
-            ## TODO :: param for String case
-            assert False,"Code not implemented"
-    else:
-        paramOffset = 8   ## 4 bytes for ret_address and 4 bytes for pushing the ebp in the callee
 
     if op == "=" or op=="~":
         src=ir[3]
@@ -736,11 +736,23 @@ def translate(ir):
         assemblyCode += "  jmp " + label + "\n"
 
     if op == "call":
+        paramOffset = 16
         dumpAllRegToMem()
-        assemblyCode += "  call "+ir[2]+"\n"
         if len(ir)>3:
-            associate(ir[3],'eax')
-            dirtybit[ir[3]]=True
+            #  if ir[3].type in ['int', 'boolean']:
+                #  associate(ir[3],'eax')
+                #  dirtybit[ir[3]]=True
+            #  elif ir[3].type == 'real':
+                # TODO :: optimise
+            assemblyCode += "  sub esp, 8\n"
+            #  else:
+                #  assert False, "only int, boolean and real are allowed return type"
+        assemblyCode += "  call " + ir[2] + "\n"
+        #  if ir[3].type == 'real':
+        regX = getRegWithContraints(0,None,None, lineno)
+        assemblyCode += "  mov " + regX +", dword [esp]\n" 
+        assemblyCode += "  mov " + name(ir[3]) + ", " + regX + "\n"
+        assemblyCode += "  add esp, 8\n"
 
     # Generating assembly code if the tac is a return statement
     if op == "exit":

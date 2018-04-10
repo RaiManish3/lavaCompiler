@@ -528,8 +528,6 @@ class MyParser(TypeSystem):
             }
         else:
             p[0] = {'code':[]}
-        #NOTE BETA PHASE
-        #p[0]=self.gen('addebp',stManager.currentTable.offset)+p[0]['code']
         stManager.endScope()
 
     def p_method_header(self, p):
@@ -1573,7 +1571,7 @@ class MyParser(TypeSystem):
             code=[]
             tmp=stManager.newTemp('String')
             strk=p.slice[1].value[1:-1]
-            code+=self.gen('malloc',tmp,len(strk)+1)
+            #  code+=self.gen('malloc',tmp,len(strk)+1)
             #TODO in CODEGEN
             code+=self.gen('swrite',tmp,strk,len(strk))
             tmp.stringlen=len(strk)
