@@ -580,7 +580,22 @@ def translate(ir):
         src=ir[3]
         dest=ir[2]
         if src != dest:
-            if dest.type in ['int', 'boolean']:
+            # if dest.type in ['int', 'boolean',"String","int[]"]:
+
+
+            if dest.type == 'real':
+                if src in symlist:
+                    if src.type == "real":
+                        assemblyCode += "  fld " + name(src) + "\n"
+                    elif src.type == "int":
+                        handleIntToFloat(src)
+                    else:
+                        assert (False), "TypeError"
+                else:
+                    assemblyCode += "  fld " + addFloatToGlobal(src) + "\n"
+                assemblyCode += "  fstp " + name(dest) + "\n"
+
+            else:
                 global flag_isMoveZfromMem
                 flag_isMoveZfromMem=False
                 OptimizeForYandZ(lineno,None,None,src,dest)
@@ -600,21 +615,7 @@ def translate(ir):
 
                 if addressDescriptor[dest]!="mem":
                     dirtybit[dest]=True
-
-            elif dest.type == 'real':
-                if src in symlist:
-                    if src.type == "real":
-                        assemblyCode += "  fld " + name(src) + "\n"
-                    elif src.type == "int":
-                        handleIntToFloat(src)
-                    else:
-                        assert (False), "TypeError"
-                else:
-                    assemblyCode += "  fld " + addFloatToGlobal(src) + "\n"
-                assemblyCode += "  fstp " + name(dest) + "\n"
-
-            else:
-                assert (False), "Code not Implemented"
+                # assert (False), "Code not Implemented"
 
         if op =="~":
             assemblyCode+="  not " + name(dest) + "\n"
@@ -797,7 +798,7 @@ def translate(ir):
     if op == "readString":
         X = ir[2] ## assuming only int literals or int variables
         dumpAllRegToMem()
-        # temp=stManager.newTemp(X.type)
+        # temp=stManager.newTemp(X.type)self.fail('message')
         reg=getRegWithContraints(0,None,None,lineno)
         assemblyCode += "  lea "+reg+", ["+X.name+"]\n"
         assemblyCode += "  push " + reg +"\n"
@@ -806,15 +807,33 @@ def translate(ir):
 
 
     if op == "return":
-        dumpAllRegToMem()
         if len(ir) > 2:
             if ir[2] not in symlist:
-                assemblyCode+="  mov eax, "+str(ir[2])+"\n"
+                if utility.isFloat(ir[2]):
+                    assemblyCode +="  fld "+addFloatToGlobal(ir[2])+"\n"
+                    assemblyCode +="  fstp qword [ebp+8]\n"
+                    # assemblyCode+="  mov dword [ebp+4], "+str(ir[2])+"\n"
+                elif utility.isInt(ir[2]):#TODO CHECK FOR BOOLEAN
+                    assemblyCode+="  mov dword [ebp+4], "+str(ir[2])+"\n"
             elif addressDescriptor[ir[2]]=="mem":
-                assemblyCode += "  mov eax, " + name(ir[2]) + "\n"
+                if ir[2].type =='real':
+                    assemblyCode +="  fld dword["+ir[2].name+"]\n"
+                    assemblyCode +="  fstp qword [ebp+8]"
+                else:
+                    reg=getRegWithContraints(0,None,None,lineno)
+                    assemblyCode+="  mov "+reg+", dword["+ir[2].name+"]\n"
+                    assemblyCode+="  mov dword[ebp+4], "+reg+"\n"
             else:
-                if addressDescriptor[ir[2]]!="eax":
-                    assemblyCode+=" mov eax, " + addressDescriptor[ir[2]] + "\n"
+                # if addressDescriptor[ir[2]]!="eax":
+                if ir[2].type=='real':
+                    assemblyCode +="  fld dword["+ir[2].name+"]\n"
+                    assemblyCode +="  fstp qword [ebp+8]"
+                elif ir[2].type in ['int','boolean']
+                    assemblyCode +=" mov dword [ebp+4], "+addressDescriptor[ir[2]]+"\n"
+                else:
+                    assert(False)
+
+        dumpAllRegToMem()
 
         if translatingMainFlag:
             assemblyCode += "  mov eax, 0\n"
