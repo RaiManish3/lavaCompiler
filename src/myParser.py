@@ -1573,7 +1573,7 @@ class MyParser(TypeSystem):
             code=[]
             tmp=stManager.newTemp('String')
             strk=p.slice[1].value[1:-1]
-            code+=self.gen('malloc',tmp,len(strk)+1)
+            # code+=self.gen('malloc',tmp,len(strk)+1)
             #TODO in CODEGEN
             code+=self.gen('swrite',tmp,strk,len(strk))
             tmp.stringlen=len(strk)
