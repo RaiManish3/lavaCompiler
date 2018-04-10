@@ -38,6 +38,7 @@ floatOp['<='] = floatOp['>']
 floatOp['>='] = floatOp['<']
 floatOp['~='] = floatOp['==']
 labelCount = 0
+paramOffset = 8 ## 4 bytes for ret_address and 4 bytes for pushing the ebp in the callee
 
 symlist = []
 varlist = []
@@ -55,6 +56,12 @@ arraylist=[]
 DEBUG_FLAG = False
 ## GLOBALS=============================================================
 
+def getNewLabel():
+    global labelCount
+    x = "@L" + str(labelCount)
+    labelCount += 1
+    return x
+
 def addFloatToGlobal(val):
     global floatGlobalDataCode, floatLiteralCount
     x = "@ft_" + str(floatLiteralCount)
@@ -68,10 +75,10 @@ def resolveType(M):
     if isinstance(M, SymTab.VarType):
         typeM = M.type
     else:
+        if utility.isFloat(M):
+            typeM = 'real'
         if utility.isInt(M):
             typeM = 'int'
-        elif utility.isFloat(M):
-            typeM = 'real'
         else:
             typeM = 'String'
     return typeM
@@ -433,27 +440,29 @@ def translateMulDiv(op,X,Y,Z,lineno):
 ## FLOATS ========================================================================
 def compareFloats(op, X, Y, Z, lineno):
     ## this function is supposed to be called only by translateFloatRelOpStmt
-    global assemblyCode, labelCount
+    global assemblyCode
     regx = getReg(X, Y, Z, lineno, None)
     associate(X, regx)
+    l1 = getNewLabel()
+    l2 = getNewLabel()
+
     assemblyCode += "  fcom st0, st1\n"
     assemblyCode += "  fstsw " + regx[1:] + "\n"
     assemblyCode += "  and " + regx + ", 0100011100000000B\n"
     assemblyCode += "  cmp " + regx + ", " + floatOp[op] + "\n"
-    assemblyCode += "  je " + "@L" + str(labelCount) + "\n"
+    assemblyCode += "  je " + l1 + "\n"
     if op in ['<','>','==']:
         assemblyCode += "  mov " + regx + ", 0\n"
-        assemblyCode += "  jmp " + "@L" + str(labelCount+1) + "\n"
-        assemblyCode += "@L" + str(labelCount) + ":\n"
+        assemblyCode += "  jmp " + l2 + "\n"
+        assemblyCode += l1 + ":\n"
         assemblyCode += "  mov " + regx + ", 1\n"
-        assemblyCode += "@L" + str(labelCount+1) + ":\n"
+        assemblyCode += l2 + ":\n"
     else:
         assemblyCode += "  mov " + regx + ", 1\n"
-        assemblyCode += "  jmp " + "@L" + str(labelCount+1) + "\n"
-        assemblyCode += "@L" + str(labelCount) + ":\n"
+        assemblyCode += "  jmp " + l2 + "\n"
+        assemblyCode += l1 + ":\n"
         assemblyCode += "  mov " + regx + ", 0\n"
-        assemblyCode += "@L" + str(labelCount+1) + ":\n"
-    labelCount += 2
+        assemblyCode += l2 + ":\n"
 
 
 def getFPUOrder(op, Y, Z):
@@ -475,9 +484,9 @@ def writeFPUinstr(X):
 
 
 def translateFloatRelOpStmt(op, X, Y, Z, lineno):
-    Y, Z = getFPUOrder(op, Y, Z)
-    writeFPUinstr(Y)
-    writeFPUinstr(Z)
+    M, N = getFPUOrder(op, Y, Z)
+    writeFPUinstr(M)
+    writeFPUinstr(N)
     compareFloats(op, X, Y, Z, lineno)
 
 def translateFloatArithOpStmt(op, X, Y, Z):
@@ -491,7 +500,9 @@ def translateFloatArithOpStmt(op, X, Y, Z):
 ## FLOATS ========================================================================
 
 def translate(ir):
-    global assemblyCode,flag_isMoveYtoX, translatingMainFlag, strassemblyCode, strdeclnum
+    global assemblyCode, flag_isMoveYtoX, \
+        translatingMainFlag, strassemblyCode, \
+        strdeclnum, paramOffset
     lineno = ir[0]
     op = ir[1]
 
@@ -542,8 +553,28 @@ def translate(ir):
         assemblyCode+="  mov "+ name(ir[2])+", esp\n"
 
     if op == "param":
-        #THIS CAN BE OPTIMIZE
-        assemblyCode += "  push " + name(ir[2]) + "\n"
+        X = ir[2]
+        xSize = 0
+        if X in symlist:
+            xSize = X.size
+        elif utility.isFloat(X):
+            xSize = 8
+        elif utility.isInt(X):
+            xSize = 4
+        else:
+            ## TODO :: Case of String
+            assert False,"Code not implemented"
+        paramOffset += xSize
+        if xSize == 4:
+            assemblyCode += "  mov " + "dword [esp-" + str(paramOffset) + "], " + name(X) + "\n"
+        elif xSize == 8:
+            assemblyCode += "  fld " + addFloatToGlobal(X) + "\n"
+            assemblyCode += "  fstp " + "qword [esp-" + str(paramOffset) + "]\n"
+        else:
+            ## TODO :: param for String case
+            assert False,"Code not implemented"
+    else:
+        paramOffset = 8   ## 4 bytes for ret_address and 4 bytes for pushing the ebp in the callee
 
     if op == "=" or op=="~":
         src=ir[3]
@@ -723,16 +754,24 @@ def translate(ir):
             assemblyCode += "  push dword [" + X.name[:3] + str(int(X.name[3:])+4) +"]\n"
             assemblyCode += "  push dword [" + X.name +"]\n"
         dumpAllRegToMem()
-        if X.type=="String":
-            assemblyCode += "  push debug_s\n"
-        elif X.type=="int":
-            assemblyCode += "  push debug_d\n"
-        elif X.type=="real":
-            assemblyCode += "  push debug_f\n"
-        elif X.type=="boolean":
-            assert(False)
-            #TODO HANDLE IT
-            assemblyCode += "  push debug_d\n"
+        if isinstance(X, SymTab.VarType):
+            if X.type=="String":
+                assemblyCode += "  push debug_s\n"
+            elif X.type=="int":
+                assemblyCode += "  push debug_d\n"
+            elif X.type=="real":
+                assemblyCode += "  push debug_f\n"
+            elif X.type=="boolean":
+                assert(False)
+                #TODO HANDLE IT
+                assemblyCode += "  push debug_d\n"
+        else:
+            if utility.isFloat(X):
+                assemblyCode += "  push debug_f\n"
+            elif utility.isInt(X):
+                assemblyCode += "  push debug_d\n"
+            else:
+                assemblyCode += "  push debug_s\n"
         assemblyCode += "  call printf\n"
 
     if op == "readInt":

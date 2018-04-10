@@ -182,4 +182,4 @@ class TableManager(object):
             tmp=tmp.parent
         offset=tmp.offset+size
         tmp.offset+=size
-        return VarType('$t' + str(self.tmpCount-1), None, ltype,offset)
+        return VarType('$t' + str(self.tmpCount-1), 'temp', ltype, offset, size)

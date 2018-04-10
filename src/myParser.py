@@ -94,6 +94,7 @@ class TypeSystem(ErrorSystem):
     def typeHandler(self, p1, p2, token, lineno):
         mapX = expTypeMap[token]
         t1, v1 = p1['type'], p1['place']
+        xType = mapX[len(mapX)-1]
 
         if p2 != None:
             t2, v2 = p2['type'], p2['place']
@@ -101,7 +102,7 @@ class TypeSystem(ErrorSystem):
             if t1 in mapX[:len(mapX)-1] and t2 in mapX[:len(mapX)-1]:
                 if t1 == t2:
                     return {
-                         'type': t1 if mapX[len(mapX)-1] == None else mapX[len(mapX)-1]
+                         'type': t1 if xType == None else xType
                         ,'value1': v1
                         ,'value2': v2
                         }
@@ -109,7 +110,7 @@ class TypeSystem(ErrorSystem):
                     t3 = self.isTypeConvertible(t1, t2)
                     if t3 != None:
                         return {
-                             'type': t3
+                             'type': t3 if xType == None else xType
                             ,'value1': v1
                             ,'value2': v2
                             }
@@ -458,8 +459,6 @@ class MyParser(TypeSystem):
             }
 
         elif xRule == 'input':
-            print("RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR")
-            print(p[1])
             xType = p[1][0][0][4:].lower()
             if xType == 'string':
                 xType = 'String'
@@ -801,34 +800,39 @@ class MyParser(TypeSystem):
             stManager.insert('`update_block',update_block,None)
             stManager.insert('`after_block',after_block,None)
 
+    def p_seen_cond(self, p):
+        '''
+            seen_cond :
+        '''
+        if p[-1]['type'] != 'boolean':
+            self.printError("TypeError", p.lexer.lineno)
+
     def p_if_then_else_statement(self, p):
         '''
-            if_then_else_statement : IF seenif_for_while LPAREN expression RPAREN THEN block_statements ELSE block_statements END
-                                   | IF seenif_for_while LPAREN expression RPAREN THEN block_statements END
+            if_then_else_statement : IF seenif_for_while LPAREN expression seen_cond RPAREN THEN block_statements ELSE block_statements END
+                                   | IF seenif_for_while LPAREN expression seen_cond RPAREN THEN block_statements END
         '''
         self.printParseTree(p)
         p[0] = {
             'code':[]
         }
         tstr=[]
-        if p[4]['type'] != 'boolean':
-            self.printError("TypeError", p.lexer.lineno)
 
-        if len(p) == 11:
+        if len(p) == 12:
             false_block=stManager.newLabel()
             after_block=stManager.newLabel()
             tstr += p[4]['code']
             tstr += self.gen('ifgoto','==',p[4]['place'],'0',false_block)
-            tstr += p[7]['code']
+            tstr += p[8]['code']
             tstr += self.gen('goto',after_block)
             tstr += self.gen("label", false_block)
-            tstr += p[9]['code']
+            tstr += p[10]['code']
             tstr += self.gen("label", after_block)
         else:
             after_block=stManager.newLabel()
             tstr += p[4]['code']
             tstr += self.gen('ifgoto','==',p[4]['place'],'0',after_block)
-            tstr += p[7]['code']
+            tstr += p[8]['code']
             tstr += self.gen("label", after_block)
 
         p[0]['code']=p[0]['code']+tstr
@@ -836,28 +840,25 @@ class MyParser(TypeSystem):
 
     def p_while_statement(self, p):
         '''
-            while_statement : WHILE seenif_for_while LPAREN expression RPAREN block
+            while_statement : WHILE seenif_for_while LPAREN expression seen_cond RPAREN block
         '''
         self.printParseTree(p)
         update_block = stManager.lookup('`update_block').type
         loop_block = update_block
         after_block = stManager.lookup('`after_block').type
 
-        if p[4]['type']!='boolean':
-            self.printError("TypeError", p.lexer.lineno)
-
         tstr = self.gen("label", loop_block)
         tstr += p[4]['code']
         tstr += self.gen('ifgoto','==',p[4]['place'],'0',after_block)
-        tstr += p[6]['code']
+        tstr += p[7]['code']
         tstr += self.gen('goto',loop_block)
         tstr += self.gen("label", after_block)
-        p[0]={'code':tstr};
+        p[0] = {'code':tstr}
         stManager.endScope()
 
     def p_for_statement(self, p):
         '''
-            for_statement : FOR seenif_for_while LPAREN for_init STMT_TERMINATOR expression STMT_TERMINATOR for_update RPAREN block
+            for_statement : FOR seenif_for_while LPAREN for_init STMT_TERMINATOR expression seen_cond STMT_TERMINATOR for_update RPAREN block
                           | FOR seenif_for_while LPAREN for_init STMT_TERMINATOR STMT_TERMINATOR for_update RPAREN block
         '''
         self.printParseTree(p)
@@ -866,18 +867,16 @@ class MyParser(TypeSystem):
         loop_block = stManager.newLabel()
         p[0]={'code':[]}
         tstr=[]
-        if len(p)==11:
+        if len(p)==12:
             assert (p[1]!=None), "Code not implemented for {}".format(p.slice[6])
-            if p[6]['type'] != 'boolean':
-              self.printError("TypeError", p.lexer.lineno)
 
             tstr += p[4]['code']
             tstr += self.gen("label", loop_block)
             tstr += p[6]['code']
             tstr += self.gen('ifgoto','==',p[6]['place'],'0',after_block)
-            tstr += p[10]['code']
+            tstr += p[11]['code']
             tstr += self.gen("label", update_block)
-            tstr += p[8]['code']
+            tstr += p[9]['code']
             tstr += self.gen('goto',loop_block)
             tstr += self.gen("label", after_block)
         else:
