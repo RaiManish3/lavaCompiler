@@ -257,6 +257,7 @@ class MyParser(TypeSystem):
         }
         stManager.beginScope(SymTab.Category.Class, cattr)
         stManager.beginScope(SymTab.Category.Function, {'name':"",'args_types':[]})
+        stManager.currentTable.attr['name']=stManager.currentTable.parent.attr['name']
 
     def p_seen_class_decl2(self,p):
         '''
@@ -269,6 +270,7 @@ class MyParser(TypeSystem):
         }
         stManager.beginScope(SymTab.Category.Class, cattr)
         stManager.beginScope(SymTab.Category.Function, {'name':"",'args_types':[]})
+        stManager.currentTable.attr['name']=stManager.currentTable.parent.attr['name']
 
 
     def p_interface_type_list(self, p):
@@ -322,8 +324,7 @@ class MyParser(TypeSystem):
             if stManager.currentTable.category == SymTab.Category.Function:
                 if type(p[-1]) == dict and 'marker_sfd' in p[-1].keys():
                     xCode  = p[-1]['code']
-                stManager.currentTable.attr['name']="auto___Zn3_$c$_"+stManager.currentTable.parent.attr['name']
-                p[0]['auto_constructor']=self.gen('function',stManager.currentTable.attr['name'])+xCode + self.gen('return')
+                p[0]['auto_constructor']=self.gen('function',"auto___Zn3_$c$_"+stManager.currentTable.parent.attr['name'])+xCode + self.gen('return')
                 p[0]['constructor'] = p[0]['auto_constructor']
                 p[0]['conFlag'] = False
                 stManager.endScope() 
@@ -465,13 +466,17 @@ class MyParser(TypeSystem):
             #TODO TYPE CHECK
             if p[1].type != p[3]['type'] and not self.isTypeConvertible(p[1].type, p[3]['type']):
                 self.printError("TypeError", p.lexer.lineno)
-            if p[3]['place']==None:# or isinstance(p[3]['place'],SymTab.VarType):
+
+            if p[3]['place']==None:
                 p[0] = {
                       'place':p[1]
                     , 'code':p[3]['code']
                 }
             elif p[3]['place']!=p[1]:
-                if stManager.currentTable.category==SymTab.Category.Class:
+                #if stManager.currentTable.category==SymTab.Category.Class:
+                print(stManager.currentTable.parent.attr)
+                print(stManager.currentTable.attr)
+                if stManager.currentTable.category==SymTab.Category.Function and stManager.currentTable.parent.category==SymTab.Category.Class and stManager.currentTable.parent.attr['name']==stManager.currentTable.attr['name']:
                     obj=stManager.lookup('this')
                     tempk=stManager.newTemp(p[1].type)
                     if p[1].type!="real":
