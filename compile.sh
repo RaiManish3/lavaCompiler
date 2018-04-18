@@ -2,7 +2,7 @@ asm="asm/"
 INPUTFILENAME=`basename $1`
 ASMCODE="${INPUTFILENAME%.*}"
 
-python src/lava.py $1 &&
+python3 src/lava.py $@ && false &&
 mkdir -p $asm &&
 nasm -f elf32 -F dwarf -l "${asm}/t.lst" -g "${asm}$ASMCODE.s" &&
 gcc -m32 "${asm}$ASMCODE.o" -o "${asm}a.out" &&

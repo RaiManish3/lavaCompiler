@@ -34,4 +34,4 @@ ass1: $(SRC)/assignment1.py $(SRC)/myLexer.py
 
 clean:
 	@rm -rf bin/* src/{*.pyc,__pycache__,lextab.py,parsetab.py,parser.out} includes/{*.pyc,__pycache__}
-	@rm asm/*
+	@rm -rf asm/*

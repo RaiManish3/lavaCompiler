@@ -50,17 +50,15 @@ class SymbolTable(object):
         size=None
         if ltype in typeSizeMap.keys():
             size = typeSizeMap[ltype]
-            tmp=self
-            #CHECK WHETHER THIS IS CORRECT
-            while(tmp.category==Category.Block):
+            tmp = self
+            while tmp.category == Category.Block:
                 tmp=tmp.parent
             offset=tmp.offset+size
             tmp.offset+=size
-        elif isinstance(ltype,SymbolTable):
+        elif isinstance(ltype, SymbolTable):
             size=4
-            tmp=self
-            #CHECK WHETHER THIS IS CORRECT
-            while(tmp.category==Category.Block):
+            tmp = self
+            while tmp.category == Category.Block:
                 tmp=tmp.parent
             offset=tmp.offset+size
             tmp.offset+=size
@@ -182,21 +180,15 @@ class TableManager(object):
         size=None
         if "[]" in ltype:
             size = typeSizeMap[ltype[:str(ltype).find("[]")]]
-        elif isinstance(ltype,SymbolTable):
+        elif isinstance(ltype, SymbolTable):
             size=4
-            tmp=self
-            #CHECK WHETHER THIS IS CORRECT
-            while(tmp.category==Category.Block):
-                tmp=tmp.parent
-            offset=tmp.offset+size
-            tmp.offset+=size
-        elif ltype in typeSizeMap.keys()
+        elif ltype in typeSizeMap.keys():
             size = typeSizeMap[ltype]
         else:
             assert(False)
-        tmp=self.currentTable
-        #CHECK WHETHER THIS IS CORRECT
-        while(tmp.category==Category.Block):
+
+        tmp = self.currentTable
+        while tmp.category == Category.Block:
             tmp=tmp.parent
         offset=tmp.offset+size
         tmp.offset+=size

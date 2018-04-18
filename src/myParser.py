@@ -46,6 +46,7 @@ class ErrorSystem(object):
             "TypeError": "TypeError at line: {}"
             ,"VariableNotDeclared": "Illegal use of variable '{}' before declaration in line: {}"
             ,"FunctionNotDeclared": "Illegal use of function '{}' before declaration in line: {}"
+            ,"InterfaceNotDeclared": "Illegal use of interface '{}' before declaration in class '{}'"
             ,"ReDeclare": "Re-Declaration of '{}' at line: {}"
             ,"ReturnError": "End return statement not specified for the function '{}'"
             ,"ReturnType": "Return statement as different type than the enclosing function at line: {}"
@@ -54,6 +55,7 @@ class ErrorSystem(object):
             ,"ParseError": "Cannot parse {} at line: {}"
             ,"BadDeclare": "Function '{}' definition does not match its declaration at line: {}"
             ,"ParamError": "Illegal arguments in call to function '{}' at line: {}"
+            ,"FunctionOverride": "Function '{}' from interface '{}' not over-ridden in class '{}'"
         }
 
     def printLine(self, lineno):
@@ -203,15 +205,14 @@ class MyParser(TypeSystem):
         '''
             program : program class_declaration
                     | program interface_declaration
-                    | program STMT_TERMINATOR
                     | empty
         '''
         self.printParseTree(p)
         if len(p)==3:
             p[0]={'code':p[1]['code']}
-            if str(p.slice[2])=='class_declaration'
-                p[0]['code'] += p[2]['constructor']+p[2]['body']
-            elif str(p.slice[2])=='interface_declaration':
+            if str(p.slice[2]) == 'class_declaration':
+                p[0]['code'] += p[2]['constructor'] + p[2]['body']
+            elif str(p.slice[2]) == 'interface_declaration':
                 p[0]['code'] += p[2]['code']
         else:
             p[0]={'code':[]}
@@ -223,12 +224,27 @@ class MyParser(TypeSystem):
                               | CLASS IDENTIFIER seen_class_decl2 BEGIN class_body_declarations END
         '''
         self.printParseTree(p)
-        stManager.endScope()
         ## TODO: OOP CONCEPT TO BE IMPLEMENTED:
         if len(p)==9:
+            ## check if the interface's method are over-ridden or not
+            for i in p[4]:
+                iSymEntry = stManager.currentTable.parent.lookup(i) ## parent is the top level dict
+                if iSymEntry == None:
+                    printError("InterfaceNotDeclared", i, 
+                               stManager.currentTable.attr['name'], None)
+                for k,v in iSymEntry.children.items():
+                    cSymEntry = stManager.lookup(k)
+                    if cSymEntry == None:
+                        printError("FunctionOverride", k, i, 
+                                   stManager.currentTable.attr['name'], None)
+                    if v.attr['args_types'] != cSymEntry.attr['args_types']:
+                        printError("FunctionOverride", k, i, 
+                                   stManager.currentTable.attr['name'], None)
+
             p[0]=p[7]
         else:
             p[0]=p[5]
+        stManager.endScope()
 
     def p_seen_class_decl1(self,p):
         '''
@@ -240,6 +256,7 @@ class MyParser(TypeSystem):
             , 'interfaces':p[-1]
         }
         stManager.beginScope(SymTab.Category.Class, cattr)
+        stManager.beginScope(SymTab.Category.Function, {'name':"",'args_types':[]})
 
     def p_seen_class_decl2(self,p):
         '''
@@ -251,6 +268,7 @@ class MyParser(TypeSystem):
             , 'interfaces':[]
         }
         stManager.beginScope(SymTab.Category.Class, cattr)
+        stManager.beginScope(SymTab.Category.Function, {'name':"",'args_types':[]})
 
 
     def p_interface_type_list(self, p):
@@ -273,9 +291,22 @@ class MyParser(TypeSystem):
     #3 auto___Zn3_$c$_className_$p1t$_Parameter1Type_$p2t$_Parameter2Type
     #NOTE 3rd constuctor is an automatic constuctor that calls constructor 2 if present
     # Here Paramter2 corresponds to serlf
+
+    def p_seen_field_decl(self,p):
+        '''
+            seen_field_decl :
+        '''
+        p[0]={'code':""}
+        p[0]['marker_sfd']=True
+        if type(p[-2]) == dict and 'marker_sfd' in p[-2].keys():
+            p[0]['code']=p[-2]['code']+p[-1]['code']
+        else:
+            p[0]['code']=p[-1]['code']
+        self.printParseTree(p)
+
     def p_class_body_declarations(self, p):
         '''
-            class_body_declarations : field_declaration class_body_declarations
+            class_body_declarations : field_declaration seen_field_decl class_body_declarations
                                     | class_body_declarations class_member_declaration
                                     | class_body_declarations constructor_declaration
                                     | empty
@@ -285,29 +316,42 @@ class MyParser(TypeSystem):
         #TODO CONSTRUCTOR OVERLOADING
         #TODO EVERY OVERLOADED CONTRUCTOR CONTAINS CODE FOR ALL THE FIELDS OF CLASS
         self.printParseTree(p)
-        p[0] = {'fields': [],'body':[],'constuctor':[]}
+        xCode = []
+        p[0] = {'body':[],'constructor':[],'auto_constructor':[], 'conFlag':False}
         if len(p) == 2:
-            ## TODO :: should I assign place attr
-            pass
-        elif len(p)==3:
+            if stManager.currentTable.category == SymTab.Category.Function:
+                if type(p[-1]) == dict and 'marker_sfd' in p[-1].keys():
+                    xCode  = p[-1]['code']
+                stManager.currentTable.attr['name']="auto___Zn3_$c$_"+stManager.currentTable.parent.attr['name']
+                p[0]['auto_constructor']=self.gen('function',stManager.currentTable.attr['name'])+xCode + self.gen('return')
+                p[0]['constructor'] = p[0]['auto_constructor']
+                p[0]['conFlag'] = False
+                stManager.endScope() 
+
+        elif len(p)==3 or len(p)==4:
             xRule = str(p.slice[2])
-            if xRule == 'class_body_declarations':
-                p[0]['fields']+=p[1]['code']+p[2]['fields']
-                p[0]['body']+=p[2]['body']
-                p[0]['constuctor']+=p[2]['constructor']
+            if xRule == 'seen_field_decl':
+                p[0]['body']+=p[3]['body']
+                p[0]['constructor']+=p[3]['constructor']
+
             elif xRule == 'class_member_declaration':
                 p[0]['body']+=p[1]['body']+p[2]['code']
-                p[0]['fields']+=p[1]['fields']
-                p[0]['constuctor']+=p[1]['constructor']
-                ## TODO :: how the different member code be organised
-                pass
+                p[0]['constructor']+=p[1]['constructor']
+                p[0]['auto_constructor'] = p[1]['auto_constructor']
+                p[0]['conFlag'] = p[1]['conFlag']
+
             else:
-                p[0]['constructor']+=self.gen('function','auto'+p[2]['code'][0][1])+p[1]['fields']+self.gen('return')+p[2]['code']
-                p[0]['fields']+=p[1]['fields']
+                p[0]['conFlag'] = True
+                if not p[1]['conFlag']:
+                    p[0]['constuctor'] += self.gen("function", "auto" + p[2]['code'][1]) \
+                                            + p[1]['auto_constructor'][1:]
+                else:
+                    p[0]['constuctor'] += p[1]['constuctor'] + \
+                        self.gen("function", "auto" + p[2]['code'][1]) \
+                                            + p[1]['auto_constructor'][1:]
+
+                p[0]['auto_constructor'] = p[1]['auto_constructor']
                 p[0]['body']+=p[1]['body']
-                ## TODO :: constructor case THIS IS AN OOP CONECPT HANDLE later
-                # p[0]['code']=p[1]['code']+p[2]['code']
-                pass
 
 
 
@@ -327,7 +371,7 @@ class MyParser(TypeSystem):
         stManager.endScope()
         ## TODO: THIS IS AN OOP CONCEPT HANDLER IT, WHILE MAKING OBJECT
         p[0] = {
-            'code':p[3]['code']
+            'code': p[2]['code'] + p[3]['code']
         }
 
     def p_constructor_declarator(self, p):
@@ -338,6 +382,13 @@ class MyParser(TypeSystem):
         self.printParseTree(p)
         if len(p) == 6:
             stManager.currentTable.attr['args_types'] = p[4]
+        xName = ""
+        xCounter = 1
+        for i in p[4]:
+            xName += "_$p" + xCounter + "t$_" + str(i)
+            xCounter+=1
+        p[0]['code'] = self.gen('function', "___Zn3_$c$_" + \
+                                stManager.currentTable.parent.attr['name'] + xName)
 
     def p_seen_cons_name(self, p):
         '''
@@ -1144,13 +1195,17 @@ class MyParser(TypeSystem):
                 if 'specialForArrayWrite' in p[1].keys():
                     p[0] = p[1]
                     xKey = p[1]['specialForArrayWrite']
-                    tmpk = stManager.newTemp(str(xKey['place'].type)[:len(str(xKey['place'].type))-2])
-                    p[0]['code'] = p[0]['code'] + self.gen("readarray"
+                    ## FIXME FIXME :: TYPE INFO NOT PASSED HERE
+                    if not isinstance(p[1]['specialForArrayWrite']['place'], SymTab.SymbolTable):
+                        tmpk = stManager.newTemp(str(xKey['place'].type)[:len(str(xKey['place'].type))-2])
+                    else:
+                        tmpk = stManager.newTemp(p[1]['type'])
+                    p[0]['code'] = p[0]['code'] + p[1]['specialForArrayWrite']['code']+self.gen("readarray"
                                             ,p[1]['specialForArrayWrite']['place']
                                             ,p[1]['specialForArrayWrite']['index']
                                             ,tmpk)
                     p[0]['place'] = tmpk
-                    ## FIXME FIXME :: TYPE INFO NOT PASSED HERE
+                    p[0]['type'] = tmpk.type
                 else:
                     p[0] = p[1]
             else:
@@ -1316,6 +1371,29 @@ class MyParser(TypeSystem):
             field_access : primary DOT IDENTIFIER
         '''
         ## TODO: comes under domain of oops
+        ## check if primary is an object
+        if not isinstance(p[1]['place'], SymTab.VarType):
+            assert False, "illegal dot operation"
+
+        obj = p[1]['place'].type
+        if not isinstance(obj, SymTab.SymbolTable):
+            assert False, "illegal dot operation"
+
+        symEntry = obj.lookup(p[3])
+        if symEntry == None:
+            assert False, "Illegal member access"
+        tmp = stManager.newTemp(symEntry.type)
+        p[0] = {
+            'type': symEntry.type
+            ,'place': tmp
+            ,'code': p[1]['code'] + gen('readarray', p[1]['place'], symEntry.offset // 4, tmp)
+            ,'specialForArrayWrite':{
+                #NOTE THE TYPE SENT EHRE IS THE TYPE OF THE PLACE WHERE THE VALUE OF OBJECT IS WRITE INTO
+                'code': p[1]['code']
+                ,'place':p[1]['place']
+                ,'index':symEntry.offset // 4
+            }
+        }
         self.printParseTree(p)
 
     def p_primary(self, p):
@@ -1338,11 +1416,12 @@ class MyParser(TypeSystem):
         '''
         self.printParseTree(p)
         #CONTINUE FROM HERE
-        if str(p.slice[1]) in ['literal', 'method_invocation','array_access']:
+        xRule = str(p.slice[1])
+        if xRule in ['literal', 'method_invocation','array_access', 'field_access']:
             p[0] = p[1]
         elif len(p) == 4:
             p[0] = p[2]
-        else:
+        elif xRule == "class_instance_creation_expression":
             ## TODO ::COMES INSDIDE DOMAINS OF OOP
             pass
         assert (p[0] != None), "Case for '{}' not handled!".format(p.slice[0])
@@ -1520,7 +1599,8 @@ class MyParser(TypeSystem):
                 ,'code':p[1]['code']+p[3]['code'] +
                         self.gen("readarray",arr,p[3]['place'],tmp)
                 ,'specialForArrayWrite':{
-                    'code': p[1]['code']+p[3]['code']
+                    'type': arr.type
+                    ,'code': p[1]['code']+p[3]['code']
                     ,'place':arr
                     ,'index':p[3]['place']
                 }
@@ -1538,7 +1618,8 @@ class MyParser(TypeSystem):
                 ,'code':p[3]['code'] +
                         self.gen("readarray",arr,p[3]['place'],tmp)
                 ,'specialForArrayWrite':{
-                    'code':p[3]['code']
+                    'type': arr.type
+                    ,'code':p[3]['code']
                     ,'place':arr
                     ,'index':p[3]['place']
                 }

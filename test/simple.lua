@@ -1,6 +1,9 @@
 class x
 begin
-    declare:: int f();
+    int gh = 2;
+    String x = "hello";
+    boolean b = true;
+    --declare:: int f();
     function:: void main()
       begin
         int a = 3, b =7, t = 1;
@@ -10,7 +13,7 @@ begin
           a = a + 1;
           print(t);
         end
-        print(f());
+        -- print(f());
         return;
       end
 
