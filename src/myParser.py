@@ -420,10 +420,20 @@ class MyParser(TypeSystem):
                     , 'code':p[3]['code']
                 }
             elif p[3]['place']!=p[1]:
-                p[0] = {
-                      'place':p[1]
-                    , 'code':p[3]['code']+self.gen('=',p[1],p[3]['place'])
-                }
+                if stManager.currentTable.category==SymTab.Category.Class:
+                    obj=stManager.lookup('this')
+                    tempk=stManager.newTemp(p[1].type)
+                    if p[1].type!="real":
+                        objcode=self.gen("writearray",obj,p[1].offset/4,p[3])
+                    p[0] = {
+                          'place':tempk
+                        , 'code':p[3]['code']+objcode
+                    }
+                else:
+                    p[0] = {
+                          'place':p[1]
+                        , 'code':p[3]['code']+self.gen('=',p[1],p[3]['place'])
+                    }
                 if p[1].type=='String':
                     p[1].stringlen=p[3]['place'].stringlen
 
@@ -558,10 +568,10 @@ class MyParser(TypeSystem):
             method_header : FUNCTION DCOLON result_type method_declarator
 
         '''
-        # idVal = p.slice[1].value
-        # checkReInitial = stManager.currentTable.lookup(idVal)
-        # if checkReInitial != None:
-            # self.printError("ReDeclare", idVal, p.lexer.lineno)
+        idVal = p.slice[1].value
+        checkReInitial = stManager.currentTable.lookup(idVal)
+        if checkReInitial != None:
+            self.printError("ReDeclare", idVal, p.lexer.lineno)
         # p[0] = stManager.insert("this",stManager.currentTable, 'OBJ')
         self.printParseTree(p)
 
@@ -625,6 +635,7 @@ class MyParser(TypeSystem):
                 ,'args_types':[]
             }
         stManager.beginScope(SymTab.Category.Function, mAttr)
+        stManager.insert("this",stManager.currentTable, 'OBJ')
 
 
     def p_method_body(self, p):
