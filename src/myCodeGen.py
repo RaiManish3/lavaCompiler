@@ -800,10 +800,16 @@ def translate(ir):
         dumpAllRegToMem()
         # temp=stManager.newTemp(X.type)self.fail('message')
         reg=getRegWithContraints(0,None,None,lineno)
-        assemblyCode += "  lea "+reg+", ["+X.name+"]\n"
+        # associate(reg,)
+        #assemblyCode += "  lea "+reg+", ["+X.name+"]\n"
+        # assemblyCode += "  mov esp, 2"
+        assemblyCode += "  sub esp, 208\n"
+        assemblyCode += "  lea "+reg+", [esp]\n"
+        assemblyCode += "  mov dword ["+X.name+"], "+reg+"\n"
         assemblyCode += "  push " + reg +"\n"
         assemblyCode += "  push readString\n"
         assemblyCode += "  call scanf\n"
+        assemblyCode += "  mov dword [esp+196], 0\n"
 
 
     if op == "return":
@@ -828,7 +834,7 @@ def translate(ir):
                 if ir[2].type=='real':
                     assemblyCode +="  fld dword["+ir[2].name+"]\n"
                     assemblyCode +="  fstp qword [ebp+8]"
-                elif ir[2].type in ['int','boolean']
+                elif ir[2].type in ['int','boolean']:
                     assemblyCode +=" mov dword [ebp+4], "+addressDescriptor[ir[2]]+"\n"
                 else:
                     assert(False)
@@ -1122,6 +1128,7 @@ def main(filename=None, irCode=None, stM=None):
     top_section = "global main\nextern printf\nextern scanf\n\n"
     data_section = "segment .data\n\n" + "debug_d dd `Output :: %d\\n`\n" +"debug_f dd `Output :: %f\\n`\n" +"debug_s dd `Output :: %s\\n`\n" + "readInt dd `%d`\n"
     data_section +=  "readFloat dd `%f`\n" + "readString dd `%s`\n"
+    data_section += "tooLongStringException dd `You gave a continous string of length > 200 without containing whitespace, which is not allowed\n`"
     #  ## global assembly data
     #  for var in floatList:
     #      data_section += str(var) + "  dd  " + "0\n"

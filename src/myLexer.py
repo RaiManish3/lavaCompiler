@@ -3,7 +3,7 @@ class MyLexer(object):
     keywords = ("and" , "begin" , "boolean" , "break" , "class" , "continue" , "else" , "end" ,
                 "for" , "function" , "if" , "int" , "implements" , "interface" , "new" , "nil" ,
                 "not" , "or" , "real" , "return" , "then", "void" , "while" , "readInt" ,
-                "readReal" , "readString" , "print" , "String","declare")
+                "readReal" , "readString" , "print" , "String","declare","this")
 
 
     tokens = [k.upper() for k in keywords] + ["EQ","BIT_OR", "BIT_XOR", "BIT_AND", "EQEQ",
