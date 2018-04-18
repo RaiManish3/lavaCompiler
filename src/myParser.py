@@ -209,7 +209,9 @@ class MyParser(TypeSystem):
         self.printParseTree(p)
         if len(p)==3:
             p[0]={'code':p[1]['code']}
-            if str(p.slice[2])=='class_declaration' or str(p.slice[2])=='interface_declaration':
+            if str(p.slice[2])=='class_declaration'
+                p[0]['code'] += p[2]['constructor']+p[2]['body']
+            elif str(p.slice[2])=='interface_declaration':
                 p[0]['code'] += p[2]['code']
         else:
             p[0]={'code':[]}
@@ -264,33 +266,54 @@ class MyParser(TypeSystem):
             p[0]=[p[1]]
 
 
+
+    #1 ___Zn3_$c$_className_$r$_returnType_$p1t$_Parameter1Type_$p2t$_Parameter2Type
+    # for constuctor
+    #2 ___Zn3_$c$_className_$p1t$_Parameter1Type_$p2t$_Parameter2Type
+    #3 auto___Zn3_$c$_className_$p1t$_Parameter1Type_$p2t$_Parameter2Type
+    #NOTE 3rd constuctor is an automatic constuctor that calls constructor 2 if present
+    # Here Paramter2 corresponds to serlf
     def p_class_body_declarations(self, p):
         '''
-            class_body_declarations : class_body_declarations class_member_declaration
+            class_body_declarations : field_declaration class_body_declarations
+                                    | class_body_declarations class_member_declaration
                                     | class_body_declarations constructor_declaration
                                     | empty
         '''
+        #TODO CHECK WHETHER CONSTUCTOR IS DEFIEND, IF NOT MAKE YOUR OWN CONSTRUCTOR,
+        #ELSE PUT THE FIELD CODE IN STARTING OF THE CONSTRUCTOR
+        #TODO CONSTRUCTOR OVERLOADING
+        #TODO EVERY OVERLOADED CONTRUCTOR CONTAINS CODE FOR ALL THE FIELDS OF CLASS
         self.printParseTree(p)
-        p[0] = {'code': []}
+        p[0] = {'fields': [],'body':[],'constuctor':[]}
         if len(p) == 2:
             ## TODO :: should I assign place attr
             pass
-        else:
+        elif len(p)==3:
             xRule = str(p.slice[2])
-            if xRule == 'class_member_declaration':
-                p[0]['code']=p[1]['code']+p[2]['code']
+            if xRule == 'class_body_declarations':
+                p[0]['fields']+=p[1]['code']+p[2]['fields']
+                p[0]['body']+=p[2]['body']
+                p[0]['constuctor']+=p[2]['constructor']
+            elif xRule == 'class_member_declaration':
+                p[0]['body']+=p[1]['body']+p[2]['code']
+                p[0]['fields']+=p[1]['fields']
+                p[0]['constuctor']+=p[1]['constructor']
                 ## TODO :: how the different member code be organised
                 pass
             else:
+                p[0]['constructor']+=self.gen('function','auto'+p[2]['code'][0][1])+p[1]['fields']+self.gen('return')+p[2]['code']
+                p[0]['fields']+=p[1]['fields']
+                p[0]['body']+=p[1]['body']
                 ## TODO :: constructor case THIS IS AN OOP CONECPT HANDLE later
-                p[0]['code']=p[1]['code']+p[2]['code']
+                # p[0]['code']=p[1]['code']+p[2]['code']
                 pass
+
 
 
     def p_class_member_declaration(self, p):
         '''
-            class_member_declaration : field_declaration
-                                     | method_declaration
+            class_member_declaration : method_declaration
         '''
         self.printParseTree(p)
         p[0] = p[1]
@@ -397,10 +420,20 @@ class MyParser(TypeSystem):
                     , 'code':p[3]['code']
                 }
             elif p[3]['place']!=p[1]:
-                p[0] = {
-                      'place':p[1]
-                    , 'code':p[3]['code']+self.gen('=',p[1],p[3]['place'])
-                }
+                if stManager.currentTable.category==SymTab.Category.Class:
+                    obj=stManager.lookup('this')
+                    tempk=stManager.newTemp(p[1].type)
+                    if p[1].type!="real":
+                        objcode=self.gen("writearray",obj,p[1].offset/4,p[3])
+                    p[0] = {
+                          'place':tempk
+                        , 'code':p[3]['code']+objcode
+                    }
+                else:
+                    p[0] = {
+                          'place':p[1]
+                        , 'code':p[3]['code']+self.gen('=',p[1],p[3]['place'])
+                    }
                 if p[1].type=='String':
                     p[1].stringlen=p[3]['place'].stringlen
 
@@ -535,6 +568,11 @@ class MyParser(TypeSystem):
             method_header : FUNCTION DCOLON result_type method_declarator
 
         '''
+        idVal = p.slice[1].value
+        checkReInitial = stManager.currentTable.lookup(idVal)
+        if checkReInitial != None:
+            self.printError("ReDeclare", idVal, p.lexer.lineno)
+        # p[0] = stManager.insert("this",stManager.currentTable, 'OBJ')
         self.printParseTree(p)
 
     def p_result_type(self, p):
@@ -597,6 +635,7 @@ class MyParser(TypeSystem):
                 ,'args_types':[]
             }
         stManager.beginScope(SymTab.Category.Function, mAttr)
+        stManager.insert("this",stManager.currentTable, 'OBJ')
 
 
     def p_method_body(self, p):
@@ -689,6 +728,7 @@ class MyParser(TypeSystem):
         '''
             class_type : type_name
         '''
+        #TODO MAYBE DO SOMETHING HERE
         self.printParseTree(p)
         p[0] = p[1]
 
@@ -696,6 +736,7 @@ class MyParser(TypeSystem):
         '''
             interface_type : type_name
         '''
+        #TODO OOPS
         self.printParseTree(p)
         p[0] = p[1]
 

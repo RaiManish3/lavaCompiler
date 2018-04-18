@@ -56,6 +56,14 @@ class SymbolTable(object):
                 tmp=tmp.parent
             offset=tmp.offset+size
             tmp.offset+=size
+        elif isinstance(ltype,SymbolTable):
+            size=4
+            tmp=self
+            #CHECK WHETHER THIS IS CORRECT
+            while(tmp.category==Category.Block):
+                tmp=tmp.parent
+            offset=tmp.offset+size
+            tmp.offset+=size
         elif lexeme not in ["`update_block","`after_block"]:
             size = None
             assert(False)
@@ -174,8 +182,18 @@ class TableManager(object):
         size=None
         if "[]" in ltype:
             size = typeSizeMap[ltype[:str(ltype).find("[]")]]
-        else:
+        elif isinstance(ltype,SymbolTable):
+            size=4
+            tmp=self
+            #CHECK WHETHER THIS IS CORRECT
+            while(tmp.category==Category.Block):
+                tmp=tmp.parent
+            offset=tmp.offset+size
+            tmp.offset+=size
+        elif ltype in typeSizeMap.keys()
             size = typeSizeMap[ltype]
+        else:
+            assert(False)
         tmp=self.currentTable
         #CHECK WHETHER THIS IS CORRECT
         while(tmp.category==Category.Block):

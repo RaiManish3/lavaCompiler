@@ -815,10 +815,16 @@ def translate(ir):
         dumpAllRegToMem()
         # temp=stManager.newTemp(X.type)self.fail('message')
         reg=getRegWithContraints(0,None,None,lineno)
-        assemblyCode += "  lea "+reg+", ["+X.name+"]\n"
+        # associate(reg,)
+        #assemblyCode += "  lea "+reg+", ["+X.name+"]\n"
+        # assemblyCode += "  mov esp, 2"
+        assemblyCode += "  sub esp, 208\n"
+        assemblyCode += "  lea "+reg+", [esp]\n"
+        assemblyCode += "  mov dword ["+X.name+"], "+reg+"\n"
         assemblyCode += "  push " + reg +"\n"
         assemblyCode += "  push readString\n"
         assemblyCode += "  call scanf\n"
+        assemblyCode += "  mov dword [esp+196], 0\n"
 
 
     if op == "return":
@@ -837,10 +843,10 @@ def translate(ir):
                     assemblyCode+="  mov eax, " + name(ir[2]) + "\n"
             else:
                 if ir[2].type=='real':
-                    assemblyCode +="  fld "+ name(ir[2]) + "\n"
-                    assemblyCode +="  fstp qword [ebp+8]\n"
+                    assemblyCode +="  fld dword["+ir[2].name+"]\n"
+                    assemblyCode +="  fstp qword [ebp+8]"
                 elif ir[2].type in ['int','boolean']:
-                    assemblyCode+="  mov eax, " + name(ir[2]) + "\n"
+                    assemblyCode +=" mov dword [ebp+4], "+addressDescriptor[ir[2]]+"\n"
                 else:
                     assert(False)
 
@@ -1139,6 +1145,10 @@ def main(filename=None, irCode=None, stM=None):
         "@false dd `false`,0\n"
 
     data_section +=  "readFloat dd `%f`\n" + "readString dd `%s`\n"
+    data_section += "tooLongStringException dd `You gave a continous string of length > 200 without containing whitespace, which is not allowed\n`"
+    #  ## global assembly data
+    #  for var in floatList:
+    #      data_section += str(var) + "  dd  " + "0\n"
 
     bss_section = "\n"
     text_section = "segment .text\n\n"
