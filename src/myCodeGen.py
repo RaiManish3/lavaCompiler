@@ -38,7 +38,7 @@ floatOp['<='] = floatOp['>']
 floatOp['>='] = floatOp['<']
 floatOp['~='] = floatOp['==']
 labelCount = 0
-paramOffset = 8 ## 4 bytes for ret_address and 4 bytes for pushing the ebp in the callee
+paramOffset = 16 ## 4 bytes for ret_address and 4 bytes for pushing the ebp in the callee
 
 symlist = []
 varlist = []
@@ -562,26 +562,24 @@ def translate(ir):
         elif utility.isInt(X):
             xSize = 4
         else:
-            ## TODO :: Case of String
-            assert False,"Code not implemented"
+            xSize = 4
         paramOffset += xSize
         if xSize == 4:
-            assemblyCode += "  mov " + "dword [esp-" + str(paramOffset) + "], " + name(X) + "\n"
+            if name(X).startswith('dword'):
+                regX = getRegWithContraints(0,None,None,lineno)
+                assemblyCode += "  mov " + regX + ", " + name(X) + "\n"
+                associate(X, regX)
+                assemblyCode += "  mov " + "dword [esp-" + str(paramOffset) + "], " + regX + "\n"
+            else:
+                assemblyCode += "  mov " + "dword [esp-" + str(paramOffset) + "], " + name(X) + "\n"
         elif xSize == 8:
             assemblyCode += "  fld " + addFloatToGlobal(X) + "\n"
             assemblyCode += "  fstp " + "qword [esp-" + str(paramOffset) + "]\n"
-        else:
-            ## TODO :: param for String case
-            assert False,"Code not implemented"
-    else:
-        paramOffset = 8   ## 4 bytes for ret_address and 4 bytes for pushing the ebp in the callee
 
-    if op == "=" or op=="~":
+    if op == "=" or op=="not":
         src=ir[3]
         dest=ir[2]
         if src != dest:
-            # if dest.type in ['int', 'boolean',"String","int[]"]:
-
 
             if dest.type == 'real':
                 if src in symlist:
@@ -615,10 +613,9 @@ def translate(ir):
 
                 if addressDescriptor[dest]!="mem":
                     dirtybit[dest]=True
-                # assert (False), "Code not Implemented"
 
-        if op =="~":
-            assemblyCode+="  not " + name(dest) + "\n"
+        if op =="not":
+            assemblyCode+="  xor " + name(dest) + ", 1\n"
             if addressDescriptor[dest]!="mem":
                 dirtybit[dest] = True
 
@@ -658,12 +655,9 @@ def translate(ir):
     if op == "swrite":
         strin=ir[3]
         strle=ir[4]
-        #strassemblyCode=strassemblyCode+"$str_"+str(strdeclnum)+":  .asciz "+"\""+str(strin)+"\"\n"+"$strlen_"+str(strdeclnum)+" equ "+"$-$str_"+str(strdeclnum)+"\n"
         strassemblyCode=strassemblyCode+"$str_"+str(strdeclnum)+" dd `"+strin+"`, 0\n"
         assemblyCode+="  mov "+name(ir[2])+", $str_"+str(strdeclnum)+"\n"
         strdeclnum+=1
-        print(strassemblyCode)
-        #assert(False
 
 
 
@@ -737,11 +731,23 @@ def translate(ir):
         assemblyCode += "  jmp " + label + "\n"
 
     if op == "call":
+        paramOffset = 16
         dumpAllRegToMem()
-        assemblyCode += "  call "+ir[2]+"\n"
         if len(ir)>3:
-            associate(ir[3],'eax')
-            dirtybit[ir[3]]=True
+            if ir[3].type in ['int', 'boolean']:
+                associate(ir[3],'eax')
+                dirtybit[ir[3]]=True
+            assemblyCode += "  sub esp, 8\n"
+        assemblyCode += "  call " + ir[2] + "\n"
+        if len(ir)>3:
+            #  if ir[3].type in ['int', 'boolean']:
+                #  regX = getRegWithContraints(0,None,None, lineno)
+                #  assemblyCode += "  mov " + regX +", dword [esp]\n"
+                #  assemblyCode += "  mov " + name(ir[3]) + ", " + regX + "\n"
+            if ir[3].type == 'real':
+                assemblyCode += "  fld qword [esp]\n"
+                assemblyCode += "  fstp " + name(ir[3]) + "\n"
+            assemblyCode += "  add esp, 8\n"
 
     # Generating assembly code if the tac is a return statement
     if op == "exit":
@@ -749,29 +755,38 @@ def translate(ir):
 
     if op == "print":
         X = ir[2] ## assuming only int literals or int variables
-        if "qword" not in name(X):
-            assemblyCode += "  push " + name(X) +"\n"
-        else:
+        if "qword" in name(X):
             assemblyCode += "  push dword [" + X.name[:3] + str(int(X.name[3:])+4) +"]\n"
             assemblyCode += "  push dword [" + X.name +"]\n"
         dumpAllRegToMem()
         if isinstance(X, SymTab.VarType):
             if X.type=="String":
+                assemblyCode += "  push " + name(X) +"\n"
                 assemblyCode += "  push debug_s\n"
             elif X.type=="int":
+                assemblyCode += "  push " + name(X) +"\n"
                 assemblyCode += "  push debug_d\n"
             elif X.type=="real":
                 assemblyCode += "  push debug_f\n"
             elif X.type=="boolean":
-                assert(False)
-                #TODO HANDLE IT
-                assemblyCode += "  push debug_d\n"
+                l1 = getNewLabel()
+                l2 = getNewLabel()
+                assemblyCode += "  cmp " + name(X) + ", 0\n"
+                assemblyCode += "  je " + l1 +"\n"
+                assemblyCode += "  push @true\n"
+                assemblyCode += "  jmp " + l2 + "\n"
+                assemblyCode += l1 + ":\n"
+                assemblyCode += "  push @false\n"
+                assemblyCode += l2 + ":\n"
+                assemblyCode += "  push debug_s\n"
         else:
             if utility.isFloat(X):
                 assemblyCode += "  push debug_f\n"
             elif utility.isInt(X):
+                assemblyCode += "  push " + name(X) +"\n"
                 assemblyCode += "  push debug_d\n"
             else:
+                assemblyCode += "  push " + name(X) +"\n"
                 assemblyCode += "  push debug_s\n"
         assemblyCode += "  call printf\n"
 
@@ -818,19 +833,15 @@ def translate(ir):
                 if utility.isFloat(ir[2]):
                     assemblyCode +="  fld "+addFloatToGlobal(ir[2])+"\n"
                     assemblyCode +="  fstp qword [ebp+8]\n"
-                    # assemblyCode+="  mov dword [ebp+4], "+str(ir[2])+"\n"
-                elif utility.isInt(ir[2]):#TODO CHECK FOR BOOLEAN
-                    assemblyCode+="  mov dword [ebp+4], "+str(ir[2])+"\n"
+                elif utility.isInt(ir[2]):
+                    assemblyCode+="  mov eax, " + str(ir[2]) + "\n"
             elif addressDescriptor[ir[2]]=="mem":
                 if ir[2].type =='real':
-                    assemblyCode +="  fld dword["+ir[2].name+"]\n"
-                    assemblyCode +="  fstp qword [ebp+8]"
+                    assemblyCode +="  fld "+ name(ir[2]) + "\n"
+                    assemblyCode +="  fstp qword [ebp+8]\n"
                 else:
-                    reg=getRegWithContraints(0,None,None,lineno)
-                    assemblyCode+="  mov "+reg+", dword["+ir[2].name+"]\n"
-                    assemblyCode+="  mov dword[ebp+4], "+reg+"\n"
+                    assemblyCode+="  mov eax, " + name(ir[2]) + "\n"
             else:
-                # if addressDescriptor[ir[2]]!="eax":
                 if ir[2].type=='real':
                     assemblyCode +="  fld dword["+ir[2].name+"]\n"
                     assemblyCode +="  fstp qword [ebp+8]"
@@ -1015,7 +1026,7 @@ def populateNextUseTable():
             optr = b[1]
             instr = b[0]
 
-            if optr == '=' or optr == '~':
+            if optr == '=' or optr == 'not':
                 tple[b[2]] = (utility.stat.DEAD,Decimal('inf'))
                 if b[3] in symlist:
                     tple[b[3]] = (utility.stat.LIVE,instr)
@@ -1126,7 +1137,13 @@ def main(filename=None, irCode=None, stM=None):
     populateNextUseTable()
 
     top_section = "global main\nextern printf\nextern scanf\n\n"
-    data_section = "segment .data\n\n" + "debug_d dd `Output :: %d\\n`\n" +"debug_f dd `Output :: %f\\n`\n" +"debug_s dd `Output :: %s\\n`\n" + "readInt dd `%d`\n"
+    data_section = "segment .data\n\n" + \
+        "debug_d dd `Output :: %d\\n`\n" + \
+        "debug_f dd `Output :: %f\\n`\n" + \
+        "debug_s dd `Output :: %s\\n`\n" + \
+        "readInt dd `%d`\n" + "@true dd `true`,0\n" + \
+        "@false dd `false`,0\n"
+
     data_section +=  "readFloat dd `%f`\n" + "readString dd `%s`\n"
     data_section += "tooLongStringException dd `You gave a continous string of length > 200 without containing whitespace, which is not allowed\n`"
     #  ## global assembly data
