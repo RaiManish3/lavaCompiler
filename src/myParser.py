@@ -258,6 +258,7 @@ class MyParser(TypeSystem):
         stManager.beginScope(SymTab.Category.Class, cattr)
         stManager.beginScope(SymTab.Category.Function, {'name':"",'args_types':[]})
         stManager.currentTable.attr['name']=stManager.currentTable.parent.attr['name']
+        stManager.insert("this",stManager.currentTable, 'OBJ')
 
     def p_seen_class_decl2(self,p):
         '''
@@ -271,6 +272,7 @@ class MyParser(TypeSystem):
         stManager.beginScope(SymTab.Category.Class, cattr)
         stManager.beginScope(SymTab.Category.Function, {'name':"",'args_types':[]})
         stManager.currentTable.attr['name']=stManager.currentTable.parent.attr['name']
+        stManager.insert("this",stManager.currentTable, 'OBJ')
 
 
     def p_interface_type_list(self, p):
@@ -480,7 +482,7 @@ class MyParser(TypeSystem):
                     obj=stManager.lookup('this')
                     tempk=stManager.newTemp(p[1].type)
                     if p[1].type!="real":
-                        objcode=self.gen("writearray",obj,p[1].offset/4,p[3])
+                        objcode=self.gen("writearray", obj, p[1].offset//4, p[3]['place'])
                     p[0] = {
                           'place':tempk
                         , 'code':p[3]['code']+objcode
