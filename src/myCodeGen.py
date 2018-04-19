@@ -552,6 +552,9 @@ def translate(ir):
         assemblyCode+="  sub esp, "+name(ir[3])+"\n"
         assemblyCode+="  mov "+ name(ir[2])+", esp\n"
 
+    if op=="moveit":
+        assemblyCode+="  mov "+ir[2]+"\n"
+
     if op == "param":
         X = ir[2]
         xSize = 0

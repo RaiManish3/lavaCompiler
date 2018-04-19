@@ -1,3 +1,7 @@
+class XYZ
+begin
+    int ss=2;
+end
 class Main
 begin
     int gh = 2;
@@ -7,8 +11,14 @@ begin
     int zyxx=54;
     boolean b = true;
     --declare:: int f();
+    --function::int main()
+    --begin
+        --print("yo");
+    --end
+
     function::void main()
       begin
+        XYZ tz=new XYZ();
         print(this.zyxx);
         print(this.b);
         --String p=this.x;

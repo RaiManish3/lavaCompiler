@@ -267,7 +267,7 @@ class MyParser(TypeSystem):
         stManager.beginScope(SymTab.Category.Class, cattr)
         stManager.beginScope(SymTab.Category.Function, {'name':"",'args_types':[]})
         stManager.currentTable.attr['name']=stManager.currentTable.parent.attr['name']
-        stManager.insert("this",stManager.currentTable, 'OBJ')
+        stManager.insert("this",stManager.currentTable.parent.attr['name'], 'OBJ')
 
     def p_seen_class_decl2(self,p):
         '''
@@ -281,7 +281,7 @@ class MyParser(TypeSystem):
         stManager.beginScope(SymTab.Category.Class, cattr)
         stManager.beginScope(SymTab.Category.Function, {'name':"",'args_types':[]})
         stManager.currentTable.attr['name']=stManager.currentTable.parent.attr['name']
-        stManager.insert("this",stManager.currentTable, 'OBJ')
+        stManager.insert("this",stManager.currentTable.parent.attr['name'], 'OBJ')
 
 
     def p_interface_type_list(self, p):
@@ -487,9 +487,10 @@ class MyParser(TypeSystem):
                     , 'code':p[3]['code']
                 }
             elif p[3]['place']!=p[1]:
-                if stManager.currentTable.category==SymTab.Category.Function \
-                        and stManager.currentTable.parent.category==SymTab.Category.Class \
-                        and stManager.currentTable.parent.attr['name']==stManager.currentTable.attr['name']:
+                #if stManager.currentTable.category==SymTab.Category.Class:
+                print(stManager.currentTable.parent.attr)
+                print(stManager.currentTable.attr)
+                if stManager.currentTable.category==SymTab.Category.Function and stManager.currentTable.parent.category==SymTab.Category.Class and stManager.currentTable.parent.attr['name']==stManager.currentTable.attr['name']:
                     obj=stManager.lookup('this')
                     tempk=stManager.newTemp(p[1].type)
                     if p[1].type!="real":
@@ -718,7 +719,7 @@ class MyParser(TypeSystem):
                 ,'args_types':[]
             }
         stManager.beginScope(SymTab.Category.Function, mAttr)
-        stManager.insert("this",stManager.currentTable, 'OBJ')
+        stManager.insert("this",stManager.currentTable.parent.attr['name'], 'OBJ')
 
 
     def p_method_body(self, p):
@@ -1455,6 +1456,7 @@ class MyParser(TypeSystem):
         elif len(p) == 4:
             p[0] = p[2]
         elif xRule == "class_instance_creation_expression":
+            p[0]=p[1]
             ## TODO ::COMES INSDIDE DOMAINS OF OOP
             pass
         assert (p[0] != None), "Case for '{}' not handled!".format(p.slice[0])
@@ -1463,6 +1465,26 @@ class MyParser(TypeSystem):
         '''
             class_instance_creation_expression : NEW class_type LPAREN argument_list RPAREN
         '''
+        clss=stManager.mainTable[p[2]]
+        ofset=clss.offset
+        name=clss.attr['name']
+        tmp=stManager.newTemp(clss.attr['name'])
+
+        xName = ""
+        xCounter = 1
+        for i in p[4]['type']:
+            xName += "_$p" + xCounter + "t$_" + str(i)
+            xCounter+=1
+        xCode = "___Zn3_$c$_" + p[2] + xName
+        # if clss.children.keys()
+        #TODO CHECK IF THE CONSTUCTOR EXISTS
+        if clss.child
+        p[0]={
+            'code':self.gen("malloc",tmp,ofset) + self.gen("moveit","dword [esp-12], esp")+self.gen("call","auto"+xCode)
+                + self.gen("moveit","dword [esp-12], esp") + self.gen("call",xCode),
+            'place':tmp,
+            'type':clss.attr['name']
+        }
         self.printParseTree(p)
 
     def p_argument_list(self, p):
@@ -1682,8 +1704,8 @@ class MyParser(TypeSystem):
         # print(p[1])
 
         if str(p.slice[1]) == "identifier_name_with_dot":
-            if not isinstance(p[1]['place'].type,SymTab.SymbolTable):
-                self.printError(p.lexer.lineno)
+            if p[1]['place'].type not in stManager.mainTable.keys() and not p[1]['place'].xname=="this":
+                self.printError("TypeError",p.lexer.lineno)
 
             p[0]={'type':child.type,'place':tmp,'code':p[1]['code']+self.gen("readarray",p[1]['place'],child.offset//4,tmp),
                     'specialForArrayWrite': {
@@ -1698,8 +1720,8 @@ class MyParser(TypeSystem):
             if parent==None:
                 self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
             # tmp=stManager.newTemp(child.type)
-            if not isinstance(parent.type,SymTab.SymbolTable):
-                 self.printError(p.lexer.lineno)
+            if parent.type not in stManager.mainTable.keys() and not parent.xname=="this":
+                 self.printError("TypeError",p.lexer.lineno)
             p[0]={'type':child.type,'place':tmp,'code':[]+self.gen("readarray",parent,child.offset//4,tmp),
                     'specialForArrayWrite': {
                         'code':[],
