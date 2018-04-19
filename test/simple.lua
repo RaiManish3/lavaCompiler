@@ -1,11 +1,18 @@
-class x
+class Main
 begin
     int gh = 2;
-    String x = "hello";
+    String x = "hddddddddddddddddddddddde";
+    int xx=54;
+    int yxx=54;
+    int zyxx=54;
     boolean b = true;
     --declare:: int f();
-    function:: void main()
+    function::void main()
       begin
+        print(this.zyxx);
+        print(this.b);
+        --String p=this.x;
+        --print(p);
         int a = 3, b =7, t = 1;
         while(a <= 10)
         begin
