@@ -1,6 +1,11 @@
 class XYZ
 begin
-    int ss=2;
+    int ss=24;
+    String h="hello";
+    String y="xo";
+    function XYZ()
+    begin
+    end
 end
 class Main
 begin
@@ -19,8 +24,11 @@ begin
     function::void main()
       begin
         XYZ tz=new XYZ();
+        print(tz.ss);
         print(this.zyxx);
         print(this.b);
+        String j=tz.y+tz.y;
+        print(j);
         --String p=this.x;
         --print(p);
         int a = 3, b =7, t = 1;
@@ -31,7 +39,7 @@ begin
           print(t);
         end
         -- print(f());
-        return ;
+        return;
       end
 
     function:: int f()

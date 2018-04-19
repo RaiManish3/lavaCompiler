@@ -14,7 +14,7 @@ from includes import SymTab
 ## GLOBALS
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
-DEBUG_FLAG = False
+DEBUG_FLAG = True
 ## NOTE :: expTypeMap entry has value
 ##         (possible types input, ..., expected return type)
 ##         if return type is None, return the most closet input type
@@ -357,13 +357,18 @@ class MyParser(TypeSystem):
 
             else:
                 p[0]['conFlag'] = True
+                print("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT")
+                print(p[2]['code'])
                 if not p[1]['conFlag']:
-                    p[0]['constuctor'] += self.gen("function", "auto" + p[2]['code'][1]) \
-                                            + p[1]['auto_constructor'][1:]
+                    p[0]['constructor'] += self.gen("function", "auto" + p[2]['code'][0][1]) \
+                                            + p[1]['auto_constructor'][1:] +p[2]['code']+self.gen("return")
+                    # print(p[1]['constructor'])
+                    # assert(False)
                 else:
-                    p[0]['constuctor'] += p[1]['constuctor'] + \
-                        self.gen("function", "auto" + p[2]['code'][1]) \
-                                            + p[1]['auto_constructor'][1:]
+                    p[0]['constructor'] += p[1]['constructor'] + \
+                        self.gen("function", "auto" + p[2]['code'][0][1]) \
+                                            + p[1]['auto_constructor'][1:]+p[2]['code']+self.gen("return")
+                    # assert(False)
 
                 p[0]['auto_constructor'] = p[1]['auto_constructor']
                 p[0]['body']+=p[1]['body']
@@ -388,23 +393,29 @@ class MyParser(TypeSystem):
         p[0] = {
             'code': p[2]['code'] + p[3]['code']
         }
+        # print(p[0])
+        # assert(False)
+
 
     def p_constructor_declarator(self, p):
         '''
             constructor_declarator : type_name seen_cons_name LPAREN formal_parameter_list RPAREN
                                    | type_name seen_cons_name LPAREN RPAREN
         '''
+        p[0]={'code':[]}
         self.printParseTree(p)
         if len(p) == 6:
             stManager.currentTable.attr['args_types'] = p[4]
+        else:
+            p[4]=[]
         xName = ""
         xCounter = 1
         for i in p[4]:
-            xName += "_$p" + xCounter + "t$_" + str(i)
+            xName += "_$p" + str(xCounter) + "t$_" + str(i)
             xCounter+=1
-        p[0]['code'] = self.gen('function', "___Zn3_$c$_" + \
-                                stManager.currentTable.parent.attr['name'] + xName)
-
+        p[0]['code'] = self.gen('function', "___Zn3_$c$_" + stManager.currentTable.parent.attr['name'] + xName)
+        print("XXXXXXXXXXXXXXXXXX")
+        print(p[0])
     def p_seen_cons_name(self, p):
         '''
             seen_cons_name :
@@ -632,7 +643,7 @@ class MyParser(TypeSystem):
             xName = ""
             xCounter = 1
             for i in stManager.currentTable.attr['args_types']:
-                xName += "_$p" + xCounter + "t$_" + str(i)
+                xName += "_$p" + str(xCounter) + "t$_" + str(i)
                 xCounter+=1
             p[0]['code'] = self.gen('function', "___Zn3_$c$_" + \
                     stManager.currentTable.parent.attr['name'] +"_$n$_"+stManager.currentTable.attr['name']+"_$r$_"+stManager.currentTable.attr['type']+ xName)
@@ -1473,12 +1484,12 @@ class MyParser(TypeSystem):
         xName = ""
         xCounter = 1
         for i in p[4]['type']:
-            xName += "_$p" + xCounter + "t$_" + str(i)
+            xName += "_$p" + str(xCounter) + "t$_" + str(i)
             xCounter+=1
         xCode = "___Zn3_$c$_" + p[2] + xName
         # if clss.children.keys()
         #TODO CHECK IF THE CONSTUCTOR EXISTS
-        if clss.child
+        # if clss.child
         p[0]={
             'code':self.gen("malloc",tmp,ofset) + self.gen("moveit","dword [esp-12], esp")+self.gen("call","auto"+xCode)
                 + self.gen("moveit","dword [esp-12], esp") + self.gen("call",xCode),
@@ -1694,18 +1705,21 @@ class MyParser(TypeSystem):
         '''
         self.printParseTree(p)
 
-        child=stManager.lookup(p[3])
-        if child==None:
-            self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
-        # print(p[3])
-        # print(child.attr)
-        # assert(False)
-        tmp=stManager.newTemp(child.type)
+
+        # child=stManager.lookup(p[3])
+
         # print(p[1])
 
         if str(p.slice[1]) == "identifier_name_with_dot":
             if p[1]['place'].type not in stManager.mainTable.keys() and not p[1]['place'].xname=="this":
                 self.printError("TypeError",p.lexer.lineno)
+            if p[1]['place'].xname=="this":
+                child=stManager.currentTable.parent.lookup(p[3])
+            else:
+                child=stManager.mainTable[p[1]['place'].type].lookup(p[3])
+            if child==None:
+                self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
+            tmp=stManager.newTemp(child.type)
 
             p[0]={'type':child.type,'place':tmp,'code':p[1]['code']+self.gen("readarray",p[1]['place'],child.offset//4,tmp),
                     'specialForArrayWrite': {
@@ -1719,9 +1733,24 @@ class MyParser(TypeSystem):
             parent=stManager.lookup(p[1])
             if parent==None:
                 self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
+            if parent.xname=="this":
+                child=stManager.currentTable.parent.lookup(p[3])
+            else:
+                print(parent.type)
+                # print(p[2])
+                # assert(False)
+                child=stManager.mainTable[parent.type].lookup(p[3])
+
+            # assert(False)
+            if child==None:
+                self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
+            tmp=stManager.newTemp(child.type)
             # tmp=stManager.newTemp(child.type)
+
             if parent.type not in stManager.mainTable.keys() and not parent.xname=="this":
                  self.printError("TypeError",p.lexer.lineno)
+            # assert(False)
+
             p[0]={'type':child.type,'place':tmp,'code':[]+self.gen("readarray",parent,child.offset//4,tmp),
                     'specialForArrayWrite': {
                         'code':[],

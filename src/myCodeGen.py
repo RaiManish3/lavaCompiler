@@ -239,6 +239,7 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
         if not (Y in symlist and Z in symlist and Y.type=="String" and Z.type=="String"):
             assemblyCode += opInstr + reg + ", " + name(Z) + "\n"
         else:
+            # assert(False)
             assemblyCode+="\n\n"
             assemblyCode += "  sub esp, "+str(Y.stringlen+Z.stringlen)+"\n"
             assemblyCode += "  mov "+reg+", esp\n"
@@ -539,7 +540,10 @@ def translate(ir):
 
         elif X.type == 'real':
             translateFloatArithOpStmt(op, X, Y, Z)
+        elif X.type == 'String':
+            translate3OpStmt('  add ', X, Y, Z, lineno)
         else:
+            # print(ir)
             assert False, "Code not implemented"
 
     if op == "label":
@@ -920,7 +924,7 @@ def getRegWithContraints(afterNextUse,reg1,reg2,lineno):
                 farthestNextUseSymbLive = value
                 farthestNextUseLive = nextUseTable[lineno][value][1]
 
-    if farthestNextUseDead==0 and farthestNextUseLive > afterNextUse:
+    if farthestNextUseDead==0 and farthestNextUseLive < afterNextUse:
         return None
 
     if farthestNextUseDead!=0:
