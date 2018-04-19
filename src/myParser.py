@@ -230,15 +230,15 @@ class MyParser(TypeSystem):
             for i in p[4]:
                 iSymEntry = stManager.currentTable.parent.lookup(i) ## parent is the top level dict
                 if iSymEntry == None:
-                    printError("InterfaceNotDeclared", i, 
+                    self.printError("InterfaceNotDeclared", i,
                                stManager.currentTable.attr['name'], None)
                 for k,v in iSymEntry.children.items():
                     cSymEntry = stManager.lookup(k)
                     if cSymEntry == None:
-                        printError("FunctionOverride", k, i, 
+                        self.printError("FunctionOverride", k, i,
                                    stManager.currentTable.attr['name'], None)
                     if v.attr['args_types'] != cSymEntry.attr['args_types']:
-                        printError("FunctionOverride", k, i, 
+                        self.printError("FunctionOverride", k, i,
                                    stManager.currentTable.attr['name'], None)
 
             p[0]=p[7]
@@ -289,7 +289,7 @@ class MyParser(TypeSystem):
 
 
 
-    #1 ___Zn3_$c$_className_$r$_returnType_$p1t$_Parameter1Type_$p2t$_Parameter2Type
+    #1 ___Zn3_$c$_className_$n$_functionname_$r$_returnType_$p1t$_Parameter1Type_$p2t$_Parameter2Type
     # for constuctor
     #2 ___Zn3_$c$_className_$p1t$_Parameter1Type_$p2t$_Parameter2Type
     #3 auto___Zn3_$c$_className_$p1t$_Parameter1Type_$p2t$_Parameter2Type
@@ -326,10 +326,13 @@ class MyParser(TypeSystem):
             if stManager.currentTable.category == SymTab.Category.Function:
                 if type(p[-1]) == dict and 'marker_sfd' in p[-1].keys():
                     xCode  = p[-1]['code']
-                p[0]['auto_constructor']=self.gen('function',"auto___Zn3_$c$_"+stManager.currentTable.parent.attr['name'])+xCode + self.gen('return')
+                ofst=stManager.currentTable.offset;
+                p[0]['auto_constructor']=self.gen('function',"auto___Zn3_$c$_"+stManager.currentTable.parent.attr['name'])+self.gen("subesp",ofst)+xCode + self.gen('return')
                 p[0]['constructor'] = p[0]['auto_constructor']
                 p[0]['conFlag'] = False
-                stManager.endScope() 
+                stManager.currentTable.parent.vars=stManager.currentTable.vars;
+                stManager.currentTable.parent.offset=stManager.currentTable.offset;
+                stManager.endScope()
 
         elif len(p)==3 or len(p)==4:
             xRule = str(p.slice[2])
@@ -601,6 +604,7 @@ class MyParser(TypeSystem):
             method_declaration : method_header method_body
                                | DECLARE DCOLON result_type method_declarator STMT_TERMINATOR
         '''
+        p[0]={'code':[]}
         self.printParseTree(p)
         if len(p) == 3:
             curFunction = stManager.currentTable.attr['name']
@@ -613,8 +617,16 @@ class MyParser(TypeSystem):
                 ## user has missed specifying the end return statement
                 self.printError("ReturnError", curFunction, None)
 
+
+            xName = ""
+            xCounter = 1
+            for i in stManager.currentTable.attr['args_types']:
+                xName += "_$p" + xCounter + "t$_" + str(i)
+                xCounter+=1
+            p[0]['code'] = self.gen('function', "___Zn3_$c$_" + \
+                    stManager.currentTable.parent.attr['name'] +"_$n$_"+stManager.currentTable.attr['name']+"_$r$_"+stManager.currentTable.attr['type']+ xName)
             p[0] = {
-                'code' : self.gen("function", curFunction) + self.gen('subesp',stManager.currentTable.offset)+
+                'code' : p[0]['code'] + self.gen('subesp',stManager.currentTable.offset)+
                          xCode
             }
         else:
@@ -631,6 +643,7 @@ class MyParser(TypeSystem):
         if checkReInitial != None:
             self.printError("ReDeclare", idVal, p.lexer.lineno)
         # p[0] = stManager.insert("this",stManager.currentTable, 'OBJ')
+        # p[0]={'rettype':p[3]}
         self.printParseTree(p)
 
     def p_result_type(self, p):
@@ -1219,6 +1232,7 @@ class MyParser(TypeSystem):
                 p[0] = p[1]
 
         elif p1 == 'identifier_name_with_dot':
+            p[0]=p[1]
             #TODO AS A OOP CONCEPT
             pass
 
@@ -1645,10 +1659,44 @@ class MyParser(TypeSystem):
                                      | IDENTIFIER DOT identifier_one_step
         '''
         self.printParseTree(p)
+
+        child=stManager.lookup(p[3])
+        if child==None:
+            self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
+        # print(p[3])
+        # print(child.attr)
+        # assert(False)
+        tmp=stManager.newTemp(child.type)
+        # print(p[1])
+
         if str(p.slice[1]) == "identifier_name_with_dot":
-            p[0] = p[1] + '.' + p.slice[3].value
+            if not isinstance(p[1]['place'].type,SymTab.SymbolTable):
+                self.printError(p.lexer.lineno)
+
+            p[0]={'type':child.type,'place':tmp,'code':p[1]['code']+self.gen("readarray",p[1]['place'],child.offset//4,tmp),
+                    'specialForArrayWrite': {
+                        'code':p[1]['code'],
+                        'place':p[1]['place'],
+                        'index':child.offset//4
+                    }
+                }
+            # p[0] = p[1] + '.' + p.slice[3].value
         else:
-            p[0] = p.slice[1].value + '.' + p[3]
+            parent=stManager.lookup(p[1])
+            if parent==None:
+                self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
+            # tmp=stManager.newTemp(child.type)
+            if not isinstance(parent.type,SymTab.SymbolTable):
+                 self.printError(p.lexer.lineno)
+            p[0]={'type':child.type,'place':tmp,'code':[]+self.gen("readarray",parent,child.offset//4,tmp),
+                    'specialForArrayWrite': {
+                        'code':[],
+                        'place':parent,
+                        'index':child.offset//4
+                    }
+                }
+
+            # p[0] = p.slice[1].value + '.' + p[3]
 
 
     def p_identifier_one_step(self,p):

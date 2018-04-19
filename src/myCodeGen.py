@@ -1138,20 +1138,33 @@ def main(filename=None, irCode=None, stM=None):
 
     top_section = "global main\nextern printf\nextern scanf\n\n"
     data_section = "segment .data\n\n" + \
-        "debug_d dd `Output :: %d\\n`\n" + \
-        "debug_f dd `Output :: %f\\n`\n" + \
-        "debug_s dd `Output :: %s\\n`\n" + \
-        "readInt dd `%d`\n" + "@true dd `true`,0\n" + \
+        "debug_d dd `Output :: %d\\n`,0\n" + \
+        "debug_f dd `Output :: %f\\n`,0\n" + \
+        "debug_s dd `Output :: %s\\n`,0\n" + \
+        "readInt dd `%d`,0\n" + "@true dd `true`,0\n" + \
         "@false dd `false`,0\n"
 
-    data_section +=  "readFloat dd `%f`\n" + "readString dd `%s`\n"
-    data_section += "tooLongStringException dd `You gave a continous string of length > 200 without containing whitespace, which is not allowed\n`"
+    data_section +=  "readFloat dd `%f`,0\n" + "readString dd `%s`,0\n"
+    data_section += "tooLongStringException dd `You gave a continous string of length > 200 without containing whitespace, which is not allowed`,0\n"
     #  ## global assembly data
     #  for var in floatList:
     #      data_section += str(var) + "  dd  " + "0\n"
 
     bss_section = "\n"
     text_section = "segment .text\n\n"
+    text_section +="main:\n"
+    text_section +="  push ebp\n"
+    text_section +="  mov ebp, esp\n"
+    ofs=stManager.mainTable['Main'].offset;
+    text_section +="  sub esp, "+str(ofs)+"\n"
+    # text_section +="  pussh esp\n"
+    text_section +="  mov [esp-12], esp\n"
+    text_section +="  call auto___Zn3_$c$_Main\n"
+    text_section +="  mov [esp-12], esp\n"
+    text_section +="  call ___Zn3_$c$_Main_$n$_main_$r$_void\n"
+    text_section +="  mov esp, ebp\n"
+    text_section +="  pop ebp\n"
+    text_section +="  ret\n\n"
 
     for lead,block in blocks.items():
         if block[0][1] == 'function':

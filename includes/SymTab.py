@@ -48,7 +48,13 @@ class SymbolTable(object):
         ## category can either be array or a simple variable
         offset=None
         size=None
-        if ltype in typeSizeMap.keys():
+        if False:#lexeme=="this":
+            offset=5
+            size=4
+            self.vars[lexeme] = VarType(lexeme,category, ltype, offset, size)
+            self.vars[lexeme].name="ebp+8"
+            return
+        elif ltype in typeSizeMap.keys():
             size = typeSizeMap[ltype]
             tmp = self
             while tmp.category == Category.Block:
