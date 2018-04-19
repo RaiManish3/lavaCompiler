@@ -31,7 +31,7 @@ begin
           print(t);
         end
         -- print(f());
-        return;
+        return ;
       end
 
     function:: int f()
