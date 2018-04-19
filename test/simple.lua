@@ -1,4 +1,4 @@
-class x
+class Main
 begin
     int gh = 2;
     String x = "hello";
@@ -14,7 +14,7 @@ begin
           print(t);
         end
         -- print(f());
-        return;
+        return ;
       end
 
     function:: int f()

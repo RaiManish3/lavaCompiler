@@ -14,6 +14,7 @@ from includes import SymTab
 ## GLOBALS
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
+DEBUG_FLAG = False
 ## NOTE :: expTypeMap entry has value
 ##         (possible types input, ..., expected return type)
 ##         if return type is None, return the most closet input type
@@ -56,6 +57,11 @@ class ErrorSystem(object):
             ,"BadDeclare": "Function '{}' definition does not match its declaration at line: {}"
             ,"ParamError": "Illegal arguments in call to function '{}' at line: {}"
             ,"FunctionOverride": "Function '{}' from interface '{}' not over-ridden in class '{}'"
+            ,"thisDeclare": "'{}' is a keyword. Illegal declaration at line: {}"
+            ,"ClassNameError": "Illegal delaration the member with name same as enclosing Class at line: {}"
+            ,"MainNotDeclared": "Function main not declared inside 'Main' class"
+            ,"MainReturnType": "Function main should have 'void' return type."
+            ,"MainClassNotFound": "Class Main Not Found"
         }
 
     def printLine(self, lineno):
@@ -63,9 +69,9 @@ class ErrorSystem(object):
             print("in file: {}".format(filename,))
             for i, line in enumerate(fp):
                 if i+1 == lineno:
-                    print("\t\t-->>\t{}. {}".format(i+1, line.strip(),))
+                    print("\t-->>\t{}. {}".format(i+1, line.strip(),))
                 elif i >= lineno-3 and i < lineno+2:
-                    print("\t\t\t{}. {}".format(i+1, line.strip(),))
+                    print("\t\t{}. {}".format(i+1, line.strip(),))
                 elif i >= lineno+2:
                     break
 
@@ -75,12 +81,16 @@ class ErrorSystem(object):
             msg = argv[1:]
             l = len(msg)
             print('\n-------------------------------------------------------')
-            print("ERROR: " + self.errorMap[errorType].format(*msg))
+            if errorType == "ReDeclare" and msg[0] == 'this':
+                print("ERROR: " + self.errorMap["thisDeclare"].format(*msg))
+            else:
+                print("ERROR: " + self.errorMap[errorType].format(*msg))
             if msg[l-1] != None:
                 self.printLine(msg[l-1])
             print('-------------------------------------------------------\n')
         except:
             print("ERROR: Unknown argument list to printError!")
+            print('-------------------------------------------------------\n')
         exit(EXIT_FAILURE)
 
 
@@ -169,8 +179,7 @@ class MyParser(TypeSystem):
         return [strx]
 
     def printParseTree(self, p):
-        flag = False
-        if flag:
+        if DEBUG_FLAG:
             print(p.slice)
 
     def mallocInLoop(self, arr, plist, alloc_size):
@@ -475,10 +484,9 @@ class MyParser(TypeSystem):
                     , 'code':p[3]['code']
                 }
             elif p[3]['place']!=p[1]:
-                #if stManager.currentTable.category==SymTab.Category.Class:
-                print(stManager.currentTable.parent.attr)
-                print(stManager.currentTable.attr)
-                if stManager.currentTable.category==SymTab.Category.Function and stManager.currentTable.parent.category==SymTab.Category.Class and stManager.currentTable.parent.attr['name']==stManager.currentTable.attr['name']:
+                if stManager.currentTable.category==SymTab.Category.Function \
+                        and stManager.currentTable.parent.category==SymTab.Category.Class \
+                        and stManager.currentTable.parent.attr['name']==stManager.currentTable.attr['name']:
                     obj=stManager.lookup('this')
                     tempk=stManager.newTemp(p[1].type)
                     if p[1].type!="real":
@@ -515,6 +523,8 @@ class MyParser(TypeSystem):
             checkReInitial = stManager.currentTable.lookup(idVal)
             if checkReInitial != None:
                 self.printError("ReDeclare", idVal, p.lexer.lineno)
+            elif idVal in stManager.mainTable.keys():
+                self.printError("ClassNameError", p.lexer.lineno)
             p[0] = stManager.insert(idVal, self.recentType, 'SIMPLE')
 
     def p_variable_initializer(self, p):
@@ -673,6 +683,8 @@ class MyParser(TypeSystem):
                 self.printError("ReDeclare", symEntry.attr['name'], p.lexer.lineno)
             elif symEntryDecl != None:
                 self.printError("ReDeclare", symEntryDecl.attr['name'][1:], p.lexer.lineno)
+            elif p[-1] == SymTab.currentTable.attr['name']:
+                self.printError("ClassNameError", p.lexer.lineno)
 
             mAttr = {
                 'type':p[-2]
@@ -1774,6 +1786,17 @@ def main(fName, stM):
     filename = fName
     parser = Parser()
     result = parser.parse_file(filename, debug = False)
+    ## check if the program contains a Main file with a void:: main() method
+    errMsg = ErrorSystem()
+    if 'Main' in stManager.mainTable.keys():
+        if 'main' in stManager.mainTable['Main'].children.keys():
+            x = stManager.mainTable['Main'].children['main'].attr['type']
+            if x != 'void':
+                errMsg.printError("MainReturnType", None)
+        else:
+            errMsg.printError("MainNotDeclared", None)
+    else:
+        errMsg.printError("MainClassNotFound", None)
     return result
 
 
