@@ -169,7 +169,7 @@ class MyParser(TypeSystem):
         return [strx]
 
     def printParseTree(self, p):
-        flag = False
+        flag = True
         if flag:
             print(p.slice)
 
@@ -258,7 +258,7 @@ class MyParser(TypeSystem):
         stManager.beginScope(SymTab.Category.Class, cattr)
         stManager.beginScope(SymTab.Category.Function, {'name':"",'args_types':[]})
         stManager.currentTable.attr['name']=stManager.currentTable.parent.attr['name']
-        stManager.insert("this",stManager.currentTable, 'OBJ')
+        stManager.insert("this",stManager.currentTable.parent.attr['name'], 'OBJ')
 
     def p_seen_class_decl2(self,p):
         '''
@@ -272,7 +272,7 @@ class MyParser(TypeSystem):
         stManager.beginScope(SymTab.Category.Class, cattr)
         stManager.beginScope(SymTab.Category.Function, {'name':"",'args_types':[]})
         stManager.currentTable.attr['name']=stManager.currentTable.parent.attr['name']
-        stManager.insert("this",stManager.currentTable, 'OBJ')
+        stManager.insert("this",stManager.currentTable.parent.attr['name'], 'OBJ')
 
 
     def p_interface_type_list(self, p):
@@ -388,13 +388,15 @@ class MyParser(TypeSystem):
         self.printParseTree(p)
         if len(p) == 6:
             stManager.currentTable.attr['args_types'] = p[4]
+        else:
+            p[4]=[]
         xName = ""
         xCounter = 1
         for i in p[4]:
             xName += "_$p" + xCounter + "t$_" + str(i)
             xCounter+=1
-        p[0]['code'] = self.gen('function', "___Zn3_$c$_" + \
-                                stManager.currentTable.parent.attr['name'] + xName)
+        stManager.currentTable.parent.attr['name']="___Zn3_$c$_" + stManager.currentTable.parent.attr['name'] + xName
+        p[0]['code'] = self.gen('function',stManager.currentTable.parent.attr['name'] )
 
     def p_seen_cons_name(self, p):
         '''
@@ -469,6 +471,7 @@ class MyParser(TypeSystem):
             }
         else:
             #TODO TYPE CHECK
+            print(p[3])
             if p[1].type != p[3]['type'] and not self.isTypeConvertible(p[1].type, p[3]['type']):
                 self.printError("TypeError", p.lexer.lineno)
 
@@ -483,6 +486,7 @@ class MyParser(TypeSystem):
                 print(stManager.currentTable.attr)
                 if stManager.currentTable.category==SymTab.Category.Function and stManager.currentTable.parent.category==SymTab.Category.Class and stManager.currentTable.parent.attr['name']==stManager.currentTable.attr['name']:
                     obj=stManager.lookup('this')
+                    # print("here")
                     tempk=stManager.newTemp(p[1].type)
                     if p[1].type!="real":
                         objcode=self.gen("writearray", obj, p[1].offset//4, p[3]['place'])
@@ -623,8 +627,9 @@ class MyParser(TypeSystem):
             for i in stManager.currentTable.attr['args_types']:
                 xName += "_$p" + xCounter + "t$_" + str(i)
                 xCounter+=1
-            p[0]['code'] = self.gen('function', "___Zn3_$c$_" + \
-                    stManager.currentTable.parent.attr['name'] +"_$n$_"+stManager.currentTable.attr['name']+"_$r$_"+stManager.currentTable.attr['type']+ xName)
+            stManager.currentTable.attr['name']="___Zn3_$c$_" + stManager.currentTable.parent.attr['name'] +"_$n$_"+stManager.currentTable.attr['name']+"_$r$_"+stManager.currentTable.attr['type']+ xName
+            p[0]['code'] = self.gen('function',stManager.currentTable.attr['name'] )
+
             p[0] = {
                 'code' : p[0]['code'] + self.gen('subesp',stManager.currentTable.offset)+
                          xCode
@@ -706,7 +711,7 @@ class MyParser(TypeSystem):
                 ,'args_types':[]
             }
         stManager.beginScope(SymTab.Category.Function, mAttr)
-        stManager.insert("this",stManager.currentTable, 'OBJ')
+        stManager.insert("this",stManager.currentTable.parent.attr['name'], 'OBJ')
 
 
     def p_method_body(self, p):
@@ -801,6 +806,7 @@ class MyParser(TypeSystem):
         '''
         #TODO MAYBE DO SOMETHING HERE
         self.printParseTree(p)
+
         p[0] = p[1]
 
     def p_interface_type(self, p):
@@ -1443,6 +1449,7 @@ class MyParser(TypeSystem):
         elif len(p) == 4:
             p[0] = p[2]
         elif xRule == "class_instance_creation_expression":
+            p[0]=p[1]
             ## TODO ::COMES INSDIDE DOMAINS OF OOP
             pass
         assert (p[0] != None), "Case for '{}' not handled!".format(p.slice[0])
@@ -1451,6 +1458,26 @@ class MyParser(TypeSystem):
         '''
             class_instance_creation_expression : NEW class_type LPAREN argument_list RPAREN
         '''
+        clss=stManager.mainTable[p[2]]
+        ofset=clss.offset
+        name=clss.attr['name']
+        tmp=stManager.newTemp(clss.attr['name'])
+
+        xName = ""
+        xCounter = 1
+        for i in p[4]['type']:
+            xName += "_$p" + xCounter + "t$_" + str(i)
+            xCounter+=1
+        xCode = "___Zn3_$c$_" + p[2] + xName
+        # if clss.children.keys()
+        #TODO CHECK IF THE CONSTUCTOR EXISTS
+        if clss.children
+        p[0]={
+            'code':self.gen("malloc",tmp,ofset) + self.gen("moveit","dword [esp-12], esp")+self.gen("call","auto"+xCode)
+                + self.gen("moveit","dword [esp-12], esp") + self.gen("call",xCode),
+            'place':tmp,
+            'type':clss.attr['name']
+        }
         self.printParseTree(p)
 
     def p_argument_list(self, p):
@@ -1670,8 +1697,8 @@ class MyParser(TypeSystem):
         # print(p[1])
 
         if str(p.slice[1]) == "identifier_name_with_dot":
-            if not isinstance(p[1]['place'].type,SymTab.SymbolTable):
-                self.printError(p.lexer.lineno)
+            if p[1]['place'].type not in stManager.mainTable.keys() and not p[1]['place'].xname=="this":
+                self.printError("TypeError",p.lexer.lineno)
 
             p[0]={'type':child.type,'place':tmp,'code':p[1]['code']+self.gen("readarray",p[1]['place'],child.offset//4,tmp),
                     'specialForArrayWrite': {
@@ -1682,12 +1709,15 @@ class MyParser(TypeSystem):
                 }
             # p[0] = p[1] + '.' + p.slice[3].value
         else:
+            # print(p[1])
             parent=stManager.lookup(p[1])
             if parent==None:
                 self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
+            # print(parent.type)
+            # print(parent.xname)
             # tmp=stManager.newTemp(child.type)
-            if not isinstance(parent.type,SymTab.SymbolTable):
-                 self.printError(p.lexer.lineno)
+            if parent.type not in stManager.mainTable.keys() and not parent.xname=="this":
+                 self.printError("TypeError",p.lexer.lineno)
             p[0]={'type':child.type,'place':tmp,'code':[]+self.gen("readarray",parent,child.offset//4,tmp),
                     'specialForArrayWrite': {
                         'code':[],

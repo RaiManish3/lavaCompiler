@@ -48,6 +48,21 @@ class SymbolTable(object):
         ## category can either be array or a simple variable
         offset=None
         size=None
+        print(ltype)
+        classeslist = self
+        while classeslist.category == Category.Block or classeslist.category == Category.Function:
+            classeslist=classeslist.parent
+        classeslist=classeslist.parent
+        # classeslist=classeslist.parent
+        # print(classeslist.keys())
+        # print(lexeme)
+        # print(classeslist)
+        print("ss")
+        print(lexeme)
+        print(ltype)
+        print("ii")
+        # if ltype==None:
+            # print("its none")
         if False:#lexeme=="this":
             offset=5
             size=4
@@ -62,6 +77,14 @@ class SymbolTable(object):
             offset=tmp.offset+size
             tmp.offset+=size
         elif isinstance(ltype, SymbolTable):
+            assert(False)
+            size=4
+            tmp = self
+            while tmp.category == Category.Block:
+                tmp=tmp.parent
+            offset=tmp.offset+size
+            tmp.offset+=size
+        elif ltype in classeslist.keys() or lexeme=="this":
             size=4
             tmp = self
             while tmp.category == Category.Block:
@@ -70,6 +93,7 @@ class SymbolTable(object):
             tmp.offset+=size
         elif lexeme not in ["`update_block","`after_block"]:
             size = None
+            print(lexeme)
             assert(False)
 
         self.vars[lexeme] = VarType(lexeme,category, ltype, offset, size)
@@ -186,7 +210,7 @@ class TableManager(object):
         size=None
         if "[]" in ltype:
             size = typeSizeMap[ltype[:str(ltype).find("[]")]]
-        elif isinstance(ltype, SymbolTable):
+        elif ltype in self.mainTable.keys():
             size=4
         elif ltype in typeSizeMap.keys():
             size = typeSizeMap[ltype]
