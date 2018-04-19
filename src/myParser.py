@@ -178,6 +178,23 @@ class MyParser(TypeSystem):
             strx.append(arg)
         return [strx]
 
+    def genMingledName(self, pX, cName, fName, paraList):
+        xName = ""
+        xCounter = 1
+        for i in paraList:
+            xName += "_$p" + str(xCounter) + "t$_" + str(i)
+            xCounter+=1
+        xName = "___Zn3_$c$_" + cName + "_$n$_" + fName + xName
+        if pX != None:
+            pX['code'] = self.gen('function', xName)
+        return xName
+
+    def getMyClassName(self):
+        tmp = stManager.currentTable
+        while tmp.category != SymTab.Category.Class:
+            tmp = tmp.parent
+        return tmp.attr['name']
+
     def printParseTree(self, p):
         if DEBUG_FLAG:
             print(p.slice)
@@ -265,6 +282,7 @@ class MyParser(TypeSystem):
             , 'interfaces':p[-1]
         }
         stManager.beginScope(SymTab.Category.Class, cattr)
+        ## begin auto_constructor
         stManager.beginScope(SymTab.Category.Function, {'name':"",'args_types':[]})
         stManager.currentTable.attr['name']=stManager.currentTable.parent.attr['name']
         stManager.insert("this",stManager.currentTable.parent.attr['name'], 'OBJ')
@@ -279,6 +297,7 @@ class MyParser(TypeSystem):
             , 'interfaces':[]
         }
         stManager.beginScope(SymTab.Category.Class, cattr)
+        ## begin auto_constructor
         stManager.beginScope(SymTab.Category.Function, {'name':"",'args_types':[]})
         stManager.currentTable.attr['name']=stManager.currentTable.parent.attr['name']
         stManager.insert("this",stManager.currentTable.parent.attr['name'], 'OBJ')
@@ -295,7 +314,6 @@ class MyParser(TypeSystem):
             p[0]=p[1]
         else:
             p[0]=[p[1]]
-
 
 
     #1 ___Zn3_$c$_className_$n$_functionname_$r$_returnType_$p1t$_Parameter1Type_$p2t$_Parameter2Type
@@ -383,6 +401,15 @@ class MyParser(TypeSystem):
             constructor_declaration : FUNCTION constructor_declarator constructor_body
         '''
         self.printParseTree(p)
+        fName = stManager.currentTable.attr['name']
+        mAttr = {
+              'name': self.genMingledName(None, self.getMyClassName(), fName
+                                          , stManager.currentTable.attr['args_types'])
+            , 'args_types': []
+        }
+        stManager.endScope()
+        stManager.beginScope(SymTab.Category.Function, mAttr)
+        stManager.currentTable = stManager.currentTable.parent.children.pop(fName)
         stManager.endScope()
         ## TODO: THIS IS AN OOP CONCEPT HANDLER IT, WHILE MAKING OBJECT
         p[0] = {
@@ -397,13 +424,7 @@ class MyParser(TypeSystem):
         self.printParseTree(p)
         if len(p) == 6:
             stManager.currentTable.attr['args_types'] = p[4]
-        xName = ""
-        xCounter = 1
-        for i in p[4]:
-            xName += "_$p" + xCounter + "t$_" + str(i)
-            xCounter+=1
-        p[0]['code'] = self.gen('function', "___Zn3_$c$_" + \
-                                stManager.currentTable.parent.attr['name'] + xName)
+        xName = genMingledName(p[0], p[4])
 
     def p_seen_cons_name(self, p):
         '''
@@ -487,10 +508,9 @@ class MyParser(TypeSystem):
                     , 'code':p[3]['code']
                 }
             elif p[3]['place']!=p[1]:
-                #if stManager.currentTable.category==SymTab.Category.Class:
-                print(stManager.currentTable.parent.attr)
-                print(stManager.currentTable.attr)
-                if stManager.currentTable.category==SymTab.Category.Function and stManager.currentTable.parent.category==SymTab.Category.Class and stManager.currentTable.parent.attr['name']==stManager.currentTable.attr['name']:
+                if stManager.currentTable.category==SymTab.Category.Function \
+                        and stManager.currentTable.parent.category==SymTab.Category.Class \
+                        and stManager.currentTable.parent.attr['name']==stManager.currentTable.attr['name']:
                     obj=stManager.lookup('this')
                     tempk=stManager.newTemp(p[1].type)
                     if p[1].type!="real":
@@ -615,33 +635,43 @@ class MyParser(TypeSystem):
             method_declaration : method_header method_body
                                | DECLARE DCOLON result_type method_declarator STMT_TERMINATOR
         '''
-        p[0]={'code':[]}
         self.printParseTree(p)
-        if len(p) == 3:
-            curFunction = stManager.currentTable.attr['name']
-            xCode = p[2]['code']
+        p[0]={'code':[]}
+        fName = stManager.currentTable.attr['name']
+        ## get the mingled function name attr
+        mAttr = {
+            'type': stManager.currentTable.attr['type']
+            ,'name': self.genMingledName(None, self.getMyClassName(), fName, stManager.currentTable.attr['args_types'])
+            ,'args_types': stManager.currentTable.attr['args_types']
+        }
 
+        ## check if it not a re-declaration
+        symEntry = stManager.currentTable.parent.lookup(mAttr['name'])
+        if symEntry != None:
+            self.printError("ReDeclare", fName, stManager.currentTable.attr['lineno'])
+
+        if len(p) == 3:
+            xCode = p[2]['code']
             ## return statement check
-            if xCode[-1][0] == 'return':
-                pass ## we are fine
-            else:
+            if xCode[-1][0] != 'return':
                 ## user has missed specifying the end return statement
                 self.printError("ReturnError", curFunction, None)
 
+            xName = self.genMingledName(p[0], self.getMyClassName(), fName, stManager.currentTable.attr['args_types'])
+            p[0]['code'] += self.gen('subesp',stManager.currentTable.offset) + xCode
 
-            xName = ""
-            xCounter = 1
-            for i in stManager.currentTable.attr['args_types']:
-                xName += "_$p" + xCounter + "t$_" + str(i)
-                xCounter+=1
-            p[0]['code'] = self.gen('function', "___Zn3_$c$_" + \
-                    stManager.currentTable.parent.attr['name'] +"_$n$_"+stManager.currentTable.attr['name']+"_$r$_"+stManager.currentTable.attr['type']+ xName)
-            p[0] = {
-                'code' : p[0]['code'] + self.gen('subesp',stManager.currentTable.offset)+
-                         xCode
-            }
+
         else:
             p[0] = {'code':[]}
+            symEntryDecl = stManager.currentTable.parent.lookup(
+                self.genMingledName(None, self.getMyClassName(), 
+                                    "`"+fName, stManager.currentTable.attr['args_types']))
+            if symEntryDecl != None:
+                self.printError("ReDeclare", fName, stManager.currentTable.attr['lineno'])
+
+        stManager.endScope()
+        stManager.beginScope(SymTab.Category.Function, mAttr)
+        stManager.currentTable = stManager.currentTable.parent.children.pop(fName)
         stManager.endScope()
 
     def p_method_header(self, p):
@@ -653,8 +683,6 @@ class MyParser(TypeSystem):
         checkReInitial = stManager.currentTable.lookup(idVal)
         if checkReInitial != None:
             self.printError("ReDeclare", idVal, p.lexer.lineno)
-        # p[0] = stManager.insert("this",stManager.currentTable, 'OBJ')
-        # p[0]={'rettype':p[3]}
         self.printParseTree(p)
 
     def p_result_type(self, p):
@@ -676,47 +704,27 @@ class MyParser(TypeSystem):
         self.printParseTree(p)
         if len(p) == 6:
             stManager.currentTable.attr['args_types'] = p[4]
-        if p[2] != None:
-            symEntryDecl = p[2][0]
-            ## case of declaration defined before definition of function
-            if symEntryDecl.attr['type'] == stManager.currentTable.attr['type'] and symEntryDecl.attr['args_types'] == stManager.currentTable.attr['args_types']:
-                pass
-            else:
-                self.printError("BadDeclare", symEntryDecl.attr['name'][1:], p[2][1])
 
     def p_seen_method_name(self, p):
         '''
             seen_method_name :
         '''
-        symEntry = stManager.currentTable.lookup(p[-1])
-        symEntryDecl = stManager.currentTable.lookup("`"+p[-1])
+        if p[-1] == stManager.currentTable.attr['name']:
+            self.printError("ClassNameError", p.lexer.lineno)
 
         if p[-4] == 'declare':
-            ## check if it not a re-declaration
-            if symEntry != None:
-                self.printError("ReDeclare", symEntry.attr['name'], p.lexer.lineno)
-            elif symEntryDecl != None:
-                self.printError("ReDeclare", symEntryDecl.attr['name'][1:], p.lexer.lineno)
-            elif p[-1] == SymTab.currentTable.attr['name']:
-                self.printError("ClassNameError", p.lexer.lineno)
-
             mAttr = {
                 'type':p[-2]
                 ,'name':'`'+p[-1]
                 ,'args_types':[]
+                ,'lineno': p.lexer.lineno
             }
         else:
-            if symEntry != None:
-                self.printError("ReDeclare", symEntry.attr['name'], p.lexer.lineno)
-            elif symEntryDecl != None:
-                ## In case it has a declaration => check it matches the declaration format
-                ## defer the check as we do not have any info about the args_types
-                p[0] = (symEntryDecl, p.lexer.lineno)
-
             mAttr = {
                 'type':p[-2]
                 ,'name':p[-1]
                 ,'args_types':[]
+                ,'lineno': p.lexer.lineno
             }
         stManager.beginScope(SymTab.Category.Function, mAttr)
         stManager.insert("this",stManager.currentTable.parent.attr['name'], 'OBJ')
@@ -1110,7 +1118,7 @@ class MyParser(TypeSystem):
                        | expression BIT_XOR expression
                        | expression BIT_OR expression
                        | expression BIT_AND expression
-                       | unaryop expression
+                       | unaryop expression %prec NOT
                        | assignment
                        | primary
                        | identifier_name_with_dot
@@ -1150,23 +1158,9 @@ class MyParser(TypeSystem):
                             self.gen(p.slice[2].value, temp, res['value1'], res['value2'])
                 }
                 if temp.type=="String" and p.slice[2].value=="+":
-                    print("MMMMMMMMMMMMMMMMMMMMMMMM")
-                    print(temp.name)
                     temp.stringlen=res["value1"].stringlen+res["value2"].stringlen
             else:
                 pass
-                # p[0] = {
-                #      'place': p[-2]
-                #     ,'type': p[-2].type
-                #     ,'code': p[1]['code'] + p[3]['code'] +
-                #              self.gen(p.slice[2].value, p[-2], res['value1'], res['value2'])
-                # }
-                # if p[-2].type=="String" and p.slice[2].value=="+":
-                #     print("MMMMMMMMMMMMMMMMMMMMMMMM")
-                #     print(p[-2].name)
-                #     print(res["value1"].name)
-                #     print(res["value2"].name)
-                #     p[-2].stringlen=res["value1"].stringlen+res["value2"].stringlen
             #TODO for the else statement above, for the form 'x = expression or expression' we need to check type of reultant value with type of x. i.e. p[-2]
             #RESULTING TYPE MUST BE BOOLEAN
             #TODO, problem of readarray writearray type mismatch is still there
@@ -1205,23 +1199,21 @@ class MyParser(TypeSystem):
 
         elif len(p) == 3:
             ## case of unaryop
-            pxType = 'MINUS' if p.slice[1].type == '-' else 'NOT'
+            pxType = 'MINUS' if p[1] == '-' else 'NOT'
             res = self.typeHandler(p[2], None, pxType, p.lexer.lineno)
             temp = stManager.newTemp(res['type'])
-            if True:#p[-1]!='=':
-                temp = stManager.newTemp(res['type'])
+            if pxType == 'MINUS':
+                p[0] = {
+                     'place': temp
+                    ,'type': res['type']
+                    ,'code': p[2]['code'] + self.gen(p[1], temp, '0', p[2]['place'])
+                }
+            else:
                 p[0] = {
                      'place': temp
                     ,'type': res['type']
                     ,'code': p[2]['code'] + self.gen(p[1], temp, p[2]['place'])
                 }
-            else:
-                pass
-                # p[0] = {
-                #      'place': p[-2]
-                #     ,'type': p[-2].type
-                #     ,'code': p[2]['code'] + self.gen(p[1], p[-2], p[2]['place'])
-                # }
 
         elif p1 == 'assignment':
             if type(p[1]) == dict:
@@ -1363,10 +1355,13 @@ class MyParser(TypeSystem):
             pass
         else:
             funcID = p.slice[1].value
-            symEntry = stManager.lookup(funcID)
+            funcID1 = self.genMingledName(None, self.getMyClassName(), funcID, p[3]['type'])
+            funcID2 = self.genMingledName(None, self.getMyClassName(), "`" + funcID, p[3]['type'])
+            symEntry = stManager.lookup(funcID1)
 
+            ## FIXME
             if symEntry==None:
-                symEntry = stManager.lookup('`'+funcID)
+                symEntry = stManager.lookup(funcID2)
                 if symEntry == None:
                     self.printError("FunctionNotDeclared", funcID, p.lexer.lineno)
                 else:
@@ -1390,14 +1385,14 @@ class MyParser(TypeSystem):
                     p[0] = {
                           'place': None
                         , 'type': None
-                        , 'code': param_code+self.gen('call', funcID)
+                        , 'code': param_code+self.gen('call', funcID1)
                     }
             else:
                 temp = stManager.newTemp(symEntry.attr['type'])
                 p[0] = {
                       'place': temp
                     , 'type': temp.type
-                    , 'code': param_code+self.gen('call', funcID, temp)
+                    , 'code': param_code+self.gen('call', funcID1, temp)
                 }
 
     def p_field_access(self, p):
@@ -1478,7 +1473,7 @@ class MyParser(TypeSystem):
         xCode = "___Zn3_$c$_" + p[2] + xName
         # if clss.children.keys()
         #TODO CHECK IF THE CONSTUCTOR EXISTS
-        if clss.child
+        #  if clss.child
         p[0]={
             'code':self.gen("malloc",tmp,ofset) + self.gen("moveit","dword [esp-12], esp")+self.gen("call","auto"+xCode)
                 + self.gen("moveit","dword [esp-12], esp") + self.gen("call",xCode),
@@ -1697,11 +1692,7 @@ class MyParser(TypeSystem):
         child=stManager.lookup(p[3])
         if child==None:
             self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
-        # print(p[3])
-        # print(child.attr)
-        # assert(False)
         tmp=stManager.newTemp(child.type)
-        # print(p[1])
 
         if str(p.slice[1]) == "identifier_name_with_dot":
             if p[1]['place'].type not in stManager.mainTable.keys() and not p[1]['place'].xname=="this":
@@ -1858,9 +1849,10 @@ def main(fName, stM):
     result = parser.parse_file(filename, debug = False)
     ## check if the program contains a Main file with a void:: main() method
     errMsg = ErrorSystem()
+    xName = "___Zn3_$c$_Main_$n$_main"
     if 'Main' in stManager.mainTable.keys():
-        if 'main' in stManager.mainTable['Main'].children.keys():
-            x = stManager.mainTable['Main'].children['main'].attr['type']
+        if xName in stManager.mainTable['Main'].children.keys():
+            x = stManager.mainTable['Main'].children[xName].attr['type']
             if x != 'void':
                 errMsg.printError("MainReturnType", None)
         else:

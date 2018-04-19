@@ -48,22 +48,11 @@ class SymbolTable(object):
         ## category can either be array or a simple variable
         offset=None
         size=None
-        print(ltype)
         classeslist = self
         while classeslist.category == Category.Block or classeslist.category == Category.Function:
             classeslist=classeslist.parent
         classeslist=classeslist.parent
-        # classeslist=classeslist.parent
-        # print(classeslist.keys())
-        # print(lexeme)
-        # print(classeslist)
-        print("ss")
-        print(lexeme)
-        print(ltype)
-        print("ii")
-        # if ltype==None:
-            # print("its none")
-        if False:#lexeme=="this":
+        if False:
             offset=5
             size=4
             self.vars[lexeme] = VarType(lexeme,category, ltype, offset, size)
@@ -93,7 +82,6 @@ class SymbolTable(object):
             tmp.offset+=size
         elif lexeme not in ["`update_block","`after_block"]:
             size = None
-            print(lexeme)
             assert(False)
 
         self.vars[lexeme] = VarType(lexeme,category, ltype, offset, size)

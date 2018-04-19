@@ -144,7 +144,7 @@ def OptimizeForYandZ(lineno,regk,X,Y,Z):
         else:
             if is_MoveBfromMem:
                 assemblyCode += "  mov "+reg +", dword ["+ b.name +"]\n"
-            associate(a,reg)
+            associate(b, reg)
 
 
 def translate3OpStmt(opInstr, X, Y, Z, lineno):
@@ -154,7 +154,8 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
 
     isXinMem = True
     if reg == None:
-        reg = X.name
+        reg = getRegWithContraints(0, None, None, lineno)
+        assemblyCode += "  mov " + reg + ", dword [" + X.name +"]\n"
     else:
         isXinMem = False
         OptimizeForYandZ(lineno, reg, X, Y, Z)
@@ -247,7 +248,6 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
                 if dirtybit[registerDesc['ecx']]==True:
                     assemblyCode += '  mov dword ['+registerDesc['ecx'].name+'], ecx\n'
                 associate(registerDesc['ecx'],'mem')
-            # print(registerDesc[reg].stringlen)
             assemblyCode += "  mov esi, dword ["+Y.name+"]\n"
             assemblyCode += "  mov edi, "+reg+"\n"
             assemblyCode += "  mov ecx, "+str(Y.stringlen)+"\n"
@@ -399,7 +399,6 @@ def translateMulDiv(op,X,Y,Z,lineno):
 
         if Z not in symlist or addressDescriptor[Z]=="mem":
             regz=getRegWithContraints(0,'eax','edx',lineno)
-            print(regz)
             if regz!=None:
                 assemblyCode+="  mov "+regz+", "+name(Z)+"\n"
                 if Z in symlist:
@@ -920,7 +919,7 @@ def getRegWithContraints(afterNextUse,reg1,reg2,lineno):
                 farthestNextUseSymbLive = value
                 farthestNextUseLive = nextUseTable[lineno][value][1]
 
-    if farthestNextUseDead==0 and farthestNextUseLive > afterNextUse:
+    if farthestNextUseDead==0 and farthestNextUseLive < afterNextUse:
         return None
 
     if farthestNextUseDead!=0:
@@ -934,8 +933,8 @@ def getRegWithContraints(afterNextUse,reg1,reg2,lineno):
     if farthestNextUseLive!=0:
         regtemp = addressDescriptor[farthestNextUseSymbLive]
         assert(regtemp!="mem")
-        if dirtybit[farthestNextUseLive]:
-            dirtybit[farthestNextUseLive]=False
+        if dirtybit[farthestNextUseSymbLive]:
+            dirtybit[farthestNextUseSymbLive]=False
             assemblyCode+="  mov dword ["+farthestNextUseSymbLive.name+"], "+regtemp+"\n"
         associate(farthestNextUseSymbLive,"mem")
         return regtemp
@@ -1149,9 +1148,6 @@ def main(filename=None, irCode=None, stM=None):
 
     data_section +=  "readFloat dd `%f`,0\n" + "readString dd `%s`,0\n"
     data_section += "tooLongStringException dd `You gave a continous string of length > 200 without containing whitespace, which is not allowed`,0\n"
-    #  ## global assembly data
-    #  for var in floatList:
-    #      data_section += str(var) + "  dd  " + "0\n"
 
     bss_section = "\n"
     text_section = "segment .text\n\n"
@@ -1164,7 +1160,8 @@ def main(filename=None, irCode=None, stM=None):
     text_section +="  mov [esp-12], esp\n"
     text_section +="  call auto___Zn3_$c$_Main\n"
     text_section +="  mov [esp-12], esp\n"
-    text_section +="  call ___Zn3_$c$_Main_$n$_main_$r$_void\n"
+    text_section +="  call ___Zn3_$c$_Main_$n$_main\n"
+    text_section +="  mov eax, 0\n"
     text_section +="  mov esp, ebp\n"
     text_section +="  pop ebp\n"
     text_section +="  ret\n\n"
