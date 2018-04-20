@@ -243,7 +243,10 @@ class MyParser(TypeSystem):
         for i in paraList:
             xName += "_$p" + str(xCounter) + "t$_" + str(i)
             xCounter+=1
-        xName = "___Zn3_$c$_" + cName + "_$n$_" + fName + xName
+        if cName ==fName:
+            xName = "___Zn3_$c$_" + cName  + xName
+        else:
+            xName = "___Zn3_$c$_" + cName + "_$n$_" + fName + xName
         if pX != None:
             pX['code'] = self.gen('function', xName)
         return xName
@@ -726,7 +729,7 @@ class MyParser(TypeSystem):
             ## return statement check
             if xCode[-1][0] != 'return':
                 ## user has missed specifying the end return statement
-                self.printError("ReturnError", curFunction, None)
+                self.printError("ReturnError", fName, None)
 
             xName = self.genMingledName(p[0], self.getMyClassName(), fName, stManager.currentTable.attr['args_types'])
             p[0]['code'] += self.gen('subesp',stManager.currentTable.offset) + xCode
@@ -1449,65 +1452,94 @@ class MyParser(TypeSystem):
                 I=p[1]['IDENTIFIER']
                 if inwd['place'].type not in stManager.mainTable.keys() and not inwd['place'].xname=="this":
                     self.printError("TypeError",p.lexer.lineno)
+                xName = ""
+                xCounter = 1
+                for i in p[3]['type']:
+                    xName += "_$p" + str(xCounter) + "t$_" + str(i)
+                    xCounter+=1
                 if inwd['place'].xname=="this":
-                    xName = ""
-                    xCounter = 1
-                    for i in p[3]['type']:
-                        xName += "_$p" + str(xCounter) + "t$_" + str(i)
-                        xCounter+=1
-                    xCode = "___Zn3_$c$_" + inwd['place'].type + "_$n$_"+I+xName
-                    # child=stManager.currentTable.parent.lookup(I)
-                    p[0]['code'] += p[1]['code'] + self.gen("call",)
+                    # curclsname=stManager.currentTable
+                    # while(curclsname.category!=SymTab.Category.Class):
+                        # curclsname=curclsname.parent
+                    I = "___Zn3_$c$_" + inwd['place'].type + "_$n$_"+I+xName
+                    child=stManager.currentTable.lookup("this")
+
                 else:
-                    child=stManager.mainTable[p[1]['place'].type].lookup(I)
+                    I = "___Zn3_$c$_" + inwd['place'].type + "_$n$_"+I+xName
+                    # print(stManager.mainTable[p[1]['place'].type])
+                    # child=stManager.mainTable[inwd['place'].type].lookup(I)
+                    # child=stManager.currentTable.lookup(inwd['place'])
+                    child=inwd['place']
+                    # if child==None:
+
+                    # p[0]['code']
                 if child==None:
                     self.printError("VariableNotDeclared",I,p.lexer.lineno)
-                tmp=stManager.newTemp(child.type)
-
-                return {'type':child.type,'place':tmp,'code':inwd['code']+self.gen("readarray",inwd['place'],child.offset//4,tmp),
-                        'specialForArrayWrite': {
-                            'code':p[1]['code'],
-                            'place':p[1]['place'],
-                            'index':child.offset//4
-                        }
-                    }
+                    p[0]['code'] += p[1]['code'] + self.gen("moveobj",child)+self.gen("call",I)
+                # tmp=stManager.newTemp(child.type)
+                #
+                # p[0]= {'type':child.type,'place':tmp,'code':inwd['code']+self.gen("readarray",inwd['place'],child.offset//4,tmp),
+                #         'specialForArrayWrite': {
+                #             'code':p[1]['code'],
+                #             'place':p[1]['place'],
+                #             'index':child.offset//4
+                #         }
+                #     }
                 # p[0] = p[1] + '.' + p.slice[3].value
             else:
                 # p[0]={"which":1,"IDENTIFIER":p[1],"identifier_one_step":p[3]}
                 print(p[1])
-                p[3]=p[1]['identifier_one_step']
-                p[1]=p[1]['IDENTIFIER']
-                parent=stManager.lookup(p[1])
+                p1=p[1]['IDENTIFIER']
+                p3=p[1]['identifier_one_step']
+                parent=stManager.lookup(p1)
                 if parent==None:
-                    self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
+                    # print("here")
+                    self.printError("VariableNotDeclared",p1,p.lexer.lineno)
+                xName = ""
+                xCounter = 1
+                for i in p[3]['type']:
+                    xName += "_$p" + str(xCounter) + "t$_" + str(i)
+                    xCounter+=1
                 if parent.xname=="this":
-                    tmpy=stManager.currentTable
-                    while(tmpy.category!=SymTab.Category.Class):
-                        tmpy=tmpy.parent
-                    child=tmpy.lookup(p[3])
+                    I = "___Zn3_$c$_" + parent.type + "_$n$_"+p3+xName
+                    child=stManager.currentTable.lookup("this")
+                    # tmpy=stManager.currentTable
+                    # while(tmpy.category!=SymTab.Category.Class):
+                        # tmpy=tmpy.parent
+                    # child=tmpy.lookup(p[3])
+                    # p[0]
                 else:
                     print(parent.type)
                     # print(p[2])
                     # assert(False)
-                    child=stManager.mainTable[parent.type].lookup(p[3])
+                    # print()
+                    # print(p[1])
+                    I = "___Zn3_$c$_" + parent.type + "_$n$_"+p3+xName
+                    # child=stManager.mainTable[parent.type].lookup(p[3])
+                    # print(p3)
+                    child=stManager.currentTable.lookup(p1)
 
                 # assert(False)
                 if child==None:
-                    self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
-                tmp=stManager.newTemp(child.attr['name'])
+                    # print("Here")
+                    self.printError("VariableNotDeclared",p3,p.lexer.lineno)
+                # tmp=stManager.newTemp(child.attr['name'])
                 # tmp=stManager.newTemp(child.type)
 
                 if parent.type not in stManager.mainTable.keys() and not parent.xname=="this":
                      self.printError("TypeError",p.lexer.lineno)
+
+                p[0]['code'] += self.gen("moveobj",child)+self.gen("call",I)
+                # print(p[0])
                 # assert(False)
 
-                return {'type':child.type,'place':tmp,'code':[]+self.gen("readarray",parent,child.offset//4,tmp),
-                        'specialForArrayWrite': {
-                            'code':[],
-                            'place':parent,
-                            'index':child.offset//4
-                        }
-                    }
+                # p[0]= {'type':child.type,'place':tmp,'code':[]+self.gen("readarray",parent,child.offset//4,tmp),
+                #         'specialForArrayWrite': {
+                #             'code':[],
+                #             'place':parent,
+                #             'index':child.offset//4
+                #         }
+                #     }
 
             pass
         elif xRule == "field_access":
@@ -1848,10 +1880,10 @@ class MyParser(TypeSystem):
         '''
         self.printParseTree(p)
 
-        child=stManager.lookup(p[3])
-        if child==None:
-            self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
-        tmp=stManager.newTemp(child.type)
+        # child=stManager.lookup(p[3])
+        # if child==None:
+        #     self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
+        # tmp=stManager.newTemp(child.type)
 
 
         if str(p.slice[1]) == "identifier_name_with_dot":
