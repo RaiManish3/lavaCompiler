@@ -1666,9 +1666,12 @@ class MyParser(TypeSystem):
             xCounter+=1
         xCode = "___Zn3_$c$_" + p[2] + xName
         #TODO CHECK IF THE CONSTUCTOR EXISTS
+        altcode=[]
+        if xCode in stManager.mainTable[p[2]].children.keys():
+            altcode=self.gen("moveit","dword [esp-12], esp") + self.gen("call",xCode)
         p[0]={
             'code':self.gen("malloc",tmp,ofset) + self.gen("moveit","dword [esp-12], esp")+self.gen("call","auto"+xCode)
-                + self.gen("moveit","dword [esp-12], esp") + self.gen("call",xCode),
+                + altcode,
             'place':tmp,
             'type':clss.attr['name']
         }
