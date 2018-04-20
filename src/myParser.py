@@ -64,6 +64,8 @@ class ErrorSystem(object):
             ,"MainClassNotFound": "Class Main Not Found"
             ,"InvalidReturnType": "'{}' not allowed as return type for a function at line: {}\nUse Only 'int', 'boolean' or 'real'."
             ,"PrintError": "Illegal printing of non-primitive type '{}' at line: {}"
+            ,"ObjectArray": "Arrays must hold primitive types only. Rule violation at line: {}"
+            ,"ObjectClassSameName": "Objects cannot have same name as enclosing Class at line: {}"
         }
 
     def printLine(self, lineno):
@@ -214,9 +216,6 @@ class MyParser(TypeSystem):
             if parent.xname=="this":
                 child=stManager.currentTable.parent.lookup(p[3])
             else:
-                print(parent.type)
-                # print(p[2])
-                # assert(False)
                 child=stManager.mainTable[parent.type].lookup(p[3])
 
             # assert(False)
@@ -438,18 +437,13 @@ class MyParser(TypeSystem):
 
             else:
                 p[0]['conFlag'] = True
-                print("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT")
-                print(p[2]['code'])
                 if not p[1]['conFlag']:
                     p[0]['constructor'] += self.gen("function", "auto" + p[2]['code'][0][1]) \
                                             + p[1]['auto_constructor'][1:] +p[2]['code']+self.gen("return")
-                    # print(p[1]['constructor'])
-                    # assert(False)
                 else:
                     p[0]['constructor'] += p[1]['constructor'] + \
                         self.gen("function", "auto" + p[2]['code'][0][1]) \
                                             + p[1]['auto_constructor'][1:]+p[2]['code']+self.gen("return")
-                    # assert(False)
 
                 p[0]['auto_constructor'] = p[1]['auto_constructor']
                 p[0]['body']+=p[1]['body']
@@ -483,8 +477,6 @@ class MyParser(TypeSystem):
         p[0] = {
             'code': p[2]['code'] + p[3]['code']
         }
-        # print(p[0])
-        # assert(False)
 
 
     def p_constructor_declarator(self, p):
@@ -694,14 +686,32 @@ class MyParser(TypeSystem):
             array_initializer_without_curly : array_initializer_without_curly COMMA variable_initializer
                                             | variable_initializer
         '''
+        self.printParseTree(p)
         if len(p)==4:
-            if p[1][0]['type']!=p[3]['type']:
+            if p[1][0]['type'] != p[3]['type']:
                 self.printError('TypeError', p.lexer.lineno)
+            matchType = None
+            for i in SymTab.typeSizeMap.keys():
+                if p[3]['type'].startswith(i):
+                    matchType = i
+            if matchType == None:
+                    self.printError("ObjectArray", p.lexer.lineno)
+            elif matchType != p[3]['type']:
+                if not p[3]['type'][len(matchType):].startswith('[]'):
+                    self.printError("ObjectArray", p.lexer.lineno)
             p[1].append(p[3])
             p[0]=p[1]
         else:
+            matchType = None
+            for i in SymTab.typeSizeMap.keys():
+                if p[1]['type'].startswith(i):
+                    matchType = i
+            if matchType == None:
+                    self.printError("ObjectArray", p.lexer.lineno)
+            elif matchType != p[1]['type']:
+                if not p[1]['type'][len(matchType):].startswith('[]'):
+                    self.printError("ObjectArray", p.lexer.lineno)
             p[0]=[p[1]]
-        self.printParseTree(p)
 
     ## methods=========================================================
     def p_method_declaration(self, p):
@@ -1014,7 +1024,6 @@ class MyParser(TypeSystem):
         '''
             seen_cond :
         '''
-        # print(p[-1])
         if p[-1]['type'] != 'boolean':
             self.printError("TypeError", p.lexer.lineno)
 
@@ -1208,7 +1217,6 @@ class MyParser(TypeSystem):
         #NOTE, FOR EVERY CASE check if p[-1] is NOT NOne, if so, then choose p[-2] as E['place']
         self.printParseTree(p)
         p1 = str(p.slice[1])
-        # print(p1)
 
         if p1 == 'primary':
             if False:#p[-1]=='=' and p[1]['place']!=None and p[1]['place']!=p[-2]:
@@ -1248,8 +1256,6 @@ class MyParser(TypeSystem):
                         ,'code': p[1]['code'] + p[3]['code'] +
                                 self.gen(p.slice[2].value, temp, res['value1'], res['value2'],tmp1,tmp2)
                     }
-                    print("MMMMMMMMMMMMMMMMMMMMMMMM")
-                    print(temp.name)
                     temp.stringlen=res["value1"].stringlen+res["value2"].stringlen
             else:
                 pass
@@ -1330,9 +1336,7 @@ class MyParser(TypeSystem):
 
         elif p1 == 'identifier_name_with_dot':
             p[0]=self.identifier_name_with_dot(p[1])
-            print("yo0000000000000000000000000000000000000000000000")
             #TODO AS A OOP CONCEPT
-            pass
 
         else:
             ## case of IDENTIFIER
@@ -1466,13 +1470,9 @@ class MyParser(TypeSystem):
 
                 else:
                     I = "___Zn3_$c$_" + inwd['place'].type + "_$n$_"+I+xName
-                    # print(stManager.mainTable[p[1]['place'].type])
                     # child=stManager.mainTable[inwd['place'].type].lookup(I)
                     # child=stManager.currentTable.lookup(inwd['place'])
                     child=inwd['place']
-                    # if child==None:
-
-                    # p[0]['code']
                 if child==None:
                     self.printError("VariableNotDeclared",I,p.lexer.lineno)
                     p[0]['code'] += p[1]['code'] + self.gen("moveobj",child)+self.gen("call",I)
@@ -1488,12 +1488,10 @@ class MyParser(TypeSystem):
                 # p[0] = p[1] + '.' + p.slice[3].value
             else:
                 # p[0]={"which":1,"IDENTIFIER":p[1],"identifier_one_step":p[3]}
-                print(p[1])
                 p1=p[1]['IDENTIFIER']
                 p3=p[1]['identifier_one_step']
                 parent=stManager.lookup(p1)
                 if parent==None:
-                    # print("here")
                     self.printError("VariableNotDeclared",p1,p.lexer.lineno)
                 xName = ""
                 xCounter = 1
@@ -1509,28 +1507,16 @@ class MyParser(TypeSystem):
                     # child=tmpy.lookup(p[3])
                     # p[0]
                 else:
-                    print(parent.type)
-                    # print(p[2])
-                    # assert(False)
-                    # print()
-                    # print(p[1])
                     I = "___Zn3_$c$_" + parent.type + "_$n$_"+p3+xName
-                    # child=stManager.mainTable[parent.type].lookup(p[3])
-                    # print(p3)
                     child=stManager.currentTable.lookup(p1)
 
-                # assert(False)
                 if child==None:
-                    # print("Here")
                     self.printError("VariableNotDeclared",p3,p.lexer.lineno)
-                # tmp=stManager.newTemp(child.attr['name'])
-                # tmp=stManager.newTemp(child.type)
 
                 if parent.type not in stManager.mainTable.keys() and not parent.xname=="this":
                      self.printError("TypeError",p.lexer.lineno)
 
                 p[0]['code'] += self.gen("moveobj",child)+self.gen("call",I)
-                # print(p[0])
                 # assert(False)
 
                 # p[0]= {'type':child.type,'place':tmp,'code':[]+self.gen("readarray",parent,child.offset//4,tmp),
@@ -1651,6 +1637,9 @@ class MyParser(TypeSystem):
         '''
             class_instance_creation_expression : NEW class_type LPAREN argument_list RPAREN
         '''
+        ## raise error if object has same name as enclosing class
+        if p[2] == self.getMyClassName():
+            self.printError("ObjectClassSameName", p.lexer.lineno)
         clss=stManager.mainTable[p[2]]
         ofset=clss.offset
         name=clss.attr['name']
@@ -1662,9 +1651,7 @@ class MyParser(TypeSystem):
             xName += "_$p" + str(xCounter) + "t$_" + str(i)
             xCounter+=1
         xCode = "___Zn3_$c$_" + p[2] + xName
-        # if clss.children.keys()
         #TODO CHECK IF THE CONSTUCTOR EXISTS
-        #  if clss.child
         p[0]={
             'code':self.gen("malloc",tmp,ofset) + self.gen("moveit","dword [esp-12], esp")+self.gen("call","auto"+xCode)
                 + self.gen("moveit","dword [esp-12], esp") + self.gen("call",xCode),
@@ -1772,7 +1759,7 @@ class MyParser(TypeSystem):
                     p[0]['place'] = tmp
             else:
                 ## TODO: class instance array creation
-                pass
+                self.printError("ObjectArray", p.lexer.lineno)
 
     def p_dim_exprs(self, p):
         '''

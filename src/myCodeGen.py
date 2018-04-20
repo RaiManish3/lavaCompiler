@@ -610,7 +610,6 @@ def translate(ir):
             Zlenglobal=ir[6]
             translate3OpStmt('  add ', X, Y, Z, lineno)
         else:
-            # print(ir)
             assert False, "Code not implemented"
 
     if op == "label":
