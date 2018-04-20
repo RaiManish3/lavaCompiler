@@ -186,27 +186,65 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
             regy=addressDescriptor[Y]
 
         if Y in symlist and Z in symlist and Y.type=="String" and Z.type=="String":
-            assert(False)
-            if Y.stringlen!=Z.stringlen:
-                assemblyCode += "  mov "+reg+", 0\n"
-            else:
-                if registerDesc["ecx"]!=None:
-                    if dirtybit[registerDesc['ecx']]==True:
-                        assemblyCode += '  mov dword ['+registerDesc['ecx'].name+'], ecx\n'
-                    associate(registerDesc['ecx'],'mem')
-                eqlabel=stManager.newLabel()
-                afterlabel=stManager.newLabel()
-                assemblyCode += "  mov esi, "+name(Y)+"\n"
-                assemblyCode += "  mov edi, "+name(Z)+"\n"
-                assemblyCode += "  mov ecx, "+str(Y.stringlen)+"\n"
-                assemblyCode += "  cld\n"
-                assemblyCode += "  repe cmpsb\n"
-                assemblyCode += "  jecxz "+eqlabel+"\n"
-                assemblyCode += "  mov "+reg+", 0\n"
-                assemblyCode += "  jmp "+afterlabel+"\n"
-                assemblyCode += eqlabel+":\n"
-                assemblyCode += "  mov "+reg+", 1\n"
-                assemblyCode += afterlabel+":\n"
+            # assert(False)
+            dumpAllRegToMem()
+
+            assemblyCode+="  mov edi, dword ["+Y.name+"]\n"
+            assemblyCode+="  sub ecx, ecx\n"
+            assemblyCode+="  sub al, al\n"
+            assemblyCode+="  not ecx\n"
+            assemblyCode+="  cld\n"
+            assemblyCode+="  repne scasb\n"
+            assemblyCode+="  not	ecx\n"
+            assemblyCode+="  dec ecx\n"
+            assemblyCode+="  mov dword ["+Ylenglobal.name+"], ecx\n"
+
+            assemblyCode+="  mov edi, dword ["+Z.name+"]\n"
+            assemblyCode+="  sub ecx, ecx\n"
+            assemblyCode+="  sub al, al\n"
+            assemblyCode+="  not ecx\n"
+            assemblyCode+="  cld\n"
+            assemblyCode+="  repne scasb\n"
+            assemblyCode+="  not	ecx\n"
+            assemblyCode+="  dec ecx\n"
+            assemblyCode+="  mov dword ["+Zlenglobal.name+"], ecx\n"
+            assemblyCode+="  cmp ecx, dword ["+Ylenglobal.name+"]\n"
+            checklabel=stManager.newLabel()
+            eqlabel=stManager.newLabel()
+            afterlabel=stManager.newLabel()
+
+
+            assemblyCode+="  je "+checklabel+"\n"
+            assemblyCode+="  mov "+reg+", 0\n"
+            assemblyCode+="  jmp "+afterlabel+"\n"
+
+
+
+            # if Y.stringlen!=Z.stringlen:
+            #     assemblyCode += "  mov "+reg+", 0\n"
+            # else:
+            assemblyCode+="  "+checklabel+":\n"
+            if registerDesc["ecx"]!=None:
+                if dirtybit[registerDesc['ecx']]==True:
+                    assemblyCode += '  mov dword ['+registerDesc['ecx'].name+'], ecx\n'
+                associate(registerDesc['ecx'],'mem')
+            assemblyCode += "  mov esi, "+name(Y)+"\n"
+            assemblyCode += "  mov edi, "+name(Z)+"\n"
+            assemblyCode += "  mov ecx, dword ["+Ylenglobal.name+"]\n"
+            assemblyCode += "  inc ecx\n"
+            assemblyCode += "  cld\n"
+            assemblyCode += "  repe cmpsb\n"
+            assemblyCode += "  jecxz "+eqlabel+"\n"
+            assemblyCode += "  mov "+reg+", 0\n"
+            assemblyCode += "  jmp "+afterlabel+"\n"
+            assemblyCode += eqlabel+":\n"
+            assemblyCode += "  mov "+reg+", 1\n"
+            assemblyCode += afterlabel+":\n"
+
+            if opInstr=="~=":
+                assemblyCode +="  xor "+reg+", 1\n"
+            #     assemblyCode +=
+            #     assemblyCode +="  not "+reg+"\n"
 
 
 
@@ -254,10 +292,16 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
             assemblyCode+="  mov edi, dword ["+Y.name+"]\n"
             if registerDesc['ecx']!=None:
                 assemblyCode+="  mov dword ["+registerDesc['ecx'].name+"], ecx\n"
-                associate(registerDesc['ecx'].name,"mem")
+                associate(registerDesc['ecx'],"mem")
             if registerDesc['eax']!=None:
                 assemblyCode+="  mov dword ["+registerDesc['eax'].name+"], eax\n"
-                associate(registerDesc['eax'].name,"mem")
+                associate(registerDesc['eax'],"mem")
+            if registerDesc['ebx']!=None:
+                assemblyCode+="  mov dword ["+registerDesc['ebx'].name+"], ebx\n"
+                associate(registerDesc['ebx'],"mem")
+            if registerDesc['edx']!=None:
+                assemblyCode+="  mov dword ["+registerDesc['edx'].name+"], edx\n"
+                associate(registerDesc['edx'],"mem")
             assemblyCode+="  sub ecx, ecx\n"
             assemblyCode+="  sub al, al\n"
             assemblyCode+="  not ecx\n"
@@ -267,15 +311,15 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
             assemblyCode+="  dec ecx\n"
             assemblyCode+="  mov dword ["+Ylenglobal.name+"], ecx\n"
 
-            # assemblyCode+="  mov edi, dword ["+Z.name+"]\n"
-            # assemblyCode+="  sub ecx, ecx\n"
-            # assemblyCode+="  sub al, al\n"
-            # assemblyCode+="  not ecx\n"
-            # assemblyCode+="  cld\n"
-            # assemblyCode+="  repne scasb\n"
-            # assemblyCode+="  not	ecx\n"
-            # assemblyCode+="  dec ecx\n"
-            # assemblyCode+="  mov dword ["+Zlenglobal.name+"], ecx\n"
+            assemblyCode+="  mov edi, dword ["+Z.name+"]\n"
+            assemblyCode+="  sub ecx, ecx\n"
+            assemblyCode+="  sub al, al\n"
+            assemblyCode+="  not ecx\n"
+            assemblyCode+="  cld\n"
+            assemblyCode+="  repne scasb\n"
+            assemblyCode+="  not	ecx\n"
+            assemblyCode+="  dec ecx\n"
+            assemblyCode+="  mov dword ["+Zlenglobal.name+"], ecx\n"
 
 
 
@@ -286,19 +330,19 @@ def translate3OpStmt(opInstr, X, Y, Z, lineno):
 # repne	scasb
 # 	not	ecx
 # 	dec	ecx
-            assemblyCode+="  push dword ["+Ylenglobal.name+"]\n"
-            assemblyCode+="  push debug_d\n"
-            assemblyCode+="  call printf\n"
-            assemblyCode+="  push dword ["+str(Z.name)+"]\n"
-            assemblyCode+="  push debug_s\n"
-            assemblyCode+="  call printf\n"
             # assemblyCode+="  push dword ["+Ylenglobal.name+"]\n"
             # assemblyCode+="  push debug_d\n"
             # assemblyCode+="  call printf\n"
-
-            assemblyCode += "  mov esp, ebp\n"
-            assemblyCode += "  pop ebp\n"
-            assemblyCode += "  ret\n"
+            # assemblyCode+="  push dword ["+str(Z.name)+"]\n"
+            # assemblyCode+="  push debug_s\n"
+            # assemblyCode+="  call printf\n"
+            # # assemblyCode+="  push dword ["+Ylenglobal.name+"]\n"
+            # # assemblyCode+="  push debug_d\n"
+            # # assemblyCode+="  call printf\n"
+            #
+            # assemblyCode += "  mov esp, ebp\n"
+            # assemblyCode += "  pop ebp\n"
+            # assemblyCode += "  ret\n"
 
             assemblyCode+="  mov "+reg+", dword ["+Ylenglobal.name+"]\n"
             assemblyCode+="  add "+reg+", dword ["+Zlenglobal.name+"]\n"
@@ -588,6 +632,10 @@ def translate(ir):
             translate3OpStmt(op,X,Y,Z,lineno)
         elif typeY == 'real' or typeZ == 'real':
             translateFloatRelOpStmt(op, X, Y, Z, lineno)
+        elif typeY == 'String' or typeZ == 'String':
+            Ylenglobal=ir[5]
+            Zlenglobal=ir[6]
+            translate3OpStmt(op, X, Y, Z, lineno)
         else:
             assert False, "Code not implemented"
 
