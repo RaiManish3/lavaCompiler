@@ -28,11 +28,19 @@ begin
         --print("yo");
     --end
 
+    function::void kmain()
+    begin
+
+        print("yo i'm in kmain");
+        return;
+    end
+
     function::void main()
       begin
-        XYZ tz=new XYZ();
-        tz.foo();
-        return;
+        this.kmain();
+        --XYZ tz=new XYZ();
+        --tz.foo();
+        --return;
         String s1="yko";
         String s2="babay";
         String s3=s1+s2;
