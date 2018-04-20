@@ -445,6 +445,7 @@ class MyParser(TypeSystem):
             else:
                 p[0]['conFlag'] = True
                 if not p[1]['conFlag']:
+                    print(p[2])
                     p[0]['constructor'] += self.gen("function", "auto" + p[2]['code'][0][1]) \
                                             + p[1]['auto_constructor'][1:] +p[2]['code']+self.gen("return")
                 else:
@@ -482,7 +483,7 @@ class MyParser(TypeSystem):
         stManager.endScope()
         ## TODO: THIS IS AN OOP CONCEPT HANDLER IT, WHILE MAKING OBJECT
         p[0] = {
-            'code': p[2]['code'] + p[3]['code']
+            'code': p[2]['code'] +self.gen("subesp",stManager.currentTable.offset)+ p[3]['code']
         }
 
 
