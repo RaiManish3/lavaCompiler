@@ -66,6 +66,7 @@ class ErrorSystem(object):
             ,"PrintError": "Illegal printing of non-primitive type '{}' at line: {}"
             ,"ObjectArray": "Arrays must hold primitive types only. Rule violation at line: {}"
             ,"ObjectClassSameName": "Objects cannot have same name as enclosing Class at line: {}"
+            ,"MemberAccess": "Illegal member access at line: {}"
         }
 
     def printLine(self, lineno):
@@ -81,10 +82,10 @@ class ErrorSystem(object):
 
     def printError(self, *argv):
         try:
+            print('\n-------------------------------------------------------')
             errorType = argv[0]
             msg = argv[1:]
             l = len(msg)
-            print('\n-------------------------------------------------------')
             if errorType == "ReDeclare" and msg[0] == 'this':
                 print("ERROR: " + self.errorMap["thisDeclare"].format(*msg))
             else:
@@ -389,13 +390,13 @@ class MyParser(TypeSystem):
         '''
             seen_field_decl :
         '''
+        self.printParseTree(p)
         p[0]={'code':""}
         p[0]['marker_sfd']=True
         if type(p[-2]) == dict and 'marker_sfd' in p[-2].keys():
             p[0]['code']=p[-2]['code']+p[-1]['code']
         else:
             p[0]['code']=p[-1]['code']
-        self.printParseTree(p)
 
     def p_class_body_declarations(self, p):
         '''
@@ -1576,18 +1577,19 @@ class MyParser(TypeSystem):
         '''
             field_access : primary DOT IDENTIFIER
         '''
+        self.printParseTree(p)
         ## TODO: comes under domain of oops
         ## check if primary is an object
         if not isinstance(p[1]['place'], SymTab.VarType):
-            assert False, "illegal dot operation"
+            self.printError("MemberAccess", p.lexer.lineno)
 
         obj = p[1]['place'].type
         if not isinstance(obj, SymTab.SymbolTable):
-            assert False, "illegal dot operation"
+            self.printError("MemberAccess", p.lexer.lineno)
 
         symEntry = obj.lookup(p[3])
         if symEntry == None:
-            assert False, "Illegal member access"
+            self.printError("MemberAccess", p.lexer.lineno)
         tmp = stManager.newTemp(symEntry.type)
         p[0] = {
             'type': symEntry.type
@@ -1600,7 +1602,6 @@ class MyParser(TypeSystem):
                 ,'index':symEntry.offset // 4
             }
         }
-        self.printParseTree(p)
 
     def p_primary(self, p):
         '''
@@ -1621,16 +1622,14 @@ class MyParser(TypeSystem):
                                  | array_access
         '''
         self.printParseTree(p)
-        #CONTINUE FROM HERE
         xRule = str(p.slice[1])
         if xRule in ['literal', 'method_invocation','array_access', 'field_access']:
             p[0] = p[1]
         elif len(p) == 4:
             p[0] = p[2]
         elif xRule == "class_instance_creation_expression":
-            p[0]=p[1]
             ## TODO ::COMES INSDIDE DOMAINS OF OOP
-            pass
+            p[0]=p[1]
         assert (p[0] != None), "Case for '{}' not handled!".format(p.slice[0])
 
     def p_class_instance_creation_expression(self, p):
@@ -1714,7 +1713,7 @@ class MyParser(TypeSystem):
             if pos == -1:
                 ndims=0
             else:
-                ndims=int((len(a.type)-pos)/2)
+                ndims= (len(a.type)-pos) // 2
 
             if writearray==False:
                 if p[3]['count'] + p[4] != ndims:
