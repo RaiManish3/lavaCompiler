@@ -185,43 +185,49 @@ class MyParser(TypeSystem):
 
 
     def identifier_name_with_dot(self,p):
-        if p['which']==0:
+        if p[1]['which']==0:
             # p[0]={"which":0,"identifier_name_with_dot":p[1],"IDENTIFIER":p[3]}
-            p[1]=p['identifier_name_with_dot']
-            p[3]=p['IDENTIFIER']
-            if p[1]['place'].type not in stManager.mainTable.keys() and not p[1]['place'].xname=="this":
+            p1=p[1]['identifier_name_with_dot']
+            p3=p[1]['IDENTIFIER']
+            if p1['place'].type not in stManager.mainTable.keys() and not p1['place'].xname=="this":
                 self.printError("TypeError",p.lexer.lineno)
-            if p[1]['place'].xname=="this":
-                child=stManager.currentTable.parent.lookup(p[3])
+            if p1['place'].xname=="this":
+                child=stManager.mainTable[p1['place'].type].lookup(p3)
             else:
-                child=stManager.mainTable[p[1]['place'].type].lookup(p[3])
+                child=stManager.mainTable[p1['place'].type].lookup(p3)
             if child==None:
-                self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
+                print("yo")
+                self.printError("VariableNotDeclared",p3,p.lexer.lineno)
             tmp=stManager.newTemp(child.type)
 
-            return {'type':child.type,'place':tmp,'code':p[1]['code']+self.gen("readarray",p[1]['place'],child.offset//4,tmp),
+            return {'type':child.type,'place':tmp,'code':p1['code']+self.gen("readarray",p1['place'],child.offset//4,tmp),
                     'specialForArrayWrite': {
-                        'code':p[1]['code'],
-                        'place':p[1]['place'],
+                        'code':p1['code'],
+                        'place':p1['place'],
                         'index':child.offset//4
                     }
                 }
             # p[0] = p[1] + '.' + p.slice[3].value
         else:
             # p[0]={"which":1,"IDENTIFIER":p[1],"identifier_one_step":p[3]}
-            p[1]=p['IDENTIFIER']
-            p[3]=p['identifier_one_step']
-            parent=stManager.lookup(p[1])
+            p1=p[1]['IDENTIFIER']
+            p3=p[1]['identifier_one_step']
+            print(p1)
+            parent=stManager.lookup(p1)
             if parent==None:
-                self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
+                print("u")
+                self.printError("VariableNotDeclared",p1,p.lexer.lineno)
             if parent.xname=="this":
-                child=stManager.currentTable.parent.lookup(p[3])
+                child=stManager.lookup(p3)
             else:
-                child=stManager.mainTable[parent.type].lookup(p[3])
+                # print(parent.type)
+                # print(p[2])
+                # assert(False)
+                child=stManager.mainTable[parent.type].lookup(p3)
 
             # assert(False)
             if child==None:
-                self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
+                self.printError("VariableNotDeclared",p3,p.lexer.lineno)
             tmp=stManager.newTemp(child.type)
             # tmp=stManager.newTemp(child.type)
 
@@ -1241,14 +1247,20 @@ class MyParser(TypeSystem):
             res = self.typeHandler(p[1], p[3], p.slice[2].type, p.lexer.lineno)
             if True:#p[-1] != '=':
                 temp = stManager.newTemp(res['type'])
-                if not (temp.type=="String" and p.slice[2].value=="+"):
+                if p.slice[2].value=="==":
+                    print(p[1])
+                    # print(temp.type)
+                    # assert(False)
+                if not ((temp.type=="String" and (p.slice[2].value=="+")) or ( isinstance(p[1]['place'],SymTab.VarType) and p[1]['place'].type=="String" and (p.slice[2].value=="==" or p.slice[2].value=="~="))):
+                    # if res['type']=="String" or res['type']=="String"
                     p[0] = {
                          'place': temp
                         ,'type': res['type']
                         ,'code': p[1]['code'] + p[3]['code'] +
                                 self.gen(p.slice[2].value, temp, res['value1'], res['value2'])
                     }
-                if temp.type=="String" and p.slice[2].value=="+":
+                    # if temp.type=="String" and (p.slice[2].value=="+" or p.slice[2].value=="==" or p.slice[2].value=="~="):
+                else:
                     tmp1=stManager.newTemp("int")
                     tmp2=stManager.newTemp("int")
                     p[0] = {
@@ -1336,7 +1348,8 @@ class MyParser(TypeSystem):
                 p[0] = p[1]
 
         elif p1 == 'identifier_name_with_dot':
-            p[0]=self.identifier_name_with_dot(p[1])
+            # print("yo0000000000000000000000000000000000000000000000")
+            p[0]=self.identifier_name_with_dot(p)
             #TODO AS A OOP CONCEPT
 
         else:
@@ -1428,7 +1441,7 @@ class MyParser(TypeSystem):
         self.printParseTree(p)
         x = str(p.slice[1])
         if x == 'identifier_name_with_dot':
-            self.identifier_name_with_dot(p[1])
+            self.identifier_name_with_dot(p)
             pass
         elif x == 'field_access':
             p[0]=p[1]
@@ -1467,7 +1480,7 @@ class MyParser(TypeSystem):
                     # while(curclsname.category!=SymTab.Category.Class):
                         # curclsname=curclsname.parent
                     I = "___Zn3_$c$_" + inwd['place'].type + "_$n$_"+I+xName
-                    child=stManager.currentTable.lookup("this")
+                    child=stManager.lookup("this")
 
                 else:
                     I = "___Zn3_$c$_" + inwd['place'].type + "_$n$_"+I+xName
@@ -1501,7 +1514,7 @@ class MyParser(TypeSystem):
                     xCounter+=1
                 if parent.xname=="this":
                     I = "___Zn3_$c$_" + parent.type + "_$n$_"+p3+xName
-                    child=stManager.currentTable.lookup("this")
+                    child=stManager.lookup("this")
                     # tmpy=stManager.currentTable
                     # while(tmpy.category!=SymTab.Category.Class):
                         # tmpy=tmpy.parent
@@ -1509,7 +1522,9 @@ class MyParser(TypeSystem):
                     # p[0]
                 else:
                     I = "___Zn3_$c$_" + parent.type + "_$n$_"+p3+xName
-                    child=stManager.currentTable.lookup(p1)
+                    # child=stManager.mainTable[parent.type].lookup(p[3])
+                    # print(p3)
+                    child=stManager.lookup(p1)
 
                 if child==None:
                     self.printError("VariableNotDeclared",p3,p.lexer.lineno)
