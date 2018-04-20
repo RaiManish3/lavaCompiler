@@ -571,7 +571,6 @@ class MyParser(TypeSystem):
                 , 'code':[]
             }
         else:
-            #TODO TYPE CHECK
             if p[1].type != p[3]['type'] and not self.isTypeConvertible(p[1].type, p[3]['type']):
                 self.printError("TypeError", p.lexer.lineno)
 
@@ -609,7 +608,6 @@ class MyParser(TypeSystem):
         #        without type and size which will be added later
         self.printParseTree(p)
         if str(p.slice[1]) == 'variable_declarator_id':
-            #TODO
             symEntry = stManager.currentTable.lookup(p[1].xname) ## would return a varType
             symEntry.updateCategory('ARRAY')
             symEntry.updateType(symEntry.type + "[]")
@@ -1489,7 +1487,9 @@ class MyParser(TypeSystem):
                     child=inwd['place']
                 if child==None:
                     self.printError("VariableNotDeclared",I,p.lexer.lineno)
-                    p[0]['code'] += p[1]['code'] + self.gen("moveobj",child)+self.gen("call",I)
+                for z in p[3]['place']:
+                    paramcode += self.gen("param",z)
+                p[0]['code'] += p[1]['code'] + self.gen("moveobj",child)+paramcode+self.gen("call",I)
                 # tmp=stManager.newTemp(child.type)
                 #
                 # p[0]= {'type':child.type,'place':tmp,'code':inwd['code']+self.gen("readarray",inwd['place'],child.offset//4,tmp),
@@ -1532,7 +1532,10 @@ class MyParser(TypeSystem):
                 if parent.type not in stManager.mainTable.keys() and not parent.xname=="this":
                      self.printError("TypeError",p.lexer.lineno)
 
-                p[0]['code'] += self.gen("moveobj",child)+self.gen("call",I)
+
+                for z in p[3]['place']:
+                    paramcode += self.gen("param",z)
+                p[0]['code'] += self.gen("moveobj",child)+paramcode+self.gen("call",I)
                 # assert(False)
 
                 # p[0]= {'type':child.type,'place':tmp,'code':[]+self.gen("readarray",parent,child.offset//4,tmp),
@@ -1667,10 +1670,13 @@ class MyParser(TypeSystem):
         xCode = "___Zn3_$c$_" + p[2] + xName
         #TODO CHECK IF THE CONSTUCTOR EXISTS
         altcode=[]
+        paramcode=[]
+        for z in p[4]['place']:
+            paramcode += self.gen("param",z)
         if xCode in stManager.mainTable[p[2]].children.keys():
-            altcode=self.gen("moveit","dword [esp-12], esp") + self.gen("call",xCode)
+            altcode=self.gen("moveit","dword [esp-12], esp") + paramcode+self.gen("call",xCode)
         p[0]={
-            'code':self.gen("malloc",tmp,ofset) + self.gen("moveit","dword [esp-12], esp")+self.gen("call","auto"+xCode)
+            'code':self.gen("malloc",tmp,ofset) + self.gen("moveit","dword [esp-12], esp")+paramcode+self.gen("call","auto"+xCode)
                 + altcode,
             'place':tmp,
             'type':clss.attr['name']
@@ -1945,7 +1951,6 @@ class MyParser(TypeSystem):
             code=[]
             tmp=stManager.newTemp('String')
             strk=p.slice[1].value[1:-1]
-            #TODO in CODEGEN
             code+=self.gen('swrite',tmp,strk,len(strk))
             tmp.stringlen=len(strk)
             p[0]={
