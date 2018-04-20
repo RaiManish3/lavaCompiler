@@ -14,7 +14,7 @@ from includes import SymTab
 ## GLOBALS
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
-DEBUG_FLAG = False
+DEBUG_FLAG = True
 ## NOTE :: expTypeMap entry has value
 ##         (possible types input, ..., expected return type)
 ##         if return type is None, return the most closet input type
@@ -178,6 +178,63 @@ class MyParser(TypeSystem):
             strx.append(arg)
         return [strx]
 
+
+    def identifier_name_with_dot(self,p):
+        if p['which']==0:
+            # p[0]={"which":0,"identifier_name_with_dot":p[1],"IDENTIFIER":p[3]}
+            p[1]=p['identifier_name_with_dot']
+            p[3]=p['IDENTIFIER']
+            if p[1]['place'].type not in stManager.mainTable.keys() and not p[1]['place'].xname=="this":
+                self.printError("TypeError",p.lexer.lineno)
+            if p[1]['place'].xname=="this":
+                child=stManager.currentTable.parent.lookup(p[3])
+            else:
+                child=stManager.mainTable[p[1]['place'].type].lookup(p[3])
+            if child==None:
+                self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
+            tmp=stManager.newTemp(child.type)
+
+            return {'type':child.type,'place':tmp,'code':p[1]['code']+self.gen("readarray",p[1]['place'],child.offset//4,tmp),
+                    'specialForArrayWrite': {
+                        'code':p[1]['code'],
+                        'place':p[1]['place'],
+                        'index':child.offset//4
+                    }
+                }
+            # p[0] = p[1] + '.' + p.slice[3].value
+        else:
+            # p[0]={"which":1,"IDENTIFIER":p[1],"identifier_one_step":p[3]}
+            p[1]=p['IDENTIFIER']
+            p[3]=p['identifier_one_step']
+            parent=stManager.lookup(p[1])
+            if parent==None:
+                self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
+            if parent.xname=="this":
+                child=stManager.currentTable.parent.lookup(p[3])
+            else:
+                print(parent.type)
+                # print(p[2])
+                # assert(False)
+                child=stManager.mainTable[parent.type].lookup(p[3])
+
+            # assert(False)
+            if child==None:
+                self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
+            tmp=stManager.newTemp(child.type)
+            # tmp=stManager.newTemp(child.type)
+
+            if parent.type not in stManager.mainTable.keys() and not parent.xname=="this":
+                 self.printError("TypeError",p.lexer.lineno)
+            # assert(False)
+
+            return {'type':child.type,'place':tmp,'code':[]+self.gen("readarray",parent,child.offset//4,tmp),
+                    'specialForArrayWrite': {
+                        'code':[],
+                        'place':parent,
+                        'index':child.offset//4
+                    }
+                }
+
     def genMingledName(self, pX, cName, fName, paraList):
         xName = ""
         xCounter = 1
@@ -316,7 +373,8 @@ class MyParser(TypeSystem):
             p[0]=[p[1]]
 
 
-    #1 ___Zn3_$c$_className_$n$_functionname_$r$_returnType_$p1t$_Parameter1Type_$p2t$_Parameter2Type
+
+    #1 ___Zn3_$c$_className_$n$_functionname_$p1t$_Parameter1Type_$p2t$_Parameter2Type
     # for constuctor
     #2 ___Zn3_$c$_className_$p1t$_Parameter1Type_$p2t$_Parameter2Type
     #3 auto___Zn3_$c$_className_$p1t$_Parameter1Type_$p2t$_Parameter2Type
@@ -375,13 +433,18 @@ class MyParser(TypeSystem):
 
             else:
                 p[0]['conFlag'] = True
+                print("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT")
+                print(p[2]['code'])
                 if not p[1]['conFlag']:
-                    p[0]['constuctor'] += self.gen("function", "auto" + p[2]['code'][1]) \
-                                            + p[1]['auto_constructor'][1:]
+                    p[0]['constructor'] += self.gen("function", "auto" + p[2]['code'][0][1]) \
+                                            + p[1]['auto_constructor'][1:] +p[2]['code']+self.gen("return")
+                    # print(p[1]['constructor'])
+                    # assert(False)
                 else:
-                    p[0]['constuctor'] += p[1]['constuctor'] + \
-                        self.gen("function", "auto" + p[2]['code'][1]) \
-                                            + p[1]['auto_constructor'][1:]
+                    p[0]['constructor'] += p[1]['constructor'] + \
+                        self.gen("function", "auto" + p[2]['code'][0][1]) \
+                                            + p[1]['auto_constructor'][1:]+p[2]['code']+self.gen("return")
+                    # assert(False)
 
                 p[0]['auto_constructor'] = p[1]['auto_constructor']
                 p[0]['body']+=p[1]['body']
@@ -415,16 +478,22 @@ class MyParser(TypeSystem):
         p[0] = {
             'code': p[2]['code'] + p[3]['code']
         }
+        # print(p[0])
+        # assert(False)
+
 
     def p_constructor_declarator(self, p):
         '''
             constructor_declarator : type_name seen_cons_name LPAREN formal_parameter_list RPAREN
                                    | type_name seen_cons_name LPAREN RPAREN
         '''
+        p[0]={'code':[]}
         self.printParseTree(p)
         if len(p) == 6:
             stManager.currentTable.attr['args_types'] = p[4]
-        xName = genMingledName(p[0], p[4])
+        else:
+            p[4]=[]
+        xName = self.genMingledName(p[0],stManager.currentTable.parent.attr['name'],stManager.currentTable.attr['name'], p[4])
 
     def p_seen_cons_name(self, p):
         '''
@@ -664,7 +733,7 @@ class MyParser(TypeSystem):
         else:
             p[0] = {'code':[]}
             symEntryDecl = stManager.currentTable.parent.lookup(
-                self.genMingledName(None, self.getMyClassName(), 
+                self.genMingledName(None, self.getMyClassName(),
                                     "`"+fName, stManager.currentTable.attr['args_types']))
             if symEntryDecl != None:
                 self.printError("ReDeclare", fName, stManager.currentTable.attr['lineno'])
@@ -935,6 +1004,7 @@ class MyParser(TypeSystem):
         '''
             seen_cond :
         '''
+        # print(p[-1])
         if p[-1]['type'] != 'boolean':
             self.printError("TypeError", p.lexer.lineno)
 
@@ -1128,6 +1198,7 @@ class MyParser(TypeSystem):
         #NOTE, FOR EVERY CASE check if p[-1] is NOT NOne, if so, then choose p[-2] as E['place']
         self.printParseTree(p)
         p1 = str(p.slice[1])
+        # print(p1)
 
         if p1 == 'primary':
             if False:#p[-1]=='=' and p[1]['place']!=None and p[1]['place']!=p[-2]:
@@ -1151,13 +1222,24 @@ class MyParser(TypeSystem):
             res = self.typeHandler(p[1], p[3], p.slice[2].type, p.lexer.lineno)
             if True:#p[-1] != '=':
                 temp = stManager.newTemp(res['type'])
-                p[0] = {
-                     'place': temp
-                    ,'type': res['type']
-                    ,'code': p[1]['code'] + p[3]['code'] +
-                            self.gen(p.slice[2].value, temp, res['value1'], res['value2'])
-                }
+                if not (temp.type=="String" and p.slice[2].value=="+"):
+                    p[0] = {
+                         'place': temp
+                        ,'type': res['type']
+                        ,'code': p[1]['code'] + p[3]['code'] +
+                                self.gen(p.slice[2].value, temp, res['value1'], res['value2'])
+                    }
                 if temp.type=="String" and p.slice[2].value=="+":
+                    tmp1=stManager.newTemp("int")
+                    tmp2=stManager.newTemp("int")
+                    p[0] = {
+                         'place': temp
+                        ,'type': res['type']
+                        ,'code': p[1]['code'] + p[3]['code'] +
+                                self.gen(p.slice[2].value, temp, res['value1'], res['value2'],tmp1,tmp2)
+                    }
+                    print("MMMMMMMMMMMMMMMMMMMMMMMM")
+                    print(temp.name)
                     temp.stringlen=res["value1"].stringlen+res["value2"].stringlen
             else:
                 pass
@@ -1237,7 +1319,8 @@ class MyParser(TypeSystem):
                 p[0] = p[1]
 
         elif p1 == 'identifier_name_with_dot':
-            p[0]=p[1]
+            p[0]=self.identifier_name_with_dot(p[1])
+            print("yo0000000000000000000000000000000000000000000000")
             #TODO AS A OOP CONCEPT
             pass
 
@@ -1330,8 +1413,10 @@ class MyParser(TypeSystem):
         self.printParseTree(p)
         x = str(p.slice[1])
         if x == 'identifier_name_with_dot':
+            self.identifier_name_with_dot(p[1])
             pass
         elif x == 'field_access':
+            p[0]=p[1]
             pass
         elif x == 'array_access':
             p[0] = p[1]
@@ -1348,8 +1433,75 @@ class MyParser(TypeSystem):
                               | field_access LPAREN argument_list RPAREN
         '''
         self.printParseTree(p)
+        p[0]={"code":[]}
         xRule = str(p.slice[1])
         if xRule == "identifier_name_with_dot":
+            if p[1]['which']==0:
+                # p[0]={"which":0,"identifier_name_with_dot":p[1],"IDENTIFIER":p[3]}
+                inwd=p[1]['identifier_name_with_dot']
+                I=p[1]['IDENTIFIER']
+                if inwd['place'].type not in stManager.mainTable.keys() and not inwd['place'].xname=="this":
+                    self.printError("TypeError",p.lexer.lineno)
+                if inwd['place'].xname=="this":
+                    xName = ""
+                    xCounter = 1
+                    for i in p[3]['type']:
+                        xName += "_$p" + str(xCounter) + "t$_" + str(i)
+                        xCounter+=1
+                    xCode = "___Zn3_$c$_" + inwd['place'].type + "_$n$_"+I+xName
+                    # child=stManager.currentTable.parent.lookup(I)
+                    p[0]['code'] += p[1]['code'] + self.gen("call",)
+                else:
+                    child=stManager.mainTable[p[1]['place'].type].lookup(I)
+                if child==None:
+                    self.printError("VariableNotDeclared",I,p.lexer.lineno)
+                tmp=stManager.newTemp(child.type)
+
+                return {'type':child.type,'place':tmp,'code':inwd['code']+self.gen("readarray",inwd['place'],child.offset//4,tmp),
+                        'specialForArrayWrite': {
+                            'code':p[1]['code'],
+                            'place':p[1]['place'],
+                            'index':child.offset//4
+                        }
+                    }
+                # p[0] = p[1] + '.' + p.slice[3].value
+            else:
+                # p[0]={"which":1,"IDENTIFIER":p[1],"identifier_one_step":p[3]}
+                print(p[1])
+                p[3]=p[1]['identifier_one_step']
+                p[1]=p[1]['IDENTIFIER']
+                parent=stManager.lookup(p[1])
+                if parent==None:
+                    self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
+                if parent.xname=="this":
+                    tmpy=stManager.currentTable
+                    while(tmpy.category!=SymTab.Category.Class):
+                        tmpy=tmpy.parent
+                    child=tmpy.lookup(p[3])
+                else:
+                    print(parent.type)
+                    # print(p[2])
+                    # assert(False)
+                    child=stManager.mainTable[parent.type].lookup(p[3])
+
+                # assert(False)
+                if child==None:
+                    self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
+                tmp=stManager.newTemp(child.attr['name'])
+                # tmp=stManager.newTemp(child.type)
+
+                if parent.type not in stManager.mainTable.keys() and not parent.xname=="this":
+                     self.printError("TypeError",p.lexer.lineno)
+                # assert(False)
+
+                return {'type':child.type,'place':tmp,'code':[]+self.gen("readarray",parent,child.offset//4,tmp),
+                        'specialForArrayWrite': {
+                            'code':[],
+                            'place':parent,
+                            'index':child.offset//4
+                        }
+                    }
+
             pass
         elif xRule == "field_access":
             pass
@@ -1468,7 +1620,7 @@ class MyParser(TypeSystem):
         xName = ""
         xCounter = 1
         for i in p[4]['type']:
-            xName += "_$p" + xCounter + "t$_" + str(i)
+            xName += "_$p" + str(xCounter) + "t$_" + str(i)
             xCounter+=1
         xCode = "___Zn3_$c$_" + p[2] + xName
         # if clss.children.keys()
@@ -1694,33 +1846,12 @@ class MyParser(TypeSystem):
             self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
         tmp=stManager.newTemp(child.type)
 
-        if str(p.slice[1]) == "identifier_name_with_dot":
-            if p[1]['place'].type not in stManager.mainTable.keys() and not p[1]['place'].xname=="this":
-                self.printError("TypeError",p.lexer.lineno)
 
-            p[0]={'type':child.type,'place':tmp,'code':p[1]['code']+self.gen("readarray",p[1]['place'],child.offset//4,tmp),
-                    'specialForArrayWrite': {
-                        'code':p[1]['code'],
-                        'place':p[1]['place'],
-                        'index':child.offset//4
-                    }
-                }
+        if str(p.slice[1]) == "identifier_name_with_dot":
+            p[0]={"which":0,"identifier_name_with_dot":p[1],"IDENTIFIER":p[3]}
             # p[0] = p[1] + '.' + p.slice[3].value
         else:
-            parent=stManager.lookup(p[1])
-            if parent==None:
-                self.printError("VariableNotDeclared",p[3],p.lexer.lineno)
-            # tmp=stManager.newTemp(child.type)
-            if parent.type not in stManager.mainTable.keys() and not parent.xname=="this":
-                 self.printError("TypeError",p.lexer.lineno)
-            p[0]={'type':child.type,'place':tmp,'code':[]+self.gen("readarray",parent,child.offset//4,tmp),
-                    'specialForArrayWrite': {
-                        'code':[],
-                        'place':parent,
-                        'index':child.offset//4
-                    }
-                }
-
+            p[0]={"which":1,"IDENTIFIER":p[1],"identifier_one_step":p[3]}
             # p[0] = p.slice[1].value + '.' + p[3]
 
 

@@ -1,6 +1,18 @@
 class XYZ
 begin
-    int ss=2;
+    int ss=24;
+    String h="hello";
+    String y="xo";
+
+    function::void foo()
+    begin
+        print("Yo I'm in foor");
+        return;
+
+    end
+    function XYZ()
+    begin
+    end
 end
 class Main
 begin
@@ -19,8 +31,18 @@ begin
     function::void main()
       begin
         XYZ tz=new XYZ();
+        tz.foo();
+        return;
+        String s1="yko";
+        String s2="babay";
+        String s3=s1+s2;
+        return;
+        print(s3);
+        print(tz.ss);
         print(this.zyxx);
         print(this.b);
+        String j=tz.y+tz.y;
+        print(j);
         --String p=this.x;
         --print(p);
         int a = 3, b =7, t = 1;
@@ -31,7 +53,7 @@ begin
           print(t);
         end
         -- print(f());
-        return ;
+        return;
       end
 
     function:: int f()
