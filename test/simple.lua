@@ -1,6 +1,8 @@
 class XYZ
 begin
     int ss=24;
+    String s1="yko";
+    String s2="yjo";
     String h="hello";
     String y="xo";
 
@@ -37,16 +39,20 @@ begin
 
     function::void main()
       begin
-        this.kmain();
-        --XYZ tz=new XYZ();
+        --this.kmain();
+        XYZ tz=new XYZ();
         --tz.foo();
         --return;
-        String s1="yko";
-        String s2="babay";
-        String s3=s1+s2;
-        return;
-        print(s3);
+        if(tz.s1~=tz.s2)
+            then 
+            print("Not Equal");
+            else
+            print("Equal");
+        end
         print(tz.ss);
+        --String s3=s1+s2;
+        --print(s3);
+        return;
         print(this.zyxx);
         print(this.b);
         String j=tz.y+tz.y;
