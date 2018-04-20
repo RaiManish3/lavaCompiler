@@ -210,11 +210,12 @@ class TableManager(object):
         size=None
         if "[]" in ltype:
             size = typeSizeMap[ltype[:str(ltype).find("[]")]]
-        elif ltype in self.mainTable.keys():
+        elif ltype in self.mainTable.keys() or ltype=="this":
             size=4
         elif ltype in typeSizeMap.keys():
             size = typeSizeMap[ltype]
         else:
+            print(ltype)
             assert(False)
 
         tmp = self.currentTable
