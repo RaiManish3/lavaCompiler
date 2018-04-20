@@ -1,7 +1,7 @@
 class MyLexer(object):
 
     keywords = ("and" , "begin" , "boolean" , "break" , "class" , "continue" , "else" , "end" ,
-                "for" , "function" , "if" , "int" , "implements" , "interface" , "new" , "nil" ,
+                "for" , "function" , "if" , "int" , "implements" , "interface" , "new" ,
                 "not" , "or" , "real" , "return" , "then", "void" , "while" , "readInt" ,
                 "readReal" , "readString" , "print" , "String","declare")
 

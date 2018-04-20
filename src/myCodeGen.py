@@ -739,6 +739,7 @@ def translate(ir):
         relop, X, Y, label = ir[2:6]
         #OptimizeForYandZ(lineno,None,None,X,Y)
 
+        dumpAllRegToMem()
         if X in symlist and Y in symlist and addressDescriptor[X]=="mem" and addressDescriptor[Y]=="mem":
             reg = getRegWithContraints(0,None,None,lineno)
             assemblyCode += "  mov " + reg + ", " + name(X) + "\n"
@@ -746,7 +747,6 @@ def translate(ir):
         else:
             assemblyCode += "  cmp " + name(X) + ", " + name(Y) + "\n"
 
-        dumpAllRegToMem()
 
         if relop == "<=":
                 assemblyCode += "  jle " + label + "\n"
@@ -769,7 +769,10 @@ def translate(ir):
         dest = ir[4]
         # handle constant
         if ir[3] not in symlist:
-            offset=str(4*int(offset)) #every interger if 4 byte
+            if 'real[]' == arr.type:
+                offset=str(8*int(offset)) #every interger if 4 byte
+            else:
+                offset=str(4*int(offset)) #every interger if 4 byte
             regtemp=getRegWithContraints(0,None,None,lineno)
             assemblyCode+="  mov "+regtemp+", "+offset+"\n"
         else:
@@ -779,23 +782,40 @@ def translate(ir):
             else:
                 regtemp=getRegWithContraints(0,addressDescriptor[ir[3]],None,lineno)
             assemblyCode+="  mov "+regtemp+", "+name(ir[3])+"\n"
-            assemblyCode+="  shl "+regtemp +", 2\n"
+            if 'real[]' == arr.type:
+                assemblyCode+="  shl "+regtemp +", 3\n"
+            else:
+                assemblyCode+="  shl "+regtemp +", 2\n"
         assemblyCode+="  add "+regtemp+", "+name(arr)+"\n"
 
         if op =="readarray":
-            assemblyCode+="  mov "+regtemp+", dword [" +regtemp +"]\n"
-            if addressDescriptor[ir[4]]!="mem":
-                registerDesc[addressDescriptor[ir[4]]] = None
-            associate(ir[4],regtemp)
-            dirtybit[ir[4]]=True
-        elif op =="writearray":
-            OptimizeForYandZ(lineno,None,None,ir[4],None)
-            if ir[4] not in symlist or addressDescriptor[ir[4]]!="mem":
-                assemblyCode+="  mov dword ["+regtemp+"], " +name(ir[4]) +"\n"
+            if 'real[]' != arr.type:
+                assemblyCode+="  mov "+regtemp+", dword [" +regtemp +"]\n"
+                if addressDescriptor[ir[4]]!="mem":
+                    registerDesc[addressDescriptor[ir[4]]] = None
+                associate(ir[4],regtemp)
+                dirtybit[ir[4]]=True
             else:
-                regtemp2=getRegWithContraints(0,regtemp,None,lineno)
-                assemblyCode+="  mov dword "+regtemp2+", "+name(ir[4])+"\n"
-                assemblyCode+="  mov dword ["+regtemp+"], "+ regtemp2+"\n"
+                ## case for real arrays
+                assemblyCode+="  fld qword ["+ regtemp +"]\n"
+                assemblyCode+="  fstp qword ["+dest.name+"]\n"
+        elif op =="writearray":
+            if 'real[]' != arr.type:
+                OptimizeForYandZ(lineno,None,None,ir[4],None)
+                if ir[4] not in symlist or addressDescriptor[ir[4]]!="mem":
+                    assemblyCode+="  mov dword ["+regtemp+"], " +name(ir[4]) +"\n"
+                else:
+                    regtemp2=getRegWithContraints(0,regtemp,None,lineno)
+                    assemblyCode+="  mov dword "+regtemp2+", "+name(ir[4])+"\n"
+                    assemblyCode+="  mov dword ["+regtemp+"], "+ regtemp2+"\n"
+            else:
+                ## case for real arrays
+                if dest in symlist:
+                    assemblyCode+="  fld "+ name(dest) + "\n"
+                    assemblyCode+="  fstp qword ["+ regtemp +"]\n"
+                else:
+                    assemblyCode+="  fld "+ addFloatToGlobal(dest) + "\n"
+                    assemblyCode+="  fstp qword ["+ regtemp +"]\n"
 
     if lineno+1 in leaders or lineno== len(irlist):
         dumpAllRegToMem()

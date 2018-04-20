@@ -81,7 +81,6 @@ class SymbolTable(object):
             offset=tmp.offset+size
             tmp.offset+=size
         elif lexeme not in ["`update_block","`after_block"]:
-            size = None
             assert(False)
 
         self.vars[lexeme] = VarType(lexeme,category, ltype, offset, size)
@@ -203,7 +202,6 @@ class TableManager(object):
         elif ltype in typeSizeMap.keys():
             size = typeSizeMap[ltype]
         else:
-            print(ltype)
             assert(False)
 
         tmp = self.currentTable

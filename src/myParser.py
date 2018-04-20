@@ -14,7 +14,7 @@ from includes import SymTab
 ## GLOBALS
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
-DEBUG_FLAG = True
+DEBUG_FLAG = False
 ## NOTE :: expTypeMap entry has value
 ##         (possible types input, ..., expected return type)
 ##         if return type is None, return the most closet input type
@@ -62,6 +62,8 @@ class ErrorSystem(object):
             ,"MainNotDeclared": "Function main not declared inside 'Main' class"
             ,"MainReturnType": "Function main should have 'void' return type."
             ,"MainClassNotFound": "Class Main Not Found"
+            ,"InvalidReturnType": "'{}' not allowed as return type for a function at line: {}\nUse Only 'int', 'boolean' or 'real'."
+            ,"PrintError": "Illegal printing of non-primitive type '{}' at line: {}"
         }
 
     def printLine(self, lineno):
@@ -764,6 +766,8 @@ class MyParser(TypeSystem):
             p[0] = p[1]
         else:
             p[0] = p.slice[1].value
+        if p[0] not in ['int', 'real', "boolean", "void"]:
+            self.printError("InvalidReturnType", p[0], p.lexer.lineno)
 
     def p_method_declarator(self, p):
         '''
@@ -978,6 +982,9 @@ class MyParser(TypeSystem):
         p[0] = {
             'code': p[3]['code'] + self.gen("print", p[3]['place'])
         }
+        ## allow printing of only primitive_type
+        if p[3]['type'] not in SymTab.typeSizeMap.keys():
+            self.printError("PrintError", p[3]['type'], p.lexer.lineno-1)
 
     def p_statement_expression(self, p):
         '''
@@ -1849,10 +1856,8 @@ class MyParser(TypeSystem):
 
         if str(p.slice[1]) == "identifier_name_with_dot":
             p[0]={"which":0,"identifier_name_with_dot":p[1],"IDENTIFIER":p[3]}
-            # p[0] = p[1] + '.' + p.slice[3].value
         else:
             p[0]={"which":1,"IDENTIFIER":p[1],"identifier_one_step":p[3]}
-            # p[0] = p.slice[1].value + '.' + p[3]
 
 
     def p_identifier_one_step(self,p):
@@ -1868,7 +1873,6 @@ class MyParser(TypeSystem):
                     | FLOAT_LITERAL
                     | BOOLEAN_LITERAL
                     | STRING_LITERAL
-                    | NIL
         '''
         self.printParseTree(p)
         tp = str(p.slice[1].type)
@@ -1914,17 +1918,6 @@ class MyParser(TypeSystem):
                 , 'code': code
             }
 
-        elif tp == 'NIL':
-            #FIXME what to do of this case
-            # -- Follow up --
-            # Nil is not a type but a value which is not initialized yet
-            # Similar to Java's null
-            # https://stackoverflow.com/questions/2707322/what-is-null-in-java
-            p[0]={
-                  'type': 'nil'
-                , 'place': p.slice[1].value
-                , 'code': []
-            }
 
     ## empty
     def p_empty(self, p):
