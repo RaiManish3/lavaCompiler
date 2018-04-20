@@ -6,6 +6,16 @@ begin
     String h="hello";
     String y="xo";
 
+    function XYZ(int x)
+    begin
+        print(x);
+    end
+
+    function XYZ(String x)
+    begin
+        print(x);
+    end
+
     function::void foo()
     begin
         print("Yo I'm in foor");
@@ -21,41 +31,30 @@ begin
     int x = 2;
     String y = "hello";
     boolean z = false;
+    function ::void foo(String x, int y)
+    begin
+        print(x);
+        print(y);
+        return;
+    end
     function::void main()
       begin
-        --this.kmain();
+        foo("hello",3);
+        XYZ mz=new XYZ(4);
+        XYZ nz=new XYZ("hello2");
         XYZ tz=new XYZ();
-        --tz.foo();
-        --return;
         if(tz.s1~=tz.s2)
             then
             print("Not Equal");
             else
             print("Equal");
         end
-        print(tz.ss);
         --String s3=s1+s2;
         --print(s3);
         return;
-        print(this.zyxx);
-        print(this.b);
         String j=tz.y+tz.y;
-        print(j);
-        --String p=this.x;
-        --print(p);
-        int a = 3, b =7, t = 1;
-        while(a <= 10)
-        begin
-          for(int j=0; j<3; j = j +1)
-          begin
-            print(y[i][j]);
-          end
-        end
         int n;
         int m = (n = 3);
-        print(this.x);
-        print(this.y);
-        print(this.z);
         return;
       end
 end

@@ -52,6 +52,14 @@ class SymbolTable(object):
         while classeslist.category == Category.Block or classeslist.category == Category.Function:
             classeslist=classeslist.parent
         classeslist=classeslist.parent
+        flist= self
+        if self.category !=Category.Class:
+            while flist.category == Category.Block:# or classeslist.category == Category.Function:
+                flist=flist.parent
+            #classeslist=flist.parent
+            if lexeme == "this" and lexeme in flist.vars.keys():
+                return flist['this']
+
         if False:
             offset=5
             size=4

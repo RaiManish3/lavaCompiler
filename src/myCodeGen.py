@@ -38,7 +38,7 @@ floatOp['<='] = floatOp['>']
 floatOp['>='] = floatOp['<']
 floatOp['~='] = floatOp['==']
 labelCount = 0
-paramOffset = 16 ## 4 bytes for ret_address and 4 bytes for pushing the ebp in the callee
+paramOffset = 12 ## 4 bytes for ret_address and 4 bytes for pushing the ebp in the callee
 
 symlist = []
 varlist = []
@@ -878,7 +878,7 @@ def translate(ir):
         assemblyCode += "  jmp " + label + "\n"
 
     if op == "call":
-        paramOffset = 16
+        paramOffset = 12
         dumpAllRegToMem()
         if len(ir)>3:
             if ir[3].type in ['int', 'boolean']:

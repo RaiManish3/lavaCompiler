@@ -14,7 +14,7 @@ from includes import SymTab
 ## GLOBALS
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
-DEBUG_FLAG = False
+DEBUG_FLAG = True
 ## NOTE :: expTypeMap entry has value
 ##         (possible types input, ..., expected return type)
 ##         if return type is None, return the most closet input type
@@ -511,6 +511,7 @@ class MyParser(TypeSystem):
             , 'args_types': []
         }
         stManager.beginScope(SymTab.Category.Function, mAttr)
+        stManager.insert("this",stManager.currentTable.parent.attr['name'], 'OBJ')
 
 
     def p_constructor_body(self, p):
@@ -1443,7 +1444,6 @@ class MyParser(TypeSystem):
             pass
         elif x == 'field_access':
             p[0]=p[1]
-            pass
         elif x == 'array_access':
             p[0] = p[1]
         else:
@@ -1456,8 +1456,8 @@ class MyParser(TypeSystem):
         '''
             method_invocation : identifier_name_with_dot LPAREN argument_list RPAREN
                               | IDENTIFIER LPAREN argument_list RPAREN
-                              | field_access LPAREN argument_list RPAREN
         '''
+        ## method_invocation : field_access LPAREN argument_list RPAREN
         self.printParseTree(p)
         p[0]={"code":[]}
         xRule = str(p.slice[1])
@@ -1581,14 +1581,14 @@ class MyParser(TypeSystem):
                     p[0] = {
                           'place': None
                         , 'type': None
-                        , 'code': param_code+self.gen('call', funcID1)
+                        , 'code': self.gen('moveobj', stManager.lookup("this")) + param_code+self.gen('call', funcID1)
                     }
             else:
                 temp = stManager.newTemp(symEntry.attr['type'])
                 p[0] = {
                       'place': temp
                     , 'type': temp.type
-                    , 'code': param_code+self.gen('call', funcID1, temp)
+                    , 'code': self.gen('moveobj', stManager.lookup("this")) +param_code+self.gen('call', funcID1, temp)
                 }
 
     def p_field_access(self, p):
@@ -1676,7 +1676,7 @@ class MyParser(TypeSystem):
         if xCode in stManager.mainTable[p[2]].children.keys():
             altcode=self.gen("moveit","dword [esp-12], esp") + paramcode+self.gen("call",xCode)
         p[0]={
-            'code':self.gen("malloc",tmp,ofset) + self.gen("moveit","dword [esp-12], esp")+paramcode+self.gen("call","auto"+xCode)
+            'code':self.gen("malloc",tmp,ofset)+ p[4]['code'] + self.gen("moveit","dword [esp-12], esp")+self.gen("call","auto"+xCode)
                 + altcode,
             'place':tmp,
             'type':clss.attr['name']
