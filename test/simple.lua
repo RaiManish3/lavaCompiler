@@ -31,10 +31,12 @@ begin
     function::void main()
       begin
         XYZ tz=new XYZ();
---        tz.foo();
+        tz.foo();
+        return;
         String s1="yko";
         String s2="babay";
         String s3=s1+s2;
+        return;
         print(s3);
         print(tz.ss);
         print(this.zyxx);

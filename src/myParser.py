@@ -493,7 +493,7 @@ class MyParser(TypeSystem):
             stManager.currentTable.attr['args_types'] = p[4]
         else:
             p[4]=[]
-        xName = genMingledName(p[0], p[4])
+        xName = self.genMingledName(p[0],stManager.currentTable.parent.attr['name'],stManager.currentTable.attr['name'], p[4])
 
     def p_seen_cons_name(self, p):
         '''
