@@ -626,6 +626,12 @@ def translate(ir):
     if op=="moveit":
         assemblyCode+="  mov "+ir[2]+"\n"
 
+    if op=="moveobj":
+        reggg=getRegWithContraints(0,None,None,lineno)
+        assemblyCode+="  mov "+reggg+", dword ["+ir[2].name+"]\n"
+        assemblyCode+="  mov dword [esp-12], "+reggg+"\n"
+
+
     if op == "param":
         X = ir[2]
         xSize = 0
