@@ -1,4 +1,4 @@
-class x
+class Main
 begin
     declare::int f(int x);
     function::void main()

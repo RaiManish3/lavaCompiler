@@ -11,9 +11,10 @@ begin
         print(x);
     end
 
-    function XYZ(String x)
+    function XYZ(String x,int j)
     begin
         print(x);
+        print(j);
     end
 
     function::void foo()
@@ -41,7 +42,7 @@ begin
       begin
         foo("hello",3);
         XYZ mz=new XYZ(4);
-        XYZ nz=new XYZ("hello2");
+        XYZ nz=new XYZ("hello2",11);
         XYZ tz=new XYZ();
         if(tz.s1~=tz.s2)
             then

@@ -68,7 +68,7 @@ class MyLexer(object):
 
     ## FLOAT_LITERAL -> NUM DOT NUM [ EXPONENT PART ]
     def t_FLOAT_LITERAL(self, t):
-        r'-?\d+\.\d+([eE][-+]?\d+)?'
+        r'\d+\.\d+([eE][-+]?\d+)?'
         return t
 
     ## BOOLEAN LITERAL -> either TRUE or FALSE
@@ -78,7 +78,7 @@ class MyLexer(object):
 
     ## INTEGER LITERAL -> NUM
     def t_INTEGER_LITERAL(self, t):
-        r'-?\d+'
+        r'\d+'
         return t
 
     ## IDENTIFIER -> ALPHA { ALPHANUMERIC or UNDERSCORE }

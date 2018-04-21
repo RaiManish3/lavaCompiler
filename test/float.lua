@@ -1,10 +1,11 @@
-class x
+class Main
 begin
     function:: void main()
     begin
         real a = 2;
         real b = 5 * 4;
-        if (b > 200.0)
+        print(b);
+        if (b < 20.0)
         then
           a = 5*b;
         else
