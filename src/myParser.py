@@ -14,7 +14,7 @@ from includes import SymTab
 ## GLOBALS
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
-DEBUG_FLAG = True
+DEBUG_FLAG = False
 ## NOTE :: expTypeMap entry has value
 ##         (possible types input, ..., expected return type)
 ##         if return type is None, return the most closet input type
@@ -196,7 +196,7 @@ class MyParser(TypeSystem):
             else:
                 child=stManager.mainTable[p1['place'].type].lookup(p3)
             if child==None:
-                print("yo")
+                # print("yo")
                 self.printError("VariableNotDeclared",p3,p.lexer.lineno)
             tmp=stManager.newTemp(child.type)
 
@@ -212,10 +212,10 @@ class MyParser(TypeSystem):
             # p[0]={"which":1,"IDENTIFIER":p[1],"identifier_one_step":p[3]}
             p1=p[1]['IDENTIFIER']
             p3=p[1]['identifier_one_step']
-            print(p1)
+            # print(p1)
             parent=stManager.lookup(p1)
             if parent==None:
-                print("u")
+                # print("u")
                 self.printError("VariableNotDeclared",p1,p.lexer.lineno)
             if parent.xname=="this":
                 child=stManager.lookup(p3)
@@ -322,17 +322,19 @@ class MyParser(TypeSystem):
         if len(p)==9:
             ## check if the interface's method are over-ridden or not
             for i in p[4]:
-                iSymEntry = stManager.currentTable.parent.lookup(i) ## parent is the top level dict
+                iSymEntry = stManager.lookup(i) ## parent is the top level dict
                 if iSymEntry == None:
                     self.printError("InterfaceNotDeclared", i,
                                stManager.currentTable.attr['name'], None)
                 for k,v in iSymEntry.children.items():
+                    kk=k
+                    k=self.genMingledName(None,self.getMyClassName(), k,v.attr['args_types'])
                     cSymEntry = stManager.lookup(k)
                     if cSymEntry == None:
-                        self.printError("FunctionOverride", k, i,
+                        self.printError("FunctionOverride", kk, i,
                                    stManager.currentTable.attr['name'], None)
                     if v.attr['args_types'] != cSymEntry.attr['args_types']:
-                        self.printError("FunctionOverride", k, i,
+                        self.printError("FunctionOverride", kk, i,
                                    stManager.currentTable.attr['name'], None)
 
             p[0]=p[7]
@@ -441,13 +443,16 @@ class MyParser(TypeSystem):
                 p[0]['constructor']+=p[1]['constructor']
                 p[0]['auto_constructor'] = p[1]['auto_constructor']
                 p[0]['conFlag'] = p[1]['conFlag']
-
             else:
                 p[0]['conFlag'] = True
-                if not p[1]['conFlag']:
-                    print(p[2])
-                    p[0]['constructor'] += self.gen("function", "auto" + p[2]['code'][0][1]) \
-                                            + p[1]['auto_constructor'][1:] +p[2]['code']+self.gen("return")
+                # print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"+p[2]['code'][0][1])
+                # print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"+p[1]['auto_constructor'][0][1])
+                if "auto"+p[2]['code'][0][1]==p[1]['auto_constructor'][0][1]:
+                    # assert(False)
+                    # print(p[2])
+                    p[0]['constructor'] += p[1]['constructor']+p[2]['code']+self.gen("return")
+                                            #+ p[1]['auto_constructor'][1:]+p[2]['code']+
+                                            # self.gen("return")
                 else:
                     p[0]['constructor'] += p[1]['constructor'] + \
                         self.gen("function", "auto" + p[2]['code'][0][1]) \
@@ -592,6 +597,11 @@ class MyParser(TypeSystem):
                     p[0] = {
                           'place':tempk
                         , 'code':p[3]['code']+objcode
+                    }
+                elif p[3]['place']==None:
+                    p[0] = {
+                          'place':p[1]
+                        , 'code':p[3]['code']#+self.gen('=',p[1],p[3]['place'])
                     }
                 else:
                     p[0] = {
@@ -802,7 +812,10 @@ class MyParser(TypeSystem):
         '''
             seen_method_name :
         '''
+        # print(p[-1])
+        # assert(False)
         if p[-1] == stManager.currentTable.attr['name']:
+            # print(p[-1])
             self.printError("ClassNameError", p.lexer.lineno)
 
         if p[-4] == 'declare':
@@ -819,8 +832,13 @@ class MyParser(TypeSystem):
                 ,'args_types':[]
                 ,'lineno': p.lexer.lineno
             }
-        stManager.beginScope(SymTab.Category.Function, mAttr)
-        stManager.insert("this",stManager.currentTable.parent.attr['name'], 'OBJ')
+
+        if not stManager.currentTable.category==SymTab.Category.Interface:
+             stManager.beginScope(SymTab.Category.Function, mAttr)
+        else:
+            stManager.beginScope(SymTab.Category.Function, mAttr)
+            # assert(False)
+            stManager.insert("this",stManager.currentTable.parent.attr['name'], 'OBJ')
 
 
     def p_method_body(self, p):
@@ -841,6 +859,10 @@ class MyParser(TypeSystem):
         '''
             interface_declaration : INTERFACE IDENTIFIER seen_interface_name interface_body
         '''
+        p[0]={'code':[]}
+        stManager.endScope()
+        # print(stManager.currentTable.attr['name'])
+        # assert(False)
         stManager.endScope()
         self.printParseTree(p)
 
@@ -1247,10 +1269,10 @@ class MyParser(TypeSystem):
             res = self.typeHandler(p[1], p[3], p.slice[2].type, p.lexer.lineno)
             if True:#p[-1] != '=':
                 temp = stManager.newTemp(res['type'])
-                if p.slice[2].value=="==":
-                    print(p[1])
-                    # print(temp.type)
-                    # assert(False)
+                # if p.slice[2].value=="==":
+                #     print(p[1])
+                #     # print(temp.type)
+                #     # assert(False)
                 if not ((temp.type=="String" and (p.slice[2].value=="+")) or ( isinstance(p[1]['place'],SymTab.VarType) and p[1]['place'].type=="String" and (p.slice[2].value=="==" or p.slice[2].value=="~="))):
                     # if res['type']=="String" or res['type']=="String"
                     p[0] = {
@@ -1390,7 +1412,7 @@ class MyParser(TypeSystem):
         if isinstance(p[1], SymTab.VarType):
             if p[1].type != p[3]['type']:
                 self.printError("TypeError", p.lexer.lineno)
-            if p[1] != p[3]['place']:
+            if p[3]['place']!=None and p[1] != p[3]['place']:
                 p[0] = {
                       'place': p[1]
                     , 'type': p[1].type

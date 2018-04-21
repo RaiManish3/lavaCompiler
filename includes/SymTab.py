@@ -74,7 +74,7 @@ class SymbolTable(object):
             offset=tmp.offset+size
             tmp.offset+=size
         elif isinstance(ltype, SymbolTable):
-            assert(False)
+            # assert(False)
             size=4
             tmp = self
             while tmp.category == Category.Block:

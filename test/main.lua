@@ -15,7 +15,6 @@ begin
         -- case 1
         a = b + c - d / e * b % 10;
         print(a);
-        
         -- case 2
         if (c ~= 0)
           then
