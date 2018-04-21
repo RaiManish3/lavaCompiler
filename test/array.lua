@@ -1,4 +1,4 @@
-class myClass
+class Main
 begin
 
 	function::int rs(int a, String b,real r)
