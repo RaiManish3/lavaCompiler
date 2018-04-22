@@ -1512,7 +1512,7 @@ class MyParser(TypeSystem):
                     self.printError("VariableNotDeclared",I,p.lexer.lineno)
                 for z in p[3]['place']:
                     paramcode += self.gen("param",z)
-                p[0]['code'] += p[1]['code'] + self.gen("moveobj",child)+paramcode+self.gen("call",I)
+                p[0]['code'] += p[3]['code']+p[1]['code'] + self.gen("moveobj",child)+paramcode+self.gen("call",I)
                 # tmp=stManager.newTemp(child.type)
                 #
                 # p[0]= {'type':child.type,'place':tmp,'code':inwd['code']+self.gen("readarray",inwd['place'],child.offset//4,tmp),
@@ -1558,7 +1558,7 @@ class MyParser(TypeSystem):
 
                 for z in p[3]['place']:
                     paramcode += self.gen("param",z)
-                p[0]['code'] += self.gen("moveobj",child)+paramcode+self.gen("call",I)
+                p[0]['code'] +=  p[3]['code']+self.gen("moveobj",child)+paramcode+self.gen("call",I)
                 # assert(False)
 
                 # p[0]= {'type':child.type,'place':tmp,'code':[]+self.gen("readarray",parent,child.offset//4,tmp),
@@ -1604,14 +1604,14 @@ class MyParser(TypeSystem):
                     p[0] = {
                           'place': None
                         , 'type': None
-                        , 'code': self.gen('moveobj', stManager.lookup("this")) + param_code+self.gen('call', funcID1)
+                        , 'code':  p[3]['code']+self.gen('moveobj', stManager.lookup("this")) + param_code+self.gen('call', funcID1)
                     }
             else:
                 temp = stManager.newTemp(symEntry.attr['type'])
                 p[0] = {
                       'place': temp
                     , 'type': temp.type
-                    , 'code': self.gen('moveobj', stManager.lookup("this")) +param_code+self.gen('call', funcID1, temp)
+                    , 'code':  p[3]['code']+self.gen('moveobj', stManager.lookup("this")) +param_code+self.gen('call', funcID1, temp)
                 }
 
     def p_field_access(self, p):
