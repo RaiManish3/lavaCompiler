@@ -444,6 +444,7 @@ def name(X):
 
 def dumpAllRegToMem():
     global assemblyCode
+    # assemblyCode+="bitcoind"
     for reg in reglist:
         if registerDesc[reg] != None:
              if dirtybit[registerDesc[reg]]:
@@ -455,6 +456,7 @@ def dumpAllRegToMem():
 def translateMulDiv(op,X,Y,Z,lineno):
     global assemblyCode
 
+    # assemblyCode+="bitcoind"
     regy=None
     if Y not in symlist or addressDescriptor[Y]=="mem":
         regy=getRegWithContraints(0,None,None,lineno)
@@ -573,6 +575,7 @@ def compareFloats(op, X, Y, Z, lineno):
         assemblyCode += l1 + ":\n"
         assemblyCode += "  mov " + regx + ", 0\n"
         assemblyCode += l2 + ":\n"
+    dirtybit[X]=True;
 
 
 def getFPUOrder(op, Y, Z):
@@ -724,6 +727,8 @@ def translate(ir):
                 global flag_isMoveZfromMem
                 flag_isMoveZfromMem=False
                 OptimizeForYandZ(lineno,None,None,src,dest)
+                # assemblyCode+="you"
+                # assemblyCode+=str(src)
                 flag_isMoveZfromMem=True
                 if src in symlist and addressDescriptor[src]=="mem" and addressDescriptor[dest]=="mem":
                     reg=getRegWithContraints(0,None,None,lineno)
@@ -884,7 +889,7 @@ def translate(ir):
             if ir[3].type in ['int', 'boolean']:
                 associate(ir[3],'eax')
                 dirtybit[ir[3]]=True
-            assemblyCode += "  sub esp, 8\n"
+            # assemblyCode += "  sub esp, 8\n"
         assemblyCode += "  call " + ir[2] + "\n"
         if len(ir)>3:
             #  if ir[3].type in ['int', 'boolean']:
@@ -894,7 +899,7 @@ def translate(ir):
             if ir[3].type == 'real':
                 assemblyCode += "  fld qword [esp]\n"
                 assemblyCode += "  fstp " + name(ir[3]) + "\n"
-            assemblyCode += "  add esp, 8\n"
+            # assemblyCode += "  add esp, 8\n"
 
     # Generating assembly code if the tac is a return statement
     if op == "exit":
@@ -1021,7 +1026,10 @@ def translate(ir):
             else:
                 print({k:v})
     # DEBUG -------------------------------
-
+    # if ("None" in assemblyCode):
+    #     print(assemblyCode)
+    #     print(ir)
+    #     assert(False)
 
 def liveInf(X,lineno):
     #ASSUMPTIONS
@@ -1077,6 +1085,8 @@ def getRegWithContraints(afterNextUse,reg1,reg2,lineno):
 
     if farthestNextUseLive!=0:
         regtemp = addressDescriptor[farthestNextUseSymbLive]
+        if regtemp==None:
+            assert(False)
         assert(regtemp!="mem")
         if dirtybit[farthestNextUseSymbLive]:
             dirtybit[farthestNextUseSymbLive]=False

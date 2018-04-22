@@ -1,4 +1,4 @@
-class x
+class Main
 begin
     declare::int f(int x);
     declare::real g(real x);
