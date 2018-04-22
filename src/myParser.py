@@ -833,11 +833,11 @@ class MyParser(TypeSystem):
                 ,'lineno': p.lexer.lineno
             }
 
-        if not stManager.currentTable.category==SymTab.Category.Interface:
+        if stManager.currentTable.category==SymTab.Category.Interface:
              stManager.beginScope(SymTab.Category.Function, mAttr)
         else:
             stManager.beginScope(SymTab.Category.Function, mAttr)
-            # assert(False)
+            # assert False, stManager.currentTable.attr['name']
             stManager.insert("this",stManager.currentTable.parent.attr['name'], 'OBJ')
 
 
@@ -860,7 +860,6 @@ class MyParser(TypeSystem):
             interface_declaration : INTERFACE IDENTIFIER seen_interface_name interface_body
         '''
         p[0]={'code':[]}
-        stManager.endScope()
         # print(stManager.currentTable.attr['name'])
         # assert(False)
         stManager.endScope()
@@ -896,6 +895,7 @@ class MyParser(TypeSystem):
         '''
             interface_member_declaration : method_header STMT_TERMINATOR
         '''
+        stManager.endScope()
         self.printParseTree(p)
 
     ## types=========================================================
@@ -1510,9 +1510,10 @@ class MyParser(TypeSystem):
                     child=inwd['place']
                 if child==None:
                     self.printError("VariableNotDeclared",I,p.lexer.lineno)
+                paramcode= p[3]['code']
                 for z in p[3]['place']:
                     paramcode += self.gen("param",z)
-                p[0]['code'] += p[1]['code'] + self.gen("moveobj",child)+paramcode+self.gen("call",I)
+                p[0]['code'] +=p[1]['code'] + self.gen("moveobj",child)+paramcode+self.gen("call",I)
                 # tmp=stManager.newTemp(child.type)
                 #
                 # p[0]= {'type':child.type,'place':tmp,'code':inwd['code']+self.gen("readarray",inwd['place'],child.offset//4,tmp),
@@ -1555,7 +1556,7 @@ class MyParser(TypeSystem):
                 if parent.type not in stManager.mainTable.keys() and not parent.xname=="this":
                      self.printError("TypeError",p.lexer.lineno)
 
-
+                paramcode=p[3]['code']
                 for z in p[3]['place']:
                     paramcode += self.gen("param",z)
                 p[0]['code'] += self.gen("moveobj",child)+paramcode+self.gen("call",I)
@@ -1611,7 +1612,7 @@ class MyParser(TypeSystem):
                 p[0] = {
                       'place': temp
                     , 'type': temp.type
-                    , 'code': self.gen('moveobj', stManager.lookup("this")) +param_code+self.gen('call', funcID1, temp)
+                    , 'code':  self.gen('moveobj', stManager.lookup("this")) +param_code+self.gen('call', funcID1, temp)
                 }
 
     def p_field_access(self, p):
