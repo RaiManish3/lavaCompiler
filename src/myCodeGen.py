@@ -703,7 +703,10 @@ def translate(ir):
             else:
                 assemblyCode += "  mov " + "dword [esp-" + str(paramOffset) + "], " + name(X) + "\n"
         elif xSize == 8:
-            assemblyCode += "  fld " + addFloatToGlobal(X) + "\n"
+            if X in symlist:
+                assemblyCode += "  fld " + name(X) + "\n"
+            else:
+                assemblyCode += "  fld " + addFloatToGlobal(X) + "\n"
             assemblyCode += "  fstp " + "qword [esp-" + str(paramOffset) + "]\n"
 
     if op == "=" or op=="not":
