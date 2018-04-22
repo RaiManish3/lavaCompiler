@@ -49,9 +49,10 @@ class SymbolTable(object):
         offset=None
         size=None
         classeslist = self
-        while classeslist.category == Category.Block or classeslist.category == Category.Function:
+        while classeslist.category == Category.Block or classeslist.category == Category.Function:# or classeslist.category == Category.Class:
             classeslist=classeslist.parent
         classeslist=classeslist.parent
+        # print(classeslist.attr['name'])
         flist= self
         if self.category !=Category.Class:
             while flist.category == Category.Block:# or classeslist.category == Category.Function:
